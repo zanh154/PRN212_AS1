@@ -1,0 +1,24 @@
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using AssignmentPRN.Presentation.Constants
+@{
+    Layout = null;
+    var fullName = Context.Session.GetString(SessionKeys.FullName) ?? string.Empty;
+    var role = Context.Session.GetString(SessionKeys.Role) ?? string.Empty;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lecturer Dashboard - AIVES</title>
+</head>
+<body>
+    <main>
+        <h1>Lecturer Dashboard</h1>
+        <p>Full Name: @fullName</p>
+        <p>Role: @role</p>
+        <a asp-controller="Account" asp-action="Logout">Logout</a>
+    </main>
+</body>
+</html>
