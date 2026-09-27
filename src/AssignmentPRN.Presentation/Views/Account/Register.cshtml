@@ -1,8 +1,8 @@
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-@model AssignmentPRN.Presentation.ViewModels.LoginViewModel
+@model AssignmentPRN.Presentation.ViewModels.RegisterViewModel
 @{
     Layout = null;
-    ViewData["Title"] = "Login";
+    ViewData["Title"] = "Register";
 }
 
 <!DOCTYPE html>
@@ -14,34 +14,33 @@
     <style>
         :root { color-scheme: light; font-family: Arial, sans-serif; }
         body { align-items: center; background: linear-gradient(135deg, #0f172a, #1d4ed8); display: flex; justify-content: center; margin: 0; min-height: 100vh; padding: 1.5rem; }
-        .login-card { background: #fff; border-radius: 1rem; box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, .3); max-width: 26rem; padding: 2.5rem; width: 100%; }
+        .register-card { background: #fff; border-radius: 1rem; box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, .3); max-width: 26rem; padding: 2.5rem; width: 100%; }
         h1 { color: #0f172a; font-size: 2rem; margin: 0; }
         .subtitle { color: #64748b; line-height: 1.5; margin: .5rem 0 2rem; }
         .form-group { margin-bottom: 1.25rem; }
         label { color: #334155; display: block; font-weight: 600; margin-bottom: .45rem; }
         input { border: 1px solid #cbd5e1; border-radius: .5rem; box-sizing: border-box; font: inherit; padding: .7rem .8rem; width: 100%; }
         input:focus { border-color: #2563eb; box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .15); outline: 0; }
-        .login-button { background: #2563eb; border: 0; border-radius: .5rem; color: #fff; cursor: pointer; font: inherit; font-weight: 600; padding: .8rem 1rem; width: 100%; }
-        .login-button:hover { background: #1d4ed8; }
+        .register-button { background: #2563eb; border: 0; border-radius: .5rem; color: #fff; cursor: pointer; font: inherit; font-weight: 600; padding: .8rem 1rem; width: 100%; }
+        .register-button:hover { background: #1d4ed8; }
         .validation-summary-errors, .field-validation-error { color: #b91c1c; font-size: .9rem; }
         .validation-summary-errors ul { margin: 0 0 1rem; padding-left: 1.25rem; }
         .field-validation-error { display: block; margin-top: .35rem; }
-        .success-message { background: #dcfce7; border-radius: .5rem; color: #166534; margin-bottom: 1rem; padding: .75rem; }
     </style>
 </head>
 <body>
-    <main class="login-card">
+    <main class="register-card">
         <h1>AIVES</h1>
-        <p class="subtitle">AI-powered Viva Exam System</p>
+        <p class="subtitle">Create Student Account</p>
 
-        @if (TempData["SuccessMessage"] is string successMessage)
-        {
-            <p class="success-message" role="status">@successMessage</p>
-        }
-
-        <form asp-action="Login" method="post" asp-antiforgery="true">
-            <input asp-for="ReturnUrl" type="hidden" />
+        <form asp-action="Register" method="post" asp-antiforgery="true">
             <div asp-validation-summary="ModelOnly" role="alert"></div>
+
+            <div class="form-group">
+                <label asp-for="FullName"></label>
+                <input asp-for="FullName" autocomplete="name" />
+                <span asp-validation-for="FullName"></span>
+            </div>
 
             <div class="form-group">
                 <label asp-for="Email"></label>
@@ -51,14 +50,20 @@
 
             <div class="form-group">
                 <label asp-for="Password"></label>
-                <input asp-for="Password" autocomplete="current-password" />
+                <input asp-for="Password" type="password" autocomplete="new-password" />
                 <span asp-validation-for="Password"></span>
             </div>
 
-            <button class="login-button" type="submit">Login</button>
+            <div class="form-group">
+                <label asp-for="ConfirmPassword"></label>
+                <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" />
+                <span asp-validation-for="ConfirmPassword"></span>
+            </div>
+
+            <button class="register-button" type="submit">Register</button>
         </form>
 
-        <p class="subtitle">New to AIVES? <a asp-action="Register">Create an account</a></p>
+        <p class="subtitle">Already have an account? <a asp-action="Login">Login</a></p>
     </main>
 </body>
 </html>

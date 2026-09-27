@@ -13,6 +13,32 @@ public class AccountController(IAuthService authService) : Controller
         return View(new LoginViewModel { ReturnUrl = returnUrl });
     }
 
+    [HttpGet]
+    public IActionResult Register()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Register(RegisterViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var result = await authService.RegisterAsync(model.FullName, model.Email, model.Password);
+        if (!result.Success)
+        {
+            ModelState.AddModelError(string.Empty, result.Error ?? "Registration failed.");
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = "Registration successful. Please login.";
+        return RedirectToAction(nameof(Login));
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model)
