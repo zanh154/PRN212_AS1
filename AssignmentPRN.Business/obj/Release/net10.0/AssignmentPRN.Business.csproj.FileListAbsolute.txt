@@ -1,0 +1,16 @@
+D:\asm1_prn\as1\src\AssignmentPRN.Business\bin\Release\net10.0\AssignmentPRN.Business.deps.json
+D:\asm1_prn\as1\src\AssignmentPRN.Business\bin\Release\net10.0\AssignmentPRN.Business.dll
+D:\asm1_prn\as1\src\AssignmentPRN.Business\bin\Release\net10.0\AssignmentPRN.Business.pdb
+D:\asm1_prn\as1\src\AssignmentPRN.Business\bin\Release\net10.0\AssignmentPRN.DataAccess.dll
+D:\asm1_prn\as1\src\AssignmentPRN.Business\bin\Release\net10.0\AssignmentPRN.DataAccess.pdb
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\AssignmentPRN.Business.csproj.AssemblyReference.cache
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\AssignmentPRN.Business.GeneratedMSBuildEditorConfig.editorconfig
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\AssignmentPRN.Business.AssemblyInfoInputs.cache
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\AssignmentPRN.Business.AssemblyInfo.cs
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\AssignmentPRN.Business.csproj.CoreCompileInputs.cache
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\AssignmentPRN.Business.sourcelink.json
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\Assignme.C21D353C.Up2Date
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\AssignmentPRN.Business.dll
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\refint\AssignmentPRN.Business.dll
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\AssignmentPRN.Business.pdb
+D:\asm1_prn\as1\src\AssignmentPRN.Business\obj\Release\net10.0\ref\AssignmentPRN.Business.dll
