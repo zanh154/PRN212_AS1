@@ -1,13 +1,21 @@
+using AssignmentPRN.Business;
+using AssignmentPRN.Presentation.Constants;
 using AssignmentPRN.Presentation.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AssignmentPRN.Presentation.Controllers;
 
-[SessionAuthorize("Student")]
-public class StudentController : Controller
+[SessionAuthorize(RoleNames.Student)]
+public class StudentController(IExamSessionService examSessionService) : Controller
 {
-    public IActionResult Index()
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        return View();
+        var userId = HttpContext.Session.GetInt32(SessionKeys.UserId);
+        if (!userId.HasValue)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+
+        return View(await DashboardBuilder.BuildStudentAsync(examSessionService, userId.Value, cancellationToken));
     }
 }

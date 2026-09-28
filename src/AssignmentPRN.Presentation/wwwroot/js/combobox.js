@@ -1,0 +1,307 @@
+// Searchable dropdown for picking a student.
+//
+// A plain <select> is unusable once the student list grows, so this asks the
+// server for matches as you type and shows them as "email - name".
+//
+// Markup contract:
+//   <div class="combobox" data-combobox data-combobox-url="/ExamSessions/SearchStudents">
+//     <input data-combobox-input ... />        visible text field
+//     <input type="hidden" data-combobox-value ... />   optional: receives the email
+//     <div data-combobox-panel></div>          results drop down here
+//   </div>
+//
+// Without a hidden field the visible input itself carries the chosen email,
+// which is what the lookup page needs.
+(() => {
+  const DEBOUNCE_MS = 200;
+
+  const setup = (root) => {
+    if (root.dataset.comboboxReady === "1") {
+      return;
+    }
+    root.dataset.comboboxReady = "1";
+
+    const input = root.querySelector("[data-combobox-input]");
+    const hidden = root.querySelector("[data-combobox-value]");
+    const panel = root.querySelector("[data-combobox-panel]");
+    const url = root.dataset.comboboxUrl;
+    if (!input || !panel || !url) {
+      return;
+    }
+
+    let items = [];
+    let activeIndex = -1;
+    let timer = null;
+    let requestId = 0;
+    let loading = false;
+
+    const close = () => {
+      panel.hidden = true;
+      panel.innerHTML = "";
+      items = [];
+      activeIndex = -1;
+      input.setAttribute("aria-expanded", "false");
+    };
+
+    const commit = (item) => {
+      if (hidden) {
+        hidden.value = item.email;
+        input.value = `${item.email} - ${item.name}`;
+      } else {
+        input.value = item.email;
+      }
+      close();
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+
+    const paintActive = () => {
+      [...panel.children].forEach((node, index) => {
+        node.classList.toggle("is-active", index === activeIndex);
+      });
+    };
+
+    const render = () => {
+      panel.innerHTML = "";
+
+      if (items.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "combobox__empty";
+        empty.textContent = "Không tìm thấy sinh viên phù hợp";
+        panel.appendChild(empty);
+        panel.hidden = false;
+        input.setAttribute("aria-expanded", "true");
+        return;
+      }
+
+      items.forEach((item, index) => {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "combobox__option";
+        option.setAttribute("role", "option");
+
+        const email = document.createElement("strong");
+        email.textContent = item.email;
+        const separator = document.createElement("span");
+        separator.className = "combobox__separator";
+        separator.textContent = " - ";
+        const name = document.createElement("span");
+        name.textContent = item.name;
+
+        option.append(email, separator, name);
+        // mousedown fires before blur, so the click is not lost to closing.
+        option.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          commit(item);
+        });
+        option.addEventListener("mouseenter", () => {
+          activeIndex = index;
+          paintActive();
+        });
+
+        panel.appendChild(option);
+      });
+
+      activeIndex = 0;
+      paintActive();
+      panel.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+    };
+
+    const search = async (term) => {
+      const ticket = ++requestId;
+      loading = true;
+      try {
+        const response = await fetch(`${url}?q=${encodeURIComponent(term)}`, {
+          headers: { Accept: "application/json" }
+        });
+        if (!response.ok) {
+          throw new Error(response.statusText);
+        }
+
+        const data = await response.json();
+        // A slower earlier request must not overwrite newer results.
+        if (ticket !== requestId) {
+          return;
+        }
+
+        items = Array.isArray(data) ? data : [];
+        render();
+      } catch {
+        if (ticket === requestId) {
+          close();
+        }
+      } finally {
+        if (ticket === requestId) {
+          loading = false;
+        }
+      }
+    };
+
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-expanded", "false");
+
+    input.addEventListener("input", () => {
+      // Typing invalidates any previous pick until a new one is made.
+      if (hidden) {
+        hidden.value = input.value.trim();
+      }
+
+      const term = input.value.trim();
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => search(term), DEBOUNCE_MS);
+    });
+
+    const open = () => {
+      if (panel.hidden && !loading) {
+        // A selected row displays "email - name", so reopen with the full list.
+        // A free-text lookup keeps its current text as the filter.
+        search(hidden?.value ? "" : input.value.trim());
+      }
+    };
+
+    input.addEventListener("focus", open);
+    input.addEventListener("click", open);
+
+    input.addEventListener("keydown", (event) => {
+      if (panel.hidden || items.length === 0) {
+        return;
+      }
+
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        activeIndex = (activeIndex + step + items.length) % items.length;
+        paintActive();
+        panel.children[activeIndex]?.scrollIntoView({ block: "nearest" });
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        commit(items[activeIndex]);
+      } else if (event.key === "Escape") {
+        close();
+      }
+    });
+
+    input.addEventListener("blur", () => window.setTimeout(close, 120));
+  };
+
+  const setupAll = (scope) =>
+    (scope || document).querySelectorAll("[data-combobox]").forEach(setup);
+
+  const setupSelectPicker = (root) => {
+    const trigger = root.querySelector("[data-select-trigger]");
+    const label = root.querySelector("[data-select-label]");
+    const value = root.querySelector("[data-select-value]");
+    const panel = root.querySelector("[data-select-panel]");
+    const search = root.querySelector("[data-select-search]");
+    const options = [...root.querySelectorAll("[data-select-option]")];
+    const empty = root.querySelector("[data-select-empty]");
+
+    if (!trigger || !label || !value || !panel || !search || !empty) {
+      return;
+    }
+
+    const visibleOptions = () => options.filter((option) => !option.hidden);
+
+    const filter = () => {
+      const term = search.value.trim().toLocaleLowerCase("vi");
+      options.forEach((option) => {
+        option.hidden = !option.dataset.searchText
+          .toLocaleLowerCase("vi")
+          .includes(term);
+      });
+      empty.hidden = visibleOptions().length !== 0;
+    };
+
+    const open = () => {
+      panel.setAttribute("aria-hidden", "false");
+      trigger.setAttribute("aria-expanded", "true");
+      root.classList.add("is-open");
+      search.value = "";
+      filter();
+      window.requestAnimationFrame(() => search.focus());
+    };
+
+    const close = (restoreFocus = false) => {
+      panel.setAttribute("aria-hidden", "true");
+      trigger.setAttribute("aria-expanded", "false");
+      root.classList.remove("is-open");
+      if (restoreFocus) {
+        trigger.focus();
+      }
+    };
+
+    const select = (option) => {
+      value.value = option.dataset.value;
+      value.dispatchEvent(new Event("change", { bubbles: true }));
+      label.textContent = option.dataset.label;
+      label.classList.remove("is-placeholder");
+      options.forEach((item) => {
+        const selected = item === option;
+        item.classList.toggle("is-selected", selected);
+        item.setAttribute("aria-selected", selected ? "true" : "false");
+      });
+      close(true);
+    };
+
+    trigger.addEventListener("click", () => {
+      if (!root.classList.contains("is-open")) {
+        open();
+      } else {
+        close();
+      }
+    });
+
+    search.addEventListener("input", filter);
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close(true);
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        visibleOptions()[0]?.focus();
+      } else if (event.key === "Enter") {
+        const first = visibleOptions()[0];
+        if (first) {
+          event.preventDefault();
+          select(first);
+        }
+      }
+    });
+
+    options.forEach((option, index) => {
+      option.addEventListener("click", () => select(option));
+      option.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          close(true);
+          return;
+        }
+
+        if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
+          return;
+        }
+
+        event.preventDefault();
+        const visible = visibleOptions();
+        const current = visible.indexOf(options[index]);
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        visible[(current + step + visible.length) % visible.length]?.focus();
+      });
+    });
+
+    document.addEventListener("mousedown", (event) => {
+      if (!root.contains(event.target)) {
+        close();
+      }
+    });
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    setupAll();
+    document.querySelectorAll("[data-select-picker]").forEach(setupSelectPicker);
+  });
+
+  // Rows added after load (the "Thêm sinh viên" button) need wiring too.
+  window.AivesCombobox = { setupAll };
+})();

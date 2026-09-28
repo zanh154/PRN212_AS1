@@ -1,0 +1,278 @@
+@use "tokens" as *;
+@use "mixins" as *;
+
+// Horizontal rhythm shared by the header, the page body and the footer.
+.app-shell {
+  width: 100%;
+  max-width: $container-width;
+  margin-inline: auto;
+  padding-inline: $space-6;
+
+  @include respond-below($breakpoint-md) {
+    padding-inline: $space-4;
+  }
+}
+
+.page-content {
+  flex: 1;
+  padding-block: $space-6 $space-7;
+}
+
+// -- Header --------------------------------------------------------------
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: $color-primary-deep;
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+
+  .navbar {
+    min-height: 62px;
+    padding: 0;
+  }
+
+  .navbar-toggler {
+    padding: $space-1 $space-2;
+    border-color: rgba(255, 255, 255, 0.24);
+
+    &:focus {
+      box-shadow: none;
+    }
+  }
+
+  .navbar-toggler-icon {
+    filter: invert(1);
+  }
+}
+
+.navbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-3;
+  padding: 0;
+  color: #fff;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  letter-spacing: -0.01em;
+
+  &:hover,
+  &:focus {
+    color: #fff;
+  }
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: $radius-md;
+  background: linear-gradient(140deg, $color-primary, #5b7cff);
+  color: #fff;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-black;
+  letter-spacing: 0.04em;
+}
+
+.site-header .nav-link {
+  padding: $space-2 $space-3 !important;
+  border-radius: $radius-md;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  transition: background $transition, color $transition;
+
+  &:hover,
+  &:focus,
+  &.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.09);
+  }
+}
+
+// Signed-in user block on the right of the navigation bar.
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  padding-left: $space-4;
+  margin-left: $space-3;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+
+  @include respond-below($breakpoint-md) {
+    padding: $space-3 0 $space-3;
+    margin: $space-2 0 0;
+    border-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+  }
+}
+
+.nav-user__avatar {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: $radius-pill;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+}
+
+.nav-user__meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.nav-user__name {
+  color: #fff;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+}
+
+.nav-user__role {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+.nav-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  border-radius: $radius-md;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  transition: background $transition, color $transition;
+
+  &:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.09);
+  }
+}
+
+// -- Footer --------------------------------------------------------------
+.site-footer {
+  padding-block: $space-4;
+  background: $color-surface;
+  border-top: 1px solid $color-border;
+  color: $color-muted;
+  font-size: $font-size-sm;
+}
+
+// -- Page header ---------------------------------------------------------
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $space-5;
+  margin-bottom: $space-5;
+
+  p {
+    max-width: 66ch;
+    margin-top: $space-2;
+    color: $color-muted;
+  }
+
+  @include respond-below($breakpoint-md) {
+    flex-direction: column;
+    align-items: stretch;
+
+    > .btn,
+    > form > .btn {
+      width: 100%;
+    }
+  }
+}
+
+.eyebrow {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: $space-2;
+  margin-bottom: $space-2;
+  color: $color-accent;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.back-link {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: $space-2;
+  margin-bottom: $space-3;
+  color: $color-muted;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+
+  &:hover {
+    color: $color-heading;
+  }
+}
+
+// -- Auth screens --------------------------------------------------------
+// A centred card on a branded backdrop, used by login / register / denied.
+.auth-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $space-5;
+  background:
+    radial-gradient(1100px 520px at 12% -10%, rgba(47, 92, 245, 0.5), transparent 62%),
+    radial-gradient(900px 480px at 92% 110%, rgba(15, 157, 143, 0.38), transparent 60%),
+    $color-primary-deep;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 26.5rem;
+  padding: $space-6;
+  background: $color-surface;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-lg;
+}
+
+.auth-card__brand {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  margin-bottom: $space-5;
+}
+
+.auth-card__title {
+  font-size: $font-size-xl;
+  letter-spacing: -0.02em;
+}
+
+.auth-card__tagline {
+  color: $color-muted;
+  font-size: $font-size-xs;
+}
+
+.auth-card__heading {
+  margin-bottom: $space-1;
+  font-size: $font-size-2xl;
+}
+
+.auth-card__subtitle {
+  margin-bottom: $space-5;
+  color: $color-muted;
+  font-size: $font-size-md;
+}
+
+.auth-card__footer {
+  margin-top: $space-5;
+  padding-top: $space-4;
+  border-top: 1px solid $color-border;
+  color: $color-muted;
+  font-size: $font-size-sm;
+  text-align: center;
+}

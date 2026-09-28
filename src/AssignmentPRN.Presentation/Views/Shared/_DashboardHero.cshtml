@@ -1,0 +1,36 @@
+@* Welcome band shared by every role dashboard. *@
+@model string
+@{
+    var fullName = Context.Session.GetString(SessionKeys.FullName) ?? string.Empty;
+    var email = Context.Session.GetString(SessionKeys.Email) ?? string.Empty;
+    var role = Context.Session.GetString(SessionKeys.Role) ?? string.Empty;
+    var initial = string.IsNullOrEmpty(fullName) ? "?" : fullName[..1].ToUpperInvariant();
+
+    var roleLabel = role switch
+    {
+        RoleNames.Admin => "Quản trị viên",
+        RoleNames.Lecturer => "Giảng viên",
+        RoleNames.Student => "Sinh viên",
+        _ => role
+    };
+
+    var roleModifier = role switch
+    {
+        RoleNames.Admin => "role-badge--admin",
+        RoleNames.Lecturer => "role-badge--lecturer",
+        _ => "role-badge--student"
+    };
+}
+
+<section class="dashboard-hero">
+    <div class="dashboard-hero__avatar" aria-hidden="true">@initial</div>
+    <div class="dashboard-hero__body">
+        <span class="dashboard-hero__eyebrow">@roleLabel</span>
+        <h1>Xin chào, @fullName</h1>
+        <div class="dashboard-hero__meta">
+            <span class="role-badge @roleModifier">@roleLabel</span>
+            <span>@email</span>
+            <span>@Model</span>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,54 @@
+@model StudentScheduleViewModel
+@{
+    // Only staff may follow a slot through to the full session detail page.
+    var canOpenSession = Context.Session.GetString(SessionKeys.Role) is RoleNames.Admin or RoleNames.Lecturer;
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.Error))
+{
+    <div class="alert alert-danger" role="alert">@Model.Error</div>
+}
+else if (Model.Schedule is not null)
+{
+    var schedule = Model.Schedule;
+    var initial = string.IsNullOrEmpty(schedule.StudentName) ? "?" : schedule.StudentName[..1].ToUpperInvariant();
+
+    <section class="student-result-header">
+        <div class="avatar avatar--lg" aria-hidden="true">@initial</div>
+        <div>
+            <span>Lịch thi của</span>
+            <h2>@schedule.StudentName</h2>
+            <strong>@schedule.StudentEmail</strong>
+        </div>
+    </section>
+
+    if (schedule.Items.Count == 0)
+    {
+        <div class="content-card empty-state">
+            <div class="empty-icon"><partial name="_Icon" model="@("calendar")" /></div>
+            <h3>Chưa có lịch thi</h3>
+            <p>@(Model.IsOwnSchedule ? "Bạn chưa được xếp vào ca thi nào." : "Sinh viên này chưa được xếp vào ca thi nào.")</p>
+        </div>
+    }
+    else
+    {
+        <div class="student-schedule-list">
+            @foreach (var item in schedule.Items)
+            {
+                if (canOpenSession)
+                {
+                    <a class="student-schedule-item" asp-controller="ExamSessions" asp-action="Details"
+                       asp-route-id="@item.ExamId">
+                        <partial name="_ScheduleItem" model="item" />
+                    </a>
+                }
+                else
+                {
+                    <div class="student-schedule-item">
+                        <partial name="_ScheduleItem" model="item" />
+                    </div>
+                }
+            }
+        </div>
+    }
+}

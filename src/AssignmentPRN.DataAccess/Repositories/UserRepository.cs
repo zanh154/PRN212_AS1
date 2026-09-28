@@ -1,5 +1,4 @@
-using AssignmentPRN.DataAccess.Interfaces;
-using AssignmentPRN.DataAccess.Models;
+using AssignmentPRN.DataAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace AssignmentPRN.DataAccess.Repositories;

@@ -1,6 +1,6 @@
-using AssignmentPRN.Business.Interfaces;
+using AssignmentPRN.Business;
 using AssignmentPRN.Presentation.Constants;
-using AssignmentPRN.Presentation.ViewModels;
+using AssignmentPRN.Presentation.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AssignmentPRN.Presentation.Controllers;

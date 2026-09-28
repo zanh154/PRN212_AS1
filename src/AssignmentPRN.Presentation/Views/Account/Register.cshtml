@@ -1,69 +1,42 @@
-@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-@model AssignmentPRN.Presentation.ViewModels.RegisterViewModel
+@model RegisterViewModel
 @{
-    Layout = null;
-    ViewData["Title"] = "Register";
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Đăng ký";
 }
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - AIVES</title>
-    <style>
-        :root { color-scheme: light; font-family: Arial, sans-serif; }
-        body { align-items: center; background: linear-gradient(135deg, #0f172a, #1d4ed8); display: flex; justify-content: center; margin: 0; min-height: 100vh; padding: 1.5rem; }
-        .register-card { background: #fff; border-radius: 1rem; box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, .3); max-width: 26rem; padding: 2.5rem; width: 100%; }
-        h1 { color: #0f172a; font-size: 2rem; margin: 0; }
-        .subtitle { color: #64748b; line-height: 1.5; margin: .5rem 0 2rem; }
-        .form-group { margin-bottom: 1.25rem; }
-        label { color: #334155; display: block; font-weight: 600; margin-bottom: .45rem; }
-        input { border: 1px solid #cbd5e1; border-radius: .5rem; box-sizing: border-box; font: inherit; padding: .7rem .8rem; width: 100%; }
-        input:focus { border-color: #2563eb; box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .15); outline: 0; }
-        .register-button { background: #2563eb; border: 0; border-radius: .5rem; color: #fff; cursor: pointer; font: inherit; font-weight: 600; padding: .8rem 1rem; width: 100%; }
-        .register-button:hover { background: #1d4ed8; }
-        .validation-summary-errors, .field-validation-error { color: #b91c1c; font-size: .9rem; }
-        .validation-summary-errors ul { margin: 0 0 1rem; padding-left: 1.25rem; }
-        .field-validation-error { display: block; margin-top: .35rem; }
-    </style>
-</head>
-<body>
-    <main class="register-card">
-        <h1>AIVES</h1>
-        <p class="subtitle">Create Student Account</p>
+<h1 class="auth-card__heading">Đăng ký</h1>
+<p class="auth-card__subtitle">Tạo tài khoản sinh viên mới.</p>
 
-        <form asp-action="Register" method="post" asp-antiforgery="true">
-            <div asp-validation-summary="ModelOnly" role="alert"></div>
+<form asp-action="Register" method="post" asp-antiforgery="true">
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors" role="alert"></div>
 
-            <div class="form-group">
-                <label asp-for="FullName"></label>
-                <input asp-for="FullName" autocomplete="name" />
-                <span asp-validation-for="FullName"></span>
-            </div>
+    <div class="mb-3">
+        <label asp-for="FullName" class="form-label">Họ và tên</label>
+        <input asp-for="FullName" class="form-control" autocomplete="name" />
+        <span asp-validation-for="FullName" class="field-validation-error"></span>
+    </div>
 
-            <div class="form-group">
-                <label asp-for="Email"></label>
-                <input asp-for="Email" autocomplete="email" />
-                <span asp-validation-for="Email"></span>
-            </div>
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label">Email</label>
+        <input asp-for="Email" class="form-control" autocomplete="email" placeholder="ten@aives.com" />
+        <span asp-validation-for="Email" class="field-validation-error"></span>
+    </div>
 
-            <div class="form-group">
-                <label asp-for="Password"></label>
-                <input asp-for="Password" type="password" autocomplete="new-password" />
-                <span asp-validation-for="Password"></span>
-            </div>
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label">Mật khẩu</label>
+        <input asp-for="Password" type="password" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="Password" class="field-validation-error"></span>
+    </div>
 
-            <div class="form-group">
-                <label asp-for="ConfirmPassword"></label>
-                <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" />
-                <span asp-validation-for="ConfirmPassword"></span>
-            </div>
+    <div class="mb-4">
+        <label asp-for="ConfirmPassword" class="form-label">Xác nhận mật khẩu</label>
+        <input asp-for="ConfirmPassword" type="password" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="ConfirmPassword" class="field-validation-error"></span>
+    </div>
 
-            <button class="register-button" type="submit">Register</button>
-        </form>
+    <button class="btn btn-primary w-100" type="submit">Đăng ký</button>
+</form>
 
-        <p class="subtitle">Already have an account? <a asp-action="Login">Login</a></p>
-    </main>
-</body>
-</html>
+<p class="auth-card__footer">
+    Đã có tài khoản? <a asp-action="Login">Đăng nhập</a>
+</p>

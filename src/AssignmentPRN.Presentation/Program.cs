@@ -1,13 +1,13 @@
-using AssignmentPRN.Business.Interfaces;
-using AssignmentPRN.Business.Services;
-using AssignmentPRN.DataAccess;
-using AssignmentPRN.DataAccess.Interfaces;
-using AssignmentPRN.DataAccess.Repositories;
-using Microsoft.EntityFrameworkCore;
+using AssignmentPRN.Business;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
 builder.Services.AddControllersWithViews();
+builder.Services.AddBusiness(connectionString);
+
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -16,23 +16,11 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
-
-builder.Services.AddDbContext<AivesDbContext>(options =>
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 0))));
-
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-
 var app = builder.Build();
 
+app.UseStaticFiles();
+app.UseRouting();
 app.UseSession();
-
-using (var scope = app.Services.CreateScope())
-{
-    _ = scope.ServiceProvider.GetRequiredService<AivesDbContext>();
-}
 
 app.MapDefaultControllerRoute();
 

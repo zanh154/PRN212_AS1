@@ -1,0 +1,28 @@
+@* Layout for the signed-out screens: login, register, access denied. *@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · AIVES</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <main class="auth-page">
+        <div class="auth-card">
+            <div class="auth-card__brand">
+                <span class="brand-mark" aria-hidden="true">AV</span>
+                <div>
+                    <div class="auth-card__title">AIVES</div>
+                    <div class="auth-card__tagline">AI-powered Viva Exam System</div>
+                </div>
+            </div>
+            @RenderBody()
+        </div>
+    </main>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
