@@ -61,6 +61,8 @@ public class ExamSessionCreateViewModel : IValidatableObject
 
     public IReadOnlyList<SelectListItem> LecturerOptions { get; set; } = Array.Empty<SelectListItem>();
 
+    public bool IsLecturerFixed { get; set; }
+
     public IReadOnlyList<SelectListItem> ClassOptions { get; set; } = Array.Empty<SelectListItem>();
 
     public string? OptionsError { get; set; }

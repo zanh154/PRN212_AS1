@@ -50,6 +50,16 @@
                     <span asp-validation-for="CourseId" class="field-validation-error"></span>
                 </div>
                 <div class="col-lg-3">
+                    @if (Model.IsLecturerFixed)
+                    {
+                    <label for="lecturer-display" class="form-label">Giảng viên</label>
+                    <input id="lecturer-display" class="form-control" readonly
+                           value="@Model.LecturerOptions.FirstOrDefault()?.Text" />
+                    <input asp-for="LecturerId" type="hidden" />
+                    <small class="text-muted">Bạn tạo phiên thi cho lớp mình phụ trách.</small>
+                    }
+                    else
+                    {
                     <label asp-for="LecturerId" class="form-label"></label>
                     <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
                     {
@@ -60,6 +70,7 @@
                         EmptyText = "Không tìm thấy giảng viên phù hợp",
                         Options = Model.LecturerOptions
                     })" />
+                    }
                     <span asp-validation-for="LecturerId" class="field-validation-error"></span>
                 </div>
                 <div class="col-lg-4">

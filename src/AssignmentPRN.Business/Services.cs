@@ -16,6 +16,8 @@ public interface IAuthService
 
 public interface IExamSessionService
 {
+    Task<ServiceResponse<ExamSessionDetailResponse>> UpdateAsync(AssignmentPRN.DataAccess.Contracts.ExamSessionUpdateInput request, int? lecturerId, CancellationToken cancellationToken = default);
+    Task<ServiceResponse> ChangeStatusAsync(int examId, AssignmentPRN.DataAccess.Enums.ExamSessionStatus status, int? lecturerId, CancellationToken cancellationToken = default);
     Task<ServiceResponse<IReadOnlyList<ExamSessionListItemResponse>>> ListAsync(
         CancellationToken cancellationToken = default);
 

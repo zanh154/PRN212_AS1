@@ -8,6 +8,66 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public class ExamSessionRepository(AivesDbContext context) : IExamSessionRepository
 {
+    public async Task<ExamSessionDetail> UpdateAsync(ExamSessionUpdateInput input, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        var session = await context.ExamSessions.Include(x => x.Candidates)
+            .FirstOrDefaultAsync(x => x.ExamId == input.ExamId, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên thi.");
+        EnsureEditable(session);
+        var timingChanged = session.StartTime != input.StartTime || session.TimePerStudent != input.TimePerStudent;
+        if (timingChanged)
+        {
+            if (input.StartTime < DateTime.Now || input.TimePerStudent is < 1 or > 1440)
+                throw new ArgumentException("Ngày giờ hoặc thời lượng không hợp lệ.");
+            var candidates = session.Candidates.OrderBy(x => x.ScheduledTime).ThenBy(x => x.CandidateId).ToList();
+            if (candidates.Count == 0) throw new ArgumentException("Phiên thi phải có sinh viên để xếp lịch.");
+            var end = input.StartTime.AddMinutes((double)input.TimePerStudent * candidates.Count);
+            if (end.Date != input.StartTime.Date) throw new ArgumentException("Tổng thời lượng vượt quá ngày thi.");
+            for (var i = 0; i < candidates.Count; i++)
+            {
+                var start = input.StartTime.AddMinutes((double)i * input.TimePerStudent);
+                await EnsureNoConflictAsync(candidates[i].StudentId, session.LecturerId, start,
+                    start.AddMinutes(input.TimePerStudent), null, cancellationToken, session.ExamId);
+            }
+            for (var i = 0; i < candidates.Count; i++)
+                candidates[i].ScheduledTime = input.StartTime.AddMinutes((double)i * input.TimePerStudent);
+            session.StartTime = input.StartTime;
+            session.EndTime = end;
+            session.TimePerStudent = input.TimePerStudent;
+        }
+        session.CourseId = input.CourseId;
+        session.ExamName = input.ExamName;
+        session.Description = input.Description;
+        session.MainQuestionCount = input.MainQuestionCount;
+        session.MaxFollowUpCount = input.MaxFollowUpCount;
+        session.UpdatedAt = DateTime.Now;
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return (await LoadDetailAsync(session.ExamId, cancellationToken))!;
+    }
+
+    public async Task ChangeStatusAsync(int examId, ExamSessionStatus status, CancellationToken cancellationToken = default)
+    {
+        var session = await context.ExamSessions.Include(x => x.Candidates)
+            .FirstOrDefaultAsync(x => x.ExamId == examId, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên thi.");
+        if (!ExamSessionRules.CanTransition(session.Status, status))
+            throw new ArgumentException("Không thể chuyển sang trạng thái đã chọn.");
+        if (status == ExamSessionStatus.Completed && session.Candidates.Any(x => x.Status is CandidateStatus.Waiting or CandidateStatus.InProgress))
+            throw new ArgumentException("Chưa thể hoàn thành: còn sinh viên chờ thi hoặc đang thi.");
+        if (status == ExamSessionStatus.InProgress && DateTime.Now < session.StartTime)
+            throw new ArgumentException("Chưa đến giờ bắt đầu phiên thi.");
+        session.Status = status;
+        session.UpdatedAt = DateTime.Now;
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static void EnsureEditable(ExamSession session)
+    {
+        if (!ExamSessionRules.CanEdit(session.Status) || session.Candidates.Any(x => x.Status != CandidateStatus.Waiting))
+            throw new ArgumentException("Chỉ được sửa hoặc xoá phiên nháp/đã xếp lịch khi tất cả sinh viên còn chờ thi.");
+    }
     public async Task<IReadOnlyList<ExamSessionListItem>> ListAsync(CancellationToken cancellationToken = default)
     {
         return await context.ExamSessions
@@ -16,6 +76,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
             .ThenBy(session => session.ExamName)
             .Select(session => new ExamSessionListItem
             {
+                LecturerId = session.LecturerId,
                 ExamId = session.ExamId,
                 ExamName = session.ExamName,
                 StartTime = session.StartTime,
@@ -159,7 +220,11 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
             ?? throw new KeyNotFoundException($"Không tìm thấy lượt thi #{candidateId}.");
 
         var session = candidate.Session;
+        if (!ExamSessionRules.CanEdit(session.Status) || candidate.Status != CandidateStatus.Waiting)
+            throw new ArgumentException("Phiên thi hoặc lượt thi không còn được phép đổi giờ.");
         var endTime = scheduledTime.AddMinutes(session.TimePerStudent);
+        if (endTime.Date != scheduledTime.Date)
+            throw new ArgumentException("Khung giờ không được vượt quá ngày thi.");
 
         if (scheduledTime.Date != session.StartTime.Date)
         {
@@ -202,12 +267,14 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
     public async Task DeleteAsync(int examId, CancellationToken cancellationToken = default)
     {
         var session = await context.ExamSessions
+            .Include(item => item.Candidates)
             .FirstOrDefaultAsync(item => item.ExamId == examId, cancellationToken);
         if (session is null)
         {
             return;
         }
 
+        EnsureEditable(session);
         context.ExamSessions.Remove(session);
         await context.SaveChangesAsync(cancellationToken);
     }
@@ -223,7 +290,8 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
         DateTime startTime,
         DateTime endTime,
         int? excludedCandidateId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? excludedExamId = null)
     {
         var dayStart = startTime.Date;
         var dayEnd = dayStart.AddDays(1);
@@ -235,6 +303,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
                 && candidate.ScheduledTime < dayEnd
                 && candidate.Status != CandidateStatus.Cancelled
                 && candidate.Session.Status != ExamSessionStatus.Cancelled
+                && (!excludedExamId.HasValue || candidate.ExamId != excludedExamId.Value)
                 && (!excludedCandidateId.HasValue || candidate.CandidateId != excludedCandidateId.Value)
                 && (candidate.StudentId == studentId || candidate.Session.LecturerId == lecturerId))
             .Select(candidate => new

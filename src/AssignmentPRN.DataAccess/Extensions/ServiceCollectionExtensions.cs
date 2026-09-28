@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICatalogRepository, CatalogRepository>();
+        services.AddScoped<ICourseRepository, CourseRepository>();
         services.AddScoped<IExamSessionRepository, ExamSessionRepository>();
 
         services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();

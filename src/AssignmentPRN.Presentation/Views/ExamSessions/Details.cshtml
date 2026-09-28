@@ -1,4 +1,5 @@
 @model ExamSessionDetailViewModel
+@using AssignmentPRN.DataAccess.Enums
 @{
     var session = Model.Session;
     var candidates = session.Candidates;
@@ -12,11 +13,28 @@
         <h1>@session.ExamName</h1>
         <p>@session.Course.CourseName · @session.Lecturer.FullName</p>
     </div>
+    @if (ExamSessionRules.CanEdit(session.Status) && candidates.All(x => x.Status == CandidateStatus.Waiting))
+    {
+    <div class="d-flex gap-2">
+    <a class="btn btn-primary" asp-action="Edit" asp-route-id="@session.ExamId">Sửa phiên thi</a>
     <form method="post" asp-action="Delete" asp-route-id="@session.ExamId"
           data-confirm="Xoá toàn bộ lịch thi này?">
         <button class="btn btn-outline-danger" type="submit">Xoá lịch</button>
     </form>
+    </div>
+    }
 </div>
+
+@{ var nextStatuses = Enum.GetValues<ExamSessionStatus>().Where(x => ExamSessionRules.CanTransition(session.Status, x)).ToList(); }
+@if (nextStatuses.Count > 0)
+{
+    <form asp-action="ChangeStatus" asp-route-id="@session.ExamId" method="post" class="content-card mb-3" data-confirm="Xác nhận chuyển trạng thái phiên thi? Không thể quay lại trạng thái trước.">
+        <label for="session-status" class="form-label">Chuyển trạng thái</label>
+        <div class="d-flex gap-2"><select id="session-status" name="status" class="form-select">
+            @foreach (var status in nextStatuses) { <option value="@status">@ExamSessionText.Status(status)</option> }
+        </select><button class="btn btn-outline-primary text-nowrap">Cập nhật</button></div>
+    </form>
+}
 
 <section class="metric-row">
     <div class="metric-card"><span>Ngày thi</span><strong>@session.StartTime.ToString("dd/MM")</strong></div>
@@ -85,6 +103,8 @@
                             </span>
                         </div>
 
+                        @if (ExamSessionRules.CanEdit(session.Status) && candidate.Status == CandidateStatus.Waiting)
+                        {
                         <details class="reschedule-panel">
                             <summary>Đổi khung giờ</summary>
                             <form method="post" asp-action="Reschedule" class="reschedule-form">
@@ -104,6 +124,7 @@
                                 <button class="btn btn-primary" type="submit">Kiểm tra và lưu</button>
                             </form>
                         </details>
+                        }
                     </div>
                 </article>
             }

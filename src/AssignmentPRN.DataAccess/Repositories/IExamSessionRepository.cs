@@ -4,6 +4,8 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public interface IExamSessionRepository
 {
+    Task<ExamSessionDetail> UpdateAsync(ExamSessionUpdateInput input, CancellationToken cancellationToken = default);
+    Task ChangeStatusAsync(int examId, AssignmentPRN.DataAccess.Enums.ExamSessionStatus status, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ExamSessionListItem>> ListAsync(CancellationToken cancellationToken = default);
 
     Task<ExamSessionDetail?> GetDetailAsync(int examId, CancellationToken cancellationToken = default);

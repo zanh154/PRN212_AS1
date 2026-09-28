@@ -87,6 +87,7 @@ public sealed class ExamSessionRescheduleRequest
 
 public sealed class ExamSessionListItemResponse
 {
+    public int LecturerId { get; init; }
     public int ExamId { get; init; }
 
     public string ExamName { get; init; } = string.Empty;

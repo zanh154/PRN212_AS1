@@ -4,6 +4,7 @@ namespace AssignmentPRN.DataAccess.Contracts;
 
 public sealed class ExamSessionListItem
 {
+    public int LecturerId { get; init; }
     public int ExamId { get; init; }
 
     public string ExamName { get; init; } = string.Empty;
