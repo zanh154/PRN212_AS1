@@ -1,0 +1,1196 @@
+@use "tokens" as *;
+@use "mixins" as *;
+
+// Styles specific to the exam-schedule module. Everything here builds on the
+// shared tokens — no raw colour values.
+
+// -- Calendar list (ExamSessions/Index) ----------------------------------
+.calendar-list {
+  display: grid;
+  gap: $space-4;
+}
+
+.calendar-day {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  overflow: hidden;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+
+  @include respond-below($breakpoint-md) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.date-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $space-4 $space-2;
+  background: $color-primary-soft;
+  border-right: 1px solid $color-border;
+  text-align: center;
+
+  span {
+    color: $color-primary;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-bold;
+    text-transform: capitalize;
+  }
+
+  strong {
+    color: $color-heading;
+    font-size: $font-size-2xl;
+    line-height: 1.1;
+  }
+
+  small {
+    color: $color-muted;
+  }
+
+  @include respond-below($breakpoint-md) {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: $space-2;
+    padding: $space-2 $space-4;
+    border-right: 0;
+    border-bottom: 1px solid $color-border;
+
+    strong {
+      font-size: $font-size-lg;
+    }
+  }
+}
+
+.session-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: $space-4;
+  padding: $space-4 $space-5;
+  color: inherit;
+  border-bottom: 1px solid $color-border;
+  transition: background $transition;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &:hover,
+  &:focus {
+    color: inherit;
+    background: $color-primary-soft;
+  }
+
+  @include respond-below($breakpoint-md) {
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: $space-3;
+  }
+}
+
+.session-time {
+  padding-right: $space-4;
+  border-right: 1px solid $color-border;
+
+  strong {
+    display: block;
+    color: $color-heading;
+    font-size: $font-size-lg;
+  }
+
+  span {
+    display: block;
+    color: $color-muted;
+    font-size: $font-size-sm;
+  }
+}
+
+.session-main {
+  min-width: 0;
+
+  > span,
+  > small {
+    display: block;
+    color: $color-muted;
+    font-size: $font-size-sm;
+  }
+}
+
+.session-title-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-2;
+  margin-bottom: $space-1;
+
+  strong {
+    color: $color-heading;
+    font-size: $font-size-base;
+  }
+}
+
+.session-arrow {
+  color: $color-muted;
+  font-size: $font-size-lg;
+
+  @include respond-below($breakpoint-md) {
+    display: none;
+  }
+}
+
+// -- Create form (ExamSessions/Create) -----------------------------------
+.schedule-form {
+  display: grid;
+  gap: $space-4;
+}
+
+.participant-list {
+  display: grid;
+  gap: $space-2;
+}
+
+.participant-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: $space-3;
+  padding: $space-3;
+  background: $color-surface-alt;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+
+  @include respond-below($breakpoint-md) {
+    grid-template-columns: minmax(0, 1fr) 34px;
+    align-items: start;
+  }
+}
+
+.participant-row--roster {
+  grid-template-columns: 58px minmax(0, 1fr);
+
+  .slot-preview {
+    margin-top: 0;
+  }
+
+  @include respond-below($breakpoint-md) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.participant-student {
+  min-height: 52px;
+  padding: $space-1 $space-2;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+}
+
+.participant-number {
+  color: $color-primary;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+
+  @include respond-below($breakpoint-md) {
+    grid-column: 1 / -1;
+  }
+}
+
+.participant-fields {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.6fr) minmax(170px, 0.8fr);
+  align-items: start;
+  gap: $space-3;
+
+  @include respond-below($breakpoint-lg) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Live preview of the slot this row will get, filled in by site.js.
+.slot-preview {
+  margin-top: 1.9rem;
+  padding: $space-2 $space-3;
+  background: $color-accent-soft;
+  border: 1px solid $color-accent;
+  border-radius: $radius-md;
+
+  span {
+    display: block;
+    color: $color-accent;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-bold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  strong {
+    color: $color-heading;
+    font-size: $font-size-sm;
+  }
+
+  @include respond-below($breakpoint-lg) {
+    margin-top: 0;
+  }
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: $radius-md;
+  font-size: $font-size-lg;
+  line-height: 1;
+
+  &.danger {
+    background: $color-danger-soft;
+    color: $color-danger;
+
+    &:hover {
+      background: $color-danger-border;
+    }
+  }
+}
+
+.participant-empty {
+  display: none;
+  padding: $space-5;
+  border: 1px dashed $color-border-strong;
+  border-radius: $radius-md;
+  color: $color-muted;
+  text-align: center;
+
+  &.visible {
+    display: block;
+  }
+}
+
+// -- Date and time picker ------------------------------------------------
+.date-time-picker {
+  position: relative;
+}
+
+.date-time-picker__trigger {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  color: $color-text;
+  background: $color-surface;
+  border: 1px solid $color-border-strong;
+  border-radius: $radius-md;
+  font-size: $font-size-md;
+  text-align: left;
+  transition: border-color $transition, box-shadow $transition;
+
+  > span:first-of-type {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    color: $color-muted;
+  }
+
+  &:hover {
+    border-color: $color-primary;
+  }
+
+  &:focus-visible,
+  .is-open & {
+    outline: none;
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  }
+
+  .is-open & svg {
+    color: $color-primary;
+  }
+}
+
+.date-time-picker__chevron {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin: -4px 3px 0 0;
+  border-right: 1.5px solid $color-muted;
+  border-bottom: 1.5px solid $color-muted;
+  transform: rotate(45deg);
+  transition: transform $transition;
+
+  .is-open & {
+    margin-top: 4px;
+    transform: rotate(225deg);
+  }
+}
+
+.date-time-picker__panel {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(560px, calc(100vw - 24px));
+  padding: $space-3;
+  color: $color-text;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: 0 16px 36px -12px rgba(13, 21, 38, 0.26);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-7px) scale(0.985);
+  transform-origin: top left;
+  transition: opacity 160ms ease, transform 180ms ease, visibility 180ms ease;
+
+  .is-open & {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.date-time-picker__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: $space-3;
+
+  @include respond-below($breakpoint-md) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.date-time-picker__calendar {
+  min-width: 0;
+}
+
+.date-time-picker__header {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: $space-2;
+  margin-bottom: $space-2;
+
+  strong {
+    color: $color-heading;
+    font-size: $font-size-md;
+    text-align: center;
+  }
+
+  button {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: $color-text;
+    background: transparent;
+    border: 0;
+    border-radius: $radius-md;
+    font-size: $font-size-xl;
+    line-height: 1;
+
+    &:not(:disabled):hover,
+    &:focus-visible {
+      outline: none;
+      color: $color-primary;
+      background: $color-primary-soft;
+    }
+
+    &:disabled {
+      color: $color-border-strong;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.date-time-picker__weekdays,
+.date-time-picker__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.date-time-picker__weekdays {
+  margin-bottom: $space-1;
+
+  span {
+    padding-block: $space-1;
+    color: $color-muted;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    text-align: center;
+  }
+}
+
+.date-time-picker__day {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: $color-text;
+  background: transparent;
+  border: 0;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  transition: color 120ms ease, background 120ms ease, transform 120ms ease;
+
+  &:not(:disabled):hover,
+  &:focus-visible {
+    outline: none;
+    color: $color-primary-dark;
+    background: $color-primary-soft;
+    transform: translateY(-1px);
+  }
+
+  &.is-outside {
+    color: $color-border-strong;
+  }
+
+  &.is-disabled {
+    color: $color-border;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  &.is-today {
+    box-shadow: inset 0 0 0 1px $color-primary-tint;
+    color: $color-primary;
+    font-weight: $font-weight-semibold;
+  }
+
+  &.is-selected {
+    color: $color-surface;
+    background: $color-primary;
+    box-shadow: 0 4px 10px -4px rgba(47, 92, 245, 0.7);
+    font-weight: $font-weight-bold;
+  }
+}
+
+.date-time-picker__time {
+  display: grid;
+  gap: $space-3;
+  padding: $space-3;
+  background: $color-surface-alt;
+  border-radius: $radius-md;
+
+  strong,
+  > div > span {
+    display: block;
+  }
+
+  strong {
+    color: $color-heading;
+    font-size: $font-size-sm;
+  }
+
+  > div > span {
+    margin-top: 1px;
+    color: $color-muted;
+    font-size: $font-size-xs;
+  }
+}
+
+.date-time-picker__time-fields {
+  display: flex;
+  align-items: center;
+  gap: $space-1;
+  color: $color-heading;
+  font-weight: $font-weight-bold;
+
+  input {
+    width: 48px;
+    height: 38px;
+    padding: 0 $space-1;
+    color: $color-heading;
+    background: $color-surface;
+    border: 1px solid $color-border-strong;
+    border-radius: $radius-md;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    text-align: center;
+    appearance: textfield;
+
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button {
+      margin: 0;
+      appearance: none;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+  }
+}
+
+.date-time-picker__side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-left: $space-3;
+  border-left: 1px solid $color-border;
+
+  @include respond-below($breakpoint-md) {
+    padding-top: $space-3;
+    padding-left: 0;
+    border-top: 1px solid $color-border;
+    border-left: 0;
+  }
+}
+
+.date-time-picker__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: $space-2;
+  margin-top: auto;
+  padding-top: $space-3;
+  border-top: 1px solid $color-border;
+
+  button {
+    flex: 1;
+    min-height: 36px;
+    padding: $space-1 $space-3;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+  }
+}
+
+.date-time-picker__today {
+  color: $color-primary;
+  background: transparent;
+  border: 0;
+
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    background: $color-primary-soft;
+  }
+}
+
+.date-time-picker__done {
+  color: $color-surface;
+  background: $color-primary;
+  border: 1px solid $color-primary;
+
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    background: $color-primary-dark;
+    border-color: $color-primary-dark;
+  }
+}
+
+// -- Shared searchable select --------------------------------------------
+.select-picker {
+  position: relative;
+}
+
+.select-picker__trigger {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  color: $color-text;
+  background: $color-surface;
+  border: 1px solid $color-border-strong;
+  border-radius: $radius-md;
+  font-size: $font-size-md;
+  text-align: left;
+  transition: border-color $transition, box-shadow $transition;
+
+  &:hover {
+    border-color: $color-primary;
+  }
+
+  &:focus-visible,
+  .is-open & {
+    outline: none;
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  }
+}
+
+.select-picker__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.is-placeholder {
+    color: $color-muted;
+  }
+}
+
+.select-picker__chevron {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin: -4px 3px 0 0;
+  border-right: 1.5px solid $color-muted;
+  border-bottom: 1.5px solid $color-muted;
+  transform: rotate(45deg);
+  transition: transform $transition;
+
+  .is-open & {
+    margin-top: 4px;
+    transform: rotate(225deg);
+  }
+}
+
+.select-picker__panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  padding: $space-2;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-md;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.985);
+  transform-origin: top;
+  transition: opacity 150ms ease, transform 170ms ease, visibility 170ms ease;
+
+  .is-open & {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.select-picker__search-wrap {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: 0 $space-3;
+  color: $color-muted;
+  border: 1px solid $color-border-strong;
+  border-radius: $radius-md;
+
+  &:focus-within {
+    color: $color-primary;
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  svg {
+    flex: 0 0 auto;
+    width: 17px;
+    height: 17px;
+  }
+}
+
+.select-picker__search {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 0;
+  color: $color-text;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-size: $font-size-sm;
+
+  &::placeholder {
+    color: $color-muted;
+  }
+
+  &::-webkit-search-cancel-button {
+    cursor: pointer;
+  }
+}
+
+.select-picker__options {
+  max-height: 252px;
+  margin-top: $space-2;
+  overflow-y: auto;
+}
+
+.select-picker__option {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2;
+  color: $color-text;
+  background: transparent;
+  border: 0;
+  border-radius: $radius-md;
+  text-align: left;
+
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    background: $color-primary-soft;
+  }
+
+  &.is-selected {
+    background: $color-primary-soft;
+
+    .select-picker__check {
+      opacity: 1;
+    }
+  }
+}
+
+.select-picker__avatar {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: $color-primary-dark;
+  background: $color-primary-tint;
+  border-radius: 50%;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+}
+
+.select-picker__identity {
+  min-width: 0;
+
+  strong,
+  span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    color: $color-heading;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+  }
+
+  span {
+    margin-top: 1px;
+    color: $color-muted;
+    font-size: $font-size-xs;
+  }
+}
+
+.select-picker__check {
+  color: $color-primary;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  opacity: 0;
+}
+
+.select-picker__empty {
+  padding: $space-4 $space-3;
+  color: $color-muted;
+  font-size: $font-size-sm;
+  text-align: center;
+}
+
+// -- Detail timeline (ExamSessions/Details) ------------------------------
+.schedule-timeline {
+  display: grid;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 24px 78px minmax(0, 1fr);
+  gap: $space-3;
+
+  @include respond-below($breakpoint-md) {
+    grid-template-columns: 18px minmax(0, 1fr);
+
+    .timeline-time,
+    .timeline-content {
+      grid-column: 2;
+    }
+  }
+}
+
+.timeline-axis {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.timeline-dot {
+  position: relative;
+  z-index: 1;
+  width: 13px;
+  height: 13px;
+  margin-top: $space-2;
+  border: 3px solid $color-surface;
+  border-radius: 50%;
+  background: $color-primary;
+  box-shadow: 0 0 0 2px $color-primary;
+}
+
+.timeline-line {
+  position: absolute;
+  top: 22px;
+  bottom: -8px;
+  width: 2px;
+  background: $color-border;
+}
+
+.timeline-time {
+  strong {
+    display: block;
+    color: $color-heading;
+    font-size: $font-size-base;
+  }
+
+  span {
+    color: $color-muted;
+    font-size: $font-size-sm;
+  }
+}
+
+.timeline-content {
+  min-width: 0;
+  padding-bottom: $space-4;
+  border-bottom: 1px solid $color-border;
+}
+
+.timeline-item:last-child .timeline-content {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.student-identity {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+
+  // The status chip sits at the far right of the row.
+  > .status-chip {
+    margin-left: auto;
+  }
+
+  // Text wrapper (div or span) — must shrink to prevent overflow.
+  > div:not(.avatar),
+  > span:not(.avatar) {
+    min-width: 0;
+    flex: 1;
+  }
+
+  strong {
+    display: block;
+    color: $color-heading;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span:not(.status-chip) {
+    display: block;
+    color: $color-muted;
+    font-size: $font-size-sm;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.reschedule-panel {
+  margin-top: $space-2;
+
+  summary {
+    width: max-content;
+    color: $color-accent;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    cursor: pointer;
+  }
+}
+
+.reschedule-form {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(120px, 0.4fr) auto;
+  align-items: end;
+  gap: $space-2;
+  margin-top: $space-3;
+  padding: $space-3;
+  background: $color-surface-alt;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+
+  @include respond-below($breakpoint-md) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// -- Student lookup (StudentSchedule) ------------------------------------
+.lookup-layout {
+  display: grid;
+  gap: $space-4;
+}
+
+.lookup-card {
+  padding: $space-4 $space-5;
+}
+
+.student-result-header {
+  display: flex;
+  align-items: center;
+  gap: $space-4;
+  padding: $space-4 $space-5;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+
+  h2 {
+    margin-top: 2px;
+  }
+
+  span {
+    color: $color-muted;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  strong {
+    display: block;
+    margin-top: 2px;
+    color: $color-muted;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-normal;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+}
+
+.student-schedule-list {
+  display: grid;
+  gap: $space-2;
+}
+
+.student-schedule-item {
+  display: grid;
+  grid-template-columns: 72px 150px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: $space-4;
+  padding: $space-4;
+  color: inherit;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  transition: background $transition, border-color $transition;
+
+  &:hover {
+    color: inherit;
+    background: $color-primary-soft;
+    border-color: $color-primary;
+  }
+
+  @include respond-below($breakpoint-lg) {
+    grid-template-columns: 66px 140px minmax(0, 1fr);
+
+    > .status-chip {
+      grid-column: 2 / -1;
+    }
+  }
+
+  @include respond-below($breakpoint-md) {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: $space-3;
+
+    .student-schedule-date {
+      grid-row: 1 / span 3;
+    }
+
+    .student-schedule-time,
+    .student-schedule-main,
+    > .status-chip {
+      grid-column: 2;
+    }
+  }
+}
+
+.student-schedule-date {
+  padding-right: $space-3;
+  border-right: 1px solid $color-border;
+  text-align: center;
+
+  strong {
+    display: block;
+    color: $color-heading;
+    font-size: $font-size-xl;
+    line-height: 1;
+  }
+
+  span {
+    display: block;
+    color: $color-muted;
+    font-size: $font-size-xs;
+  }
+}
+
+.student-schedule-time {
+  strong {
+    display: block;
+    color: $color-heading;
+  }
+
+  span {
+    display: block;
+    color: $color-muted;
+    font-size: $font-size-xs;
+  }
+}
+
+.student-schedule-main {
+  min-width: 0;
+
+  strong {
+    display: block;
+    color: $color-heading;
+  }
+
+  span,
+  small {
+    display: block;
+    color: $color-muted;
+    font-size: $font-size-xs;
+  }
+}
+
+// -- Student search results (StudentSchedule/Index) ----------------------
+.person-list {
+  display: grid;
+  gap: $space-2;
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  padding: $space-3 $space-4;
+  color: inherit;
+  background: $color-surface-alt;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  transition: background $transition, border-color $transition;
+
+  &:hover {
+    color: inherit;
+    background: $color-primary-soft;
+    border-color: $color-primary-tint;
+
+    .person-row__arrow {
+      color: $color-primary;
+    }
+  }
+}
+
+.person-row__body {
+  flex: 1;
+  min-width: 0;
+
+  strong {
+    display: block;
+    color: $color-heading;
+  }
+
+  span {
+    display: block;
+    color: $color-muted;
+    font-size: $font-size-sm;
+  }
+}
+
+.person-row__arrow {
+  color: $color-border-strong;
+  transition: color $transition;
+}
+
+// -- Searchable student picker -------------------------------------------
+.combobox {
+  position: relative;
+}
+
+.combobox__panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: $space-1;
+  background: $color-surface;
+  border: 1px solid $color-border-strong;
+  border-radius: $radius-md;
+  box-shadow: $shadow-md;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.combobox__option {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  padding: $space-2 $space-3;
+  border: 0;
+  border-radius: $radius-sm;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+
+  strong {
+    color: $color-heading;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+  }
+
+  span {
+    color: $color-muted;
+    font-size: $font-size-md;
+  }
+
+  .combobox__separator {
+    flex: 0 0 auto;
+    white-space: pre;
+  }
+
+  &.is-active {
+    background: $color-primary-soft;
+
+    strong {
+      color: $color-primary-dark;
+    }
+  }
+}
+
+.combobox__empty {
+  padding: $space-3;
+  color: $color-muted;
+  font-size: $font-size-sm;
+  text-align: center;
+}

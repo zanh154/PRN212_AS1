@@ -1,0 +1,12 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=myteam-prn202.c.aivencloud.com;Port=15132;Database=defaultdb;User ID=avnadmin;Password=YOUR_PASSWORD;SslMode=Required;"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}

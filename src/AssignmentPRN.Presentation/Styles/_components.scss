@@ -1,0 +1,563 @@
+@use "tokens" as *;
+@use "mixins" as *;
+
+// Shared building blocks. Any module (exam schedule, questions, results, ...)
+// should reach for these classes before inventing new ones.
+
+// -- Buttons (Bootstrap classes, retinted with our tokens) ---------------
+.btn {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  padding: $space-2 $space-5;
+  border-radius: $radius-md;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  transition: background $transition, border-color $transition, color $transition,
+    box-shadow $transition, transform $transition;
+
+  &:active {
+    transform: translateY(1px);
+  }
+}
+
+.btn-primary {
+  background: $color-primary;
+  border-color: $color-primary;
+  box-shadow: 0 1px 2px rgba(47, 92, 245, 0.3);
+
+  &:hover,
+  &:focus,
+  &:active {
+    background: $color-primary-dark !important;
+    border-color: $color-primary-dark !important;
+    box-shadow: 0 6px 16px -6px rgba(47, 92, 245, 0.7);
+  }
+}
+
+.btn-outline-primary {
+  color: $color-primary;
+  border-color: $color-primary-tint;
+  background: $color-surface;
+
+  &:hover,
+  &:focus,
+  &:active {
+    color: $color-primary-dark !important;
+    background: $color-primary-soft !important;
+    border-color: $color-primary !important;
+  }
+}
+
+.btn-outline-secondary {
+  color: $color-text;
+  border-color: $color-border-strong;
+  background: $color-surface;
+
+  &:hover,
+  &:focus {
+    color: $color-heading;
+    background: $color-surface-alt;
+    border-color: $color-border-strong;
+  }
+}
+
+.btn-outline-danger {
+  color: $color-danger;
+  border-color: $color-danger-border;
+  background: $color-surface;
+
+  &:hover,
+  &:focus {
+    color: #fff;
+    background: $color-danger !important;
+    border-color: $color-danger !important;
+  }
+}
+
+// -- Surfaces ------------------------------------------------------------
+.content-card {
+  @include card-surface;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: $space-3;
+  margin-bottom: $space-5;
+
+  p {
+    margin-top: $space-1;
+    color: $color-muted;
+    font-size: $font-size-sm;
+  }
+
+  &.with-action {
+    justify-content: space-between;
+
+    @include respond-below($breakpoint-md) {
+      flex-direction: column;
+      align-items: stretch;
+      gap: $space-4;
+    }
+  }
+}
+
+.step-number {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: $radius-md;
+  background: $color-primary-soft;
+  color: $color-primary;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+}
+
+// -- Icon chip (inline SVG sits inside) ----------------------------------
+.icon-chip {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: $radius-md;
+  background: $color-primary-soft;
+  color: $color-primary;
+
+  &--accent {
+    background: $color-accent-soft;
+    color: $color-accent;
+  }
+
+  &--lg {
+    width: 52px;
+    height: 52px;
+    border-radius: $radius-lg;
+  }
+}
+
+// -- Metric tiles --------------------------------------------------------
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: $space-3;
+  margin-bottom: $space-5;
+}
+
+.metric-card {
+  padding: $space-4;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+
+  span {
+    display: block;
+    margin-bottom: $space-1;
+    color: $color-muted;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  strong {
+    display: block;
+    color: $color-heading;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-black;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+}
+
+// -- Badges and chips ----------------------------------------------------
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  padding: 2px $space-3;
+  border: 1px solid transparent;
+  border-radius: $radius-pill;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  white-space: nowrap;
+  @include status-tone($color-info, $color-info-soft, $color-info-border);
+
+  &--success {
+    @include status-tone($color-success, $color-success-soft, $color-success-border);
+  }
+
+  &--warning {
+    @include status-tone($color-warning, $color-warning-soft, $color-warning-border);
+  }
+
+  &--danger {
+    @include status-tone($color-danger, $color-danger-soft, $color-danger-border);
+  }
+
+  &--muted {
+    color: $color-muted;
+    background: $color-surface-alt;
+    border-color: $color-border;
+  }
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px $space-3;
+  border-radius: $radius-pill;
+  background: $color-primary-soft;
+  color: $color-primary;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+
+  &--admin {
+    background: rgba(124, 58, 237, 0.12);
+    color: $color-role-admin;
+  }
+
+  &--lecturer {
+    background: $color-primary-soft;
+    color: $color-role-lecturer;
+  }
+
+  &--student {
+    background: $color-accent-soft;
+    color: $color-role-student;
+  }
+}
+
+// -- Avatar --------------------------------------------------------------
+.avatar {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: $radius-lg;
+  background: linear-gradient(140deg, $color-primary, #5b7cff);
+  color: #fff;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+
+  &--lg {
+    flex-basis: 56px;
+    width: 56px;
+    height: 56px;
+    border-radius: $radius-xl;
+    font-size: $font-size-xl;
+  }
+}
+
+// -- Forms ---------------------------------------------------------------
+.form-label {
+  margin-bottom: $space-2;
+  color: $color-heading;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+}
+
+.form-control,
+.form-select {
+  min-height: 42px;
+  padding: $space-2 $space-3;
+  border-color: $color-border-strong;
+  border-radius: $radius-md;
+  color: $color-text;
+  font-size: $font-size-md;
+  transition: border-color $transition, box-shadow $transition;
+
+  &::placeholder {
+    color: $color-muted;
+  }
+
+  &:focus {
+    @include focus-ring;
+  }
+}
+
+textarea.form-control {
+  min-height: 72px;
+}
+
+.field-validation-error,
+.text-danger {
+  display: block;
+  margin-top: $space-1;
+  color: $color-danger;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+.validation-summary-errors,
+.validation-summary {
+  margin-bottom: $space-4;
+  padding: $space-3 $space-4;
+  border: 1px solid $color-danger-border;
+  border-radius: $radius-md;
+  background: $color-danger-soft;
+  color: $color-danger;
+  font-size: $font-size-sm;
+
+  ul {
+    margin: 0;
+    padding-left: $space-5;
+  }
+}
+
+.validation-summary-valid {
+  display: none;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $space-3;
+
+  @include respond-below($breakpoint-md) {
+    flex-direction: column-reverse;
+  }
+}
+
+.info-note {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  width: 100%;
+  padding: $space-2 $space-3;
+  border: 1px solid $color-info-border;
+  border-radius: $radius-md;
+  background: $color-info-soft;
+  color: $color-info;
+  font-size: $font-size-sm;
+}
+
+// -- Alerts --------------------------------------------------------------
+.alert {
+  padding: $space-3 $space-4;
+  border-radius: $radius-md;
+  border-width: 1px;
+  font-size: $font-size-md;
+}
+
+.alert-success {
+  @include status-tone($color-success, $color-success-soft, $color-success-border);
+}
+
+.alert-danger {
+  @include status-tone($color-danger, $color-danger-soft, $color-danger-border);
+}
+
+.alert-info {
+  @include status-tone($color-info, $color-info-soft, $color-info-border);
+}
+
+.app-alert {
+  margin-bottom: $space-5;
+}
+
+// -- Empty state ---------------------------------------------------------
+.empty-state {
+  padding: $space-6 $space-5;
+  text-align: center;
+
+  h2,
+  h3 {
+    margin-bottom: $space-2;
+  }
+
+  p {
+    max-width: 46ch;
+    margin: 0 auto $space-5;
+    color: $color-muted;
+  }
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto $space-4;
+  display: grid;
+  place-items: center;
+  border-radius: $radius-xl;
+  background: $color-primary-soft;
+  color: $color-primary;
+}
+
+// -- Dashboard -----------------------------------------------------------
+// The welcome band that opens every role dashboard.
+.dashboard-hero {
+  display: flex;
+  align-items: center;
+  gap: $space-4;
+  padding: $space-5;
+  margin-bottom: $space-5;
+  border-radius: $radius-xl;
+  background:
+    radial-gradient(760px 220px at 88% -40%, rgba(47, 92, 245, 0.55), transparent 70%),
+    $color-primary-deep;
+  color: #fff;
+
+  h1 {
+    color: #fff;
+    font-size: $font-size-2xl;
+  }
+
+  @include respond-below($breakpoint-md) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.dashboard-hero__avatar {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: $radius-xl;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+}
+
+.dashboard-hero__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-hero__eyebrow {
+  display: block;
+  margin-bottom: $space-1;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dashboard-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-2 $space-4;
+  margin-top: $space-2;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: $font-size-sm;
+}
+
+.dashboard-hero__meta .role-badge {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: $space-4;
+}
+
+.dashboard-tile {
+  display: flex;
+  align-items: flex-start;
+  gap: $space-4;
+  padding: $space-5;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  color: inherit;
+  transition: border-color $transition, box-shadow $transition, transform $transition;
+
+  h3 {
+    margin-bottom: $space-1;
+  }
+
+  p {
+    color: $color-muted;
+    font-size: $font-size-sm;
+  }
+
+  &:hover {
+    color: inherit;
+    border-color: $color-primary-tint;
+    box-shadow: $shadow-md;
+    transform: translateY(-2px);
+
+    .dashboard-tile__arrow {
+      color: $color-primary;
+      transform: translateX(3px);
+    }
+  }
+}
+
+.dashboard-tile__body {
+  flex: 1;
+  min-width: 0;
+}
+
+
+.dashboard-tile__arrow {
+  align-self: center;
+  color: $color-border-strong;
+  transition: color $transition, transform $transition;
+}
+
+// -- Custom confirm dialog -----------------------------------------------
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $space-4;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 180ms ease, visibility 180ms ease;
+
+  &.is-open {
+    opacity: 1;
+    visibility: visible;
+
+    .confirm-dialog {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+}
+
+.confirm-dialog {
+  width: 100%;
+  max-width: 380px;
+  padding: $space-5;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(-10px) scale(0.97);
+  transition: transform 200ms ease, opacity 200ms ease;
+
+  &__message {
+    margin: 0 0 $space-4;
+    color: $color-heading;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    line-height: 1.4;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: $space-2;
+  }
+}

@@ -1,0 +1,127 @@
+@use "tokens" as *;
+@use "mixins" as *;
+
+// Every token is re-exported as a CSS variable so a teammate writing plain CSS
+// (or an inline style in a view) can still use the shared palette.
+:root {
+  --color-primary: #{$color-primary};
+  --color-primary-dark: #{$color-primary-dark};
+  --color-primary-deep: #{$color-primary-deep};
+  --color-primary-soft: #{$color-primary-soft};
+  --color-accent: #{$color-accent};
+  --color-accent-soft: #{$color-accent-soft};
+
+  --color-success: #{$color-success};
+  --color-success-soft: #{$color-success-soft};
+  --color-warning: #{$color-warning};
+  --color-warning-soft: #{$color-warning-soft};
+  --color-danger: #{$color-danger};
+  --color-danger-soft: #{$color-danger-soft};
+  --color-info: #{$color-info};
+  --color-info-soft: #{$color-info-soft};
+
+  --color-heading: #{$color-heading};
+  --color-text: #{$color-text};
+  --color-muted: #{$color-muted};
+  --color-border: #{$color-border};
+  --color-surface: #{$color-surface};
+  --color-surface-alt: #{$color-surface-alt};
+  --color-background: #{$color-background};
+
+  --radius-md: #{$radius-md};
+  --radius-lg: #{$radius-lg};
+  --shadow-sm: #{$shadow-sm};
+  --shadow-md: #{$shadow-md};
+  --container-width: #{$container-width};
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: $font-sans;
+  font-size: $font-size-md;
+  line-height: 1.6;
+  color: $color-text;
+  background: $color-background;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: $color-heading;
+  font-weight: $font-weight-bold;
+  line-height: 1.2;
+  margin: 0;
+}
+
+h1 {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-black;
+  letter-spacing: -0.03em;
+}
+
+h2 {
+  font-size: $font-size-xl;
+  letter-spacing: -0.015em;
+}
+
+h3 {
+  font-size: $font-size-lg;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: $color-primary;
+  text-decoration: none;
+  transition: color $transition;
+
+  &:hover {
+    color: $color-primary-dark;
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+    border-radius: $radius-sm;
+  }
+}
+
+small {
+  font-size: $font-size-xs;
+}
+
+svg {
+  flex: none;
+}
+
+.text-muted {
+  color: $color-muted !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}

@@ -1,0 +1,37 @@
+@use "tokens" as *;
+
+// Media query helper: @include respond-below($breakpoint-md) { ... }
+@mixin respond-below($breakpoint) {
+  @media (max-width: #{$breakpoint - 0.02px}) {
+    @content;
+  }
+}
+
+// The standard white panel used for every block of content.
+@mixin card-surface($padding: $space-5) {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  padding: $padding;
+}
+
+// Consistent keyboard focus ring for links, buttons and inputs.
+@mixin focus-ring($color: $color-primary) {
+  outline: none;
+  border-color: $color;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+// Soft status pill: @include status-tone($color-success, $color-success-soft, $color-success-border);
+@mixin status-tone($text, $background, $border) {
+  color: $text;
+  background: $background;
+  border-color: $border;
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

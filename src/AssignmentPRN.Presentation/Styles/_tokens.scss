@@ -1,0 +1,95 @@
+// =============================================================================
+// AIVES design tokens — THE single source of truth for colour, spacing and type.
+//
+// Rule for the whole team: never hard-code a hex value in a view or in another
+// partial. Use a token here, or the matching CSS variable (`var(--color-...)`)
+// if you are writing plain CSS. Change a value here and every module follows.
+// =============================================================================
+
+// -- Brand ---------------------------------------------------------------
+$color-primary:        #2f5cf5; // primary actions, links, active nav
+$color-primary-dark:   #1e40d8; // hover / pressed state of primary
+$color-primary-deep:   #0b1220; // header, footer, dark surfaces
+$color-primary-soft:   #eef3ff; // tinted background for primary emphasis
+$color-primary-tint:   #dbe6ff; // borders on tinted surfaces
+$color-accent:         #0f9d8f; // secondary highlight (eyebrows, chips)
+$color-accent-soft:    #e6f7f4;
+
+// -- Status --------------------------------------------------------------
+// Each status has a text colour, a soft background and a border.
+$color-success:        #15803d;
+$color-success-soft:   #eafaf0;
+$color-success-border: #b9ecca;
+
+$color-warning:        #a35a07;
+$color-warning-soft:   #fff6e6;
+$color-warning-border: #fadfae;
+
+$color-danger:         #c02626;
+$color-danger-soft:    #fdeceb;
+$color-danger-border:  #f8c5c2;
+
+$color-info:           #0b6fb8;
+$color-info-soft:      #e8f4fd;
+$color-info-border:    #bfe0f7;
+
+// -- Neutrals ------------------------------------------------------------
+$color-heading:        #0d1526; // headings and strong text
+$color-text:           #475569; // body copy
+$color-muted:          #8996ab; // secondary / helper text
+$color-border:         #e6eaf2; // card and input borders
+$color-border-strong:  #cbd3e1;
+$color-surface:        #ffffff; // cards, inputs
+$color-surface-alt:    #f7f9fc; // nested rows inside a card
+$color-background:     #f3f6fb; // page background
+
+// -- Role colours --------------------------------------------------------
+// Used by badges so a role is recognisable at a glance across every module.
+$color-role-admin:     #7c3aed;
+$color-role-lecturer:  $color-primary;
+$color-role-student:   $color-accent;
+
+// -- Typography ----------------------------------------------------------
+$font-sans: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+$font-size-xs:   0.75rem;
+$font-size-sm:   0.8125rem;
+$font-size-md:   0.9375rem;
+$font-size-base: 1rem;
+$font-size-lg:   1.0625rem;
+$font-size-xl:   1.25rem;
+$font-size-2xl:  1.75rem;
+$font-size-3xl:  2.25rem;
+
+$font-weight-normal:   400;
+$font-weight-medium:   500;
+$font-weight-semibold: 600;
+$font-weight-bold:     700;
+$font-weight-black:    800;
+
+// -- Spacing scale (use these, not arbitrary pixel values) ---------------
+$space-1: 0.25rem;
+$space-2: 0.5rem;
+$space-3: 0.75rem;
+$space-4: 1rem;
+$space-5: 1.5rem;
+$space-6: 2rem;
+$space-7: 3rem;
+
+// -- Radii, shadows, layout ---------------------------------------------
+$radius-sm:   0.375rem;
+$radius-md:   0.5rem;
+$radius-lg:   0.875rem;
+$radius-xl:   1.125rem;
+$radius-pill: 999px;
+
+$shadow-sm: 0 1px 2px rgba(13, 21, 38, 0.05);
+$shadow-md: 0 6px 20px -6px rgba(13, 21, 38, 0.14);
+$shadow-lg: 0 24px 48px -16px rgba(13, 21, 38, 0.28);
+
+$container-width: 1200px;
+$transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+
+// -- Breakpoints ---------------------------------------------------------
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;

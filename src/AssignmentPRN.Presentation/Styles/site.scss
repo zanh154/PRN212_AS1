@@ -1,0 +1,14 @@
+// =============================================================================
+// AIVES stylesheet entry point — compiles to wwwroot/css/site.css.
+//
+// Order matters: tokens and mixins first (they define values), then the layers
+// that consume them. When you add a module, create `_<module>.scss` next to
+// this file and add one `@use` line at the bottom.
+//
+// See Styles/README.md for the conventions the whole team follows.
+// =============================================================================
+
+@use "base";
+@use "layout";
+@use "components";
+@use "exam-schedule";
