@@ -21,43 +21,53 @@
     <div class="row g-3">
         <div class="col-md-4">
             <label class="form-label" for="courseId">Môn học</label>
-            <select id="courseId" name="courseId" class="form-select">
-                <option value="">Tất cả môn đã phân công</option>
-                @foreach (var option in Model.CourseOptions)
-                {
-                    <option value="@option.Value" selected="@(Model.CourseId?.ToString() == option.Value)">@option.Text</option>
-                }
-            </select>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = "courseId",
+                SelectedValue = Model.CourseId ?? 0,
+                Placeholder = "Tất cả môn đã phân công",
+                SearchPlaceholder = "Tìm mã hoặc tên môn học",
+                EmptyText = "Không tìm thấy môn học phù hợp",
+                Options = Model.CourseOptions
+            })" />
         </div>
         <div class="col-md-4">
             <label class="form-label" for="materialId">Chủ đề (tài liệu)</label>
-            <select id="materialId" name="materialId" class="form-select">
-                <option value="">Tất cả chủ đề</option>
-                @foreach (var option in Model.MaterialOptions)
-                {
-                    <option value="@option.Value" selected="@(Model.MaterialId?.ToString() == option.Value)">@option.Text</option>
-                }
-            </select>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = "materialId",
+                SelectedValue = Model.MaterialId ?? 0,
+                Placeholder = "Tất cả chủ đề",
+                SearchPlaceholder = "Tìm tên tài liệu",
+                EmptyText = "Môn đã chọn chưa có tài liệu nào",
+                Options = Model.MaterialOptions
+            })" />
         </div>
         <div class="col-md-2">
             <label class="form-label" for="difficulty">Độ khó</label>
-            <select id="difficulty" name="difficulty" class="form-select">
-                <option value="">Tất cả</option>
-                @foreach (var option in Model.DifficultyOptions)
-                {
-                    <option value="@option.Value" selected="@(selectedDifficulty == option.Value)">@option.Text</option>
-                }
-            </select>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = "difficulty",
+                SelectedKey = selectedDifficulty,
+                ShowAvatar = false,
+                Placeholder = "Tất cả",
+                SearchPlaceholder = "Tìm độ khó",
+                EmptyText = "Không có mức nào phù hợp",
+                Options = Model.DifficultyOptions
+            })" />
         </div>
         <div class="col-md-2">
             <label class="form-label" for="bloomLevel">Mức độ Bloom</label>
-            <select id="bloomLevel" name="bloomLevel" class="form-select">
-                <option value="">Tất cả</option>
-                @foreach (var option in Model.BloomOptions)
-                {
-                    <option value="@option.Value" selected="@(selectedBloom == option.Value)">@option.Text</option>
-                }
-            </select>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = "bloomLevel",
+                SelectedKey = selectedBloom,
+                ShowAvatar = false,
+                Placeholder = "Tất cả",
+                SearchPlaceholder = "Tìm mức độ",
+                EmptyText = "Không có mức nào phù hợp",
+                Options = Model.BloomOptions
+            })" />
         </div>
         <div class="col-md-6">
             <label class="form-label" for="term">Tìm trong nội dung</label>

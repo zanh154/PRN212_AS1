@@ -18,25 +18,55 @@
     <div class="row g-3">
         <div class="col-md-6">
             <label asp-for="CourseId" class="form-label"></label>
-            <select asp-for="CourseId" asp-items="Model.CourseOptions" class="form-select" data-refresh-materials="true">
-                <option value="">Chọn môn học</option>
-            </select>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = nameof(QuestionEditViewModel.CourseId),
+                SelectedValue = Model.CourseId,
+                Placeholder = "Chọn môn học",
+                SearchPlaceholder = "Tìm mã hoặc tên môn học",
+                EmptyText = "Không tìm thấy môn học phù hợp",
+                Options = Model.CourseOptions
+            })" />
             <span asp-validation-for="CourseId" class="text-danger"></span>
         </div>
         <div class="col-md-6">
             <label asp-for="MaterialId" class="form-label"></label>
-            <select asp-for="MaterialId" asp-items="Model.MaterialOptions" class="form-select">
-                <option value="">Chọn chủ đề (tài liệu)</option>
-            </select>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = nameof(QuestionEditViewModel.MaterialId),
+                SelectedValue = Model.MaterialId ?? 0,
+                Placeholder = "Chọn chủ đề (tài liệu)",
+                SearchPlaceholder = "Tìm tên tài liệu",
+                EmptyText = "Môn này chưa có tài liệu nào",
+                Options = Model.MaterialOptions
+            })" />
             <p class="text-muted">Chủ đề lấy từ tài liệu môn. <a asp-controller="CourseMaterials" asp-action="Index">Quản lý tài liệu</a></p>
         </div>
         <div class="col-md-6">
             <label asp-for="Difficulty" class="form-label"></label>
-            <select asp-for="Difficulty" asp-items="Model.DifficultyOptions" class="form-select"></select>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = nameof(QuestionEditViewModel.Difficulty),
+                SelectedKey = Model.Difficulty.ToString(),
+                ShowAvatar = false,
+                Placeholder = "Chọn mức độ khó",
+                SearchPlaceholder = "Tìm độ khó",
+                EmptyText = "Không có mức nào phù hợp",
+                Options = Model.DifficultyOptions
+            })" />
         </div>
         <div class="col-md-6">
             <label asp-for="BloomLevel" class="form-label"></label>
-            <select asp-for="BloomLevel" asp-items="Model.BloomOptions" class="form-select"></select>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = nameof(QuestionEditViewModel.BloomLevel),
+                SelectedKey = Model.BloomLevel.ToString(),
+                ShowAvatar = false,
+                Placeholder = "Chọn mức độ Bloom",
+                SearchPlaceholder = "Tìm mức độ",
+                EmptyText = "Không có mức nào phù hợp",
+                Options = Model.BloomOptions
+            })" />
         </div>
         <div class="col-12">
             <label asp-for="QuestionText" class="form-label"></label>

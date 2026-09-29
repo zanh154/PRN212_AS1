@@ -85,7 +85,20 @@ public sealed class SearchableSelectViewModel
 {
     public required string Name { get; init; }
 
+    /// <summary>Selected id, for the pickers whose options are keyed by a database id.</summary>
     public int SelectedValue { get; init; }
+
+    /// <summary>
+    /// Selected value for options that are not ids — an enum name, say. Takes precedence
+    /// over <see cref="SelectedValue"/> so both kinds of picker share one partial.
+    /// </summary>
+    public string? SelectedKey { get; init; }
+
+    /// <summary>
+    /// The initial-letter bubble in front of each option. It reads well for people and
+    /// courses; a short fixed list such as a difficulty is cleaner without it.
+    /// </summary>
+    public bool ShowAvatar { get; init; } = true;
 
     public required string Placeholder { get; init; }
 

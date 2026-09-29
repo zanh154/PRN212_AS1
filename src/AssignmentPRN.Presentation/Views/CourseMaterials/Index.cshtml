@@ -18,18 +18,18 @@
     <div class="row g-3 align-items-end">
         <div class="col-md-6">
             <label class="form-label" for="courseId">Môn học</label>
-            <select id="courseId" name="courseId" class="form-select">
-                <option value="">Tất cả môn đã phân công</option>
-                @foreach (var option in Model.CourseOptions)
-                {
-                    <option value="@option.Value" selected="@(Model.CourseId?.ToString() == option.Value)">@option.Text</option>
-                }
-            </select>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = "courseId",
+                SelectedValue = Model.CourseId ?? 0,
+                Placeholder = "Tất cả môn đã phân công",
+                SearchPlaceholder = "Tìm mã hoặc tên môn học",
+                EmptyText = "Không tìm thấy môn học phù hợp",
+                Options = Model.CourseOptions
+            })" />
         </div>
-        <div class="col-md-2">
+        <div class="col-md-6 d-flex gap-2">
             <button class="btn btn-primary" type="submit">Lọc</button>
-        </div>
-        <div class="col-md-2">
             <a class="btn btn-outline-secondary" asp-action="Index">Xoá lọc</a>
         </div>
     </div>

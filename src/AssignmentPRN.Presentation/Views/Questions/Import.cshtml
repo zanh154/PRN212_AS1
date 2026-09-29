@@ -16,9 +16,15 @@
     <div class="row g-3">
         <div class="col-md-6">
             <label asp-for="CourseId" class="form-label"></label>
-            <select asp-for="CourseId" asp-items="Model.CourseOptions" class="form-select">
-                <option value="">Chọn môn học</option>
-            </select>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = nameof(QuestionImportViewModel.CourseId),
+                SelectedValue = Model.CourseId,
+                Placeholder = "Chọn môn học",
+                SearchPlaceholder = "Tìm mã hoặc tên môn học",
+                EmptyText = "Không tìm thấy môn học phù hợp",
+                Options = Model.CourseOptions
+            })" />
             <span asp-validation-for="CourseId" class="text-danger"></span>
         </div>
         <div class="col-md-6">

@@ -1,6 +1,7 @@
 @model SearchableSelectViewModel
 @{
-    var selectedValue = Model.SelectedValue > 0 ? Model.SelectedValue.ToString() : string.Empty;
+    var selectedValue = Model.SelectedKey
+        ?? (Model.SelectedValue > 0 ? Model.SelectedValue.ToString() : string.Empty);
     var selectedOption = Model.Options.FirstOrDefault(option => option.Value == selectedValue);
     var selectedSeparator = selectedOption?.Text.IndexOf(" · ", StringComparison.Ordinal) ?? -1;
     var selectedLabel = selectedSeparator >= 0
@@ -49,9 +50,12 @@
                         data-select-option data-value="@option.Value"
                         data-group="@option.Group?.Name"
                         data-label="@primary" data-search-text="@option.Text">
-                    <span class="select-picker__avatar" aria-hidden="true">
-                        @(string.IsNullOrWhiteSpace(primary) ? "?" : primary[..1].ToUpperInvariant())
-                    </span>
+                    @if (Model.ShowAvatar)
+                    {
+                        <span class="select-picker__avatar" aria-hidden="true">
+                            @(string.IsNullOrWhiteSpace(primary) ? "?" : primary[..1].ToUpperInvariant())
+                        </span>
+                    }
                     <span class="select-picker__identity">
                         <strong>@primary</strong>
                         @if (!string.IsNullOrWhiteSpace(secondary))
