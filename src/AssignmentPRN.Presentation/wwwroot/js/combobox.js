@@ -36,16 +36,21 @@
     let loading = false;
 
     const close = () => {
+      window.clearTimeout(timer);
+      requestId++;
+      loading = false;
       panel.hidden = true;
       panel.innerHTML = "";
       items = [];
       activeIndex = -1;
       input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
     };
 
     const commit = (item) => {
       if (hidden) {
         hidden.value = item.email;
+        input.setCustomValidity("");
         input.value = `${item.email} - ${item.name}`;
       } else {
         input.value = item.email;
@@ -57,7 +62,11 @@
     const paintActive = () => {
       [...panel.children].forEach((node, index) => {
         node.classList.toggle("is-active", index === activeIndex);
+        node.setAttribute("aria-selected", index === activeIndex ? "true" : "false");
       });
+      if (panel.children[activeIndex]?.id) {
+        input.setAttribute("aria-activedescendant", panel.children[activeIndex].id);
+      }
     };
 
     const render = () => {
@@ -78,6 +87,8 @@
         option.type = "button";
         option.className = "combobox__option";
         option.setAttribute("role", "option");
+        option.id = `${panel.id}-option-${index}`;
+        option.tabIndex = -1;
 
         const email = document.createElement("strong");
         email.textContent = item.email;
@@ -91,8 +102,8 @@
         // mousedown fires before blur, so the click is not lost to closing.
         option.addEventListener("mousedown", (event) => {
           event.preventDefault();
-          commit(item);
         });
+        option.addEventListener("click", () => commit(item));
         option.addEventListener("mouseenter", () => {
           activeIndex = index;
           paintActive();
@@ -110,6 +121,9 @@
     const search = async (term) => {
       const ticket = ++requestId;
       loading = true;
+      panel.textContent = "Đang tìm sinh viên…";
+      panel.hidden = false;
+      input.setAttribute("aria-expanded", "true");
       try {
         const response = await fetch(`${url}?q=${encodeURIComponent(term)}`, {
           headers: { Accept: "application/json" }
@@ -129,6 +143,9 @@
       } catch {
         if (ticket === requestId) {
           close();
+          panel.textContent = "Không thể tải gợi ý. Vui lòng gõ lại để thử lại.";
+          panel.hidden = false;
+          input.setAttribute("aria-expanded", "true");
         }
       } finally {
         if (ticket === requestId) {
@@ -140,11 +157,17 @@
     input.setAttribute("role", "combobox");
     input.setAttribute("aria-autocomplete", "list");
     input.setAttribute("aria-expanded", "false");
+    if (!panel.id) panel.id = `student-options-${Math.random().toString(36).slice(2)}`;
+    panel.setAttribute("role", "listbox");
+    input.setAttribute("aria-controls", panel.id);
+    if (hidden) input.setCustomValidity("Vui lòng chọn sinh viên từ danh sách gợi ý.");
 
     input.addEventListener("input", () => {
+      close();
       // Typing invalidates any previous pick until a new one is made.
       if (hidden) {
-        hidden.value = input.value.trim();
+        hidden.value = "";
+        input.setCustomValidity("Vui lòng chọn sinh viên từ danh sách gợi ý.");
       }
 
       const term = input.value.trim();
@@ -164,6 +187,11 @@
     input.addEventListener("click", open);
 
     input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+        return;
+      }
       if (panel.hidden || items.length === 0) {
         return;
       }
