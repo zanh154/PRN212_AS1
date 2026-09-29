@@ -33,16 +33,25 @@ public interface IQuestionRepository
     /// <summary>Identifiers of every approved question still free for the exam being built.</summary>
     Task<IReadOnlyList<int>> ListPoolIdsAsync(QuestionPickRequest request, CancellationToken cancellationToken = default);
 
+    /// <summary>How many approved main questions the course can deal from, the same pool <see cref="ListPoolIdsAsync"/> reads.</summary>
+    Task<int> CountMainPoolAsync(int courseId, CancellationToken cancellationToken = default);
+
     /// <summary>Identifiers of the candidates registered for the exam.</summary>
     Task<IReadOnlyList<int>> ListCandidateIdsAsync(int examId, CancellationToken cancellationToken = default);
 
     /// <summary>Every question id already written to the exam, across all its candidates.</summary>
     Task<IReadOnlyList<int>> ListAssignedQuestionIdsAsync(int examId, CancellationToken cancellationToken = default);
 
-    /// <summary>Writes the dealt questions in one transaction, so a failure leaves the exam empty.</summary>
-    Task AddExamQuestionsAsync(
+    /// <summary>
+    /// Deals papers for one exam while the exam row is locked, so two deals of the same exam
+    /// (two students entering at once, a double click, a lecturer dealing ahead) never read
+    /// the same "already dealt" state. <paramref name="planner"/> receives what is dealt at
+    /// that moment and returns the rows to add; they are written in the same transaction,
+    /// and an exception from the planner leaves the exam untouched.
+    /// </summary>
+    Task DealAsync(
         int examId,
-        IReadOnlyList<ExamQuestionInput> rows,
+        Func<ExamDealState, Task<IReadOnlyList<ExamQuestionInput>>> planner,
         CancellationToken cancellationToken = default);
 
     /// <summary>Every candidate of the exam with the paper the bank dealt them.</summary>
@@ -50,8 +59,12 @@ public interface IQuestionRepository
         int examId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>True once any slot of the exam has been asked or answered.</summary>
-    Task<bool> HasStartedExamQuestionsAsync(int examId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// True once any student of the exam has opened their slot, or any question has been
+    /// asked or answered. A paper is dealt the moment a student enters, before anything is
+    /// asked, so the questions alone cannot tell.
+    /// </summary>
+    Task<bool> HasExamStartedAsync(int examId, CancellationToken cancellationToken = default);
 
     /// <summary>Drops the exam's papers so they can be dealt again. Returns how many rows went.</summary>
     Task<int> ClearExamQuestionsAsync(int examId, CancellationToken cancellationToken = default);
@@ -305,6 +318,13 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
             .ToListAsync(cancellationToken);
     }
 
+    public Task<int> CountMainPoolAsync(int courseId, CancellationToken cancellationToken = default) =>
+        context.Questions.CountAsync(
+            question => question.CourseId == courseId
+                && question.QuestionType == QuestionType.Main
+                && question.Status == QuestionStatus.Approved,
+            cancellationToken);
+
     public async Task<IReadOnlyList<int>> ListCandidateIdsAsync(
         int examId,
         CancellationToken cancellationToken = default) =>
@@ -325,17 +345,34 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
             .Distinct()
             .ToListAsync(cancellationToken);
 
-    public async Task AddExamQuestionsAsync(
+    public async Task DealAsync(
         int examId,
-        IReadOnlyList<ExamQuestionInput> rows,
+        Func<ExamDealState, Task<IReadOnlyList<ExamQuestionInput>>> planner,
         CancellationToken cancellationToken = default)
     {
-        if (rows.Count == 0)
-        {
-            return;
-        }
+        ArgumentNullException.ThrowIfNull(planner);
 
-        // One SaveChanges is the transaction: either every exam slot lands or none does,
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        // Row lock on the exam: a second deal of the same exam waits here until this one
+        // commits, then reads the rows this one wrote.
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT exam_id FROM exam_sessions WHERE exam_id = {examId} FOR UPDATE",
+            cancellationToken);
+
+        var dealt = await context.ExamQuestions
+            .AsNoTracking()
+            .Where(item => item.ExamId == examId)
+            .Select(item => new { item.CandidateId, item.QuestionId })
+            .ToListAsync(cancellationToken);
+
+        var rows = await planner(new ExamDealState
+        {
+            TakenQuestionIds = dealt.Select(item => item.QuestionId).ToHashSet(),
+            CandidatesWithPaper = dealt.Select(item => item.CandidateId).ToHashSet()
+        });
+
+        // One SaveChanges inside the transaction: either every slot lands or none does,
         // which keeps a candidate from ending up with half a paper.
         context.ExamQuestions.AddRange(rows.Select(row => new ExamQuestion
         {
@@ -349,6 +386,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         }));
 
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<ExamPaperItem>> ListExamPaperAsync(
@@ -367,7 +405,10 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                 candidate.CandidateId,
                 candidate.Student.FullName,
                 candidate.Student.Email,
-                candidate.ScheduledTime
+                candidate.ScheduledTime,
+                HasStarted = candidate.StartedAt != null
+                    || candidate.Status == CandidateStatus.InProgress
+                    || candidate.Status == CandidateStatus.Completed
             })
             .ToListAsync(cancellationToken);
 
@@ -404,6 +445,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                 StudentName = candidate.FullName,
                 StudentEmail = candidate.Email,
                 ScheduledTime = candidate.ScheduledTime,
+                HasStarted = candidate.HasStarted,
                 Questions = byCandidate.TryGetValue(candidate.CandidateId, out var questions)
                     ? questions
                     : []
@@ -411,10 +453,16 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
             .ToList();
     }
 
-    public Task<bool> HasStartedExamQuestionsAsync(
+    public async Task<bool> HasExamStartedAsync(
         int examId,
         CancellationToken cancellationToken = default) =>
-        context.ExamQuestions.AnyAsync(
+        await context.ExamCandidates.AnyAsync(
+            candidate => candidate.ExamId == examId
+                && (candidate.StartedAt != null
+                    || candidate.Status == CandidateStatus.InProgress
+                    || candidate.Status == CandidateStatus.Completed),
+            cancellationToken)
+        || await context.ExamQuestions.AnyAsync(
             item => item.ExamId == examId && (item.IsCompleted || item.AskedAt != null),
             cancellationToken);
 

@@ -20,6 +20,17 @@ public class ExamSessionsController(
 
     private bool CanManage(ExamSessionDetailResponse session) => !CurrentLecturerId.HasValue || session.Lecturer.UserId == CurrentLecturerId;
 
+    /// <summary>
+    /// Sends a lecturer who acted on someone else's session back to the schedule with the
+    /// usual error banner. <see cref="ControllerBase.Forbid()"/> cannot be used: the app signs
+    /// people in through the session, so no authentication scheme exists to forbid with.
+    /// </summary>
+    private IActionResult DenySession()
+    {
+        TempData["Error"] = "Bạn không có quyền thao tác phiên thi này.";
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpGet]
     public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken)
     {
@@ -90,9 +101,7 @@ public class ExamSessionsController(
     {
         var session = await examSessionService.GetAsync(examId, cancellationToken);
         if (!session.Success || session.Data is null) return NotFound();
-        if (HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
-            && session.Data.Lecturer.UserId != HttpContext.Session.GetInt32(SessionKeys.UserId))
-            return Forbid();
+        if (!CanManage(session.Data)) return DenySession();
 
         var response = await examSessionService.RemoveStudentAsync(examId, candidateId, cancellationToken);
         TempData[response.Success ? "Success" : "Error"] = response.Success
@@ -107,9 +116,7 @@ public class ExamSessionsController(
     {
         var session = await examSessionService.GetAsync(model.ExamId, cancellationToken);
         if (!session.Success || session.Data is null) return NotFound();
-        if (HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
-            && session.Data.Lecturer.UserId != HttpContext.Session.GetInt32(SessionKeys.UserId))
-            return Forbid();
+        if (!CanManage(session.Data)) return DenySession();
 
         if (!ModelState.IsValid)
         {
@@ -285,10 +292,9 @@ public class ExamSessionsController(
             return BadRequest(new { error = response.Error });
         }
 
-        if (HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
-            && response.Data.LecturerId != HttpContext.Session.GetInt32(SessionKeys.UserId))
+        if (CurrentLecturerId.HasValue && response.Data.LecturerId != CurrentLecturerId)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền xem lớp học này." });
         }
 
         return Json(new
@@ -414,11 +420,12 @@ public class ExamSessionsController(
         var papers = await questionService.GetExamPaperAsync(session.ExamId, cancellationToken);
         model.Papers = papers.Data ?? [];
 
-        // A paper a student has already answered is part of the exam record, so the redeal
-        // button disappears as soon as one question has been marked completed.
-        model.CanRedeal = model.Papers.Count > 0
+        // Once a student has opened their slot the papers are part of the exam record, so
+        // the redeal button disappears, matching what the service would refuse.
+        model.CanRedeal = model.Papers.Any(paper => paper.Questions.Count > 0)
             && model.CanAssign
-            && model.Papers.All(paper => paper.Questions.All(question => !question.IsCompleted));
+            && model.Papers.All(paper => !paper.HasStarted
+                && paper.Questions.All(question => !question.IsCompleted));
 
         // Ask the bank with the filter currently on screen, so the warning matches what the
         // button would actually draw from. Once everybody holds a paper nothing more is
