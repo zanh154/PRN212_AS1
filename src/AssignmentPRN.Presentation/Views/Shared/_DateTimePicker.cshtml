@@ -5,7 +5,9 @@
         string.IsNullOrEmpty(a.Value) ? a.Key : $"{a.Key}=\"{a.Value}\""));
 }
 
-<div class="date-time-picker" data-date-time-picker>
+<div class="date-time-picker" data-date-time-picker
+     data-earliest="@Model.Earliest?.ToString("yyyy-MM-ddTHH:mm")"
+     data-latest="@Model.Latest?.ToString("yyyy-MM-ddTHH:mm")">
     <button class="date-time-picker__trigger" type="button"
             aria-haspopup="dialog" aria-expanded="false"
             data-date-time-trigger>
@@ -42,6 +44,7 @@
                     <div>
                         <strong>Giờ bắt đầu</strong>
                         <span>Định dạng 24 giờ</span>
+                        <small class="date-time-picker__hint" data-date-time-hint hidden></small>
                     </div>
                     <div class="date-time-picker__time-fields">
                         <input type="number" min="0" max="23" inputmode="numeric"

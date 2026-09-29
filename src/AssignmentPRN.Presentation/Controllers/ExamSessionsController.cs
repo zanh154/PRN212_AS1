@@ -284,8 +284,13 @@ public class ExamSessionsController(IExamSessionService examSessionService) : Co
             var lecturerId = HttpContext.Session.GetInt32(SessionKeys.UserId) ?? 0;
             classOptions = classOptions.Where(item => item.LecturerId == lecturerId);
         }
+        // The course each class belongs to rides along in Group, so the class
+        // picker can hide the classes of every other course.
         model.ClassOptions = classOptions
-            .Select(item => new SelectListItem(item.Label, item.ClassId.ToString()))
+            .Select(item => new SelectListItem(item.Label, item.ClassId.ToString())
+            {
+                Group = new SelectListGroup { Name = item.CourseId.ToString() }
+            })
             .ToList();
 
         model.OptionsError = model.CanCreate

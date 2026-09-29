@@ -1,23 +1,51 @@
 @model List<AssignmentPRN.DataAccess.Entities.Course>
-@{ ViewData["Title"] = "Môn học"; }
+@{
+    ViewData["Title"] = "Môn học";
+    ViewData["Breadcrumb"] = new List<BreadcrumbItem> { new("Môn học") };
+
+    var table = new DataTableViewModel
+    {
+        Columns =
+        [
+            new("Môn học"),
+            new("Mô tả"),
+            new("Giảng viên"),
+            new("Trạng thái"),
+            new("Thao tác", AlignEnd: true)
+        ],
+        Rows = Model.Select(course => new List<TableCell>
+        {
+            new StackCell(course.CourseName, course.CourseCode),
+            new TextCell(course.Description, Muted: true),
+            new TextCell(course.Lecturer.FullName, Nowrap: true),
+            new ChipCell(course.IsActive ? "Đang hoạt động" : "Ngừng hoạt động",
+                course.IsActive ? "status-chip--success" : "status-chip--muted"),
+            new ActionsCell(
+            [
+                new("Sửa môn học", "pencil", "Edit", new { id = course.CourseId }),
+                new("Xoá môn học", "trash", "Delete", new { id = course.CourseId }, Tone: "danger", IsPost: true,
+                    Confirm: $"Xoá môn {course.CourseCode}? Môn đã có dữ liệu liên quan sẽ không được xoá.")
+            ])
+        } as IReadOnlyList<TableCell>).ToList()
+    };
+}
 <div class="page-header">
     <div><span class="eyebrow">Quản lý đào tạo</span><h1>Môn học</h1><p>Quản lý thông tin và trạng thái hoạt động của môn học.</p></div>
-    <a class="btn btn-primary" asp-action="Create">Thêm môn học</a>
+    <a class="btn btn-primary" asp-action="Create"><partial name="_Icon" model="@("plus")" /> Thêm môn học</a>
 </div>
+
 <div class="content-card">
-@if (Model.Count == 0) { <div class="empty-state"><h2>Chưa có môn học</h2><p>Thêm môn học đầu tiên để bắt đầu.</p></div> }
+@if (Model.Count == 0)
+{
+    <div class="empty-state">
+        <div class="empty-icon"><partial name="_Icon" model="@("book")" /></div>
+        <h2>Chưa có môn học</h2>
+        <p>Thêm môn học đầu tiên để bắt đầu.</p>
+        <a class="btn btn-primary" asp-action="Create">Thêm môn học</a>
+    </div>
+}
 else
 {
-    <div class="table-responsive"><table class="table align-middle">
-        <thead><tr><th>Mã môn</th><th>Tên môn</th><th>Giảng viên</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-        <tbody>@foreach (var course in Model)
-        {
-            <tr><td>@course.CourseCode</td><td><strong>@course.CourseName</strong><div class="text-muted">@course.Description</div></td>
-                <td>@course.Lecturer.FullName</td><td>@(course.IsActive ? "Đang hoạt động" : "Ngừng hoạt động")</td>
-                <td><div class="d-flex gap-2"><a class="btn btn-outline-secondary btn-sm" asp-action="Edit" asp-route-id="@course.CourseId">Sửa</a>
-                <form asp-action="Delete" asp-route-id="@course.CourseId" method="post" data-confirm="Xoá môn học này? Môn đã có dữ liệu liên quan sẽ không được xoá.">
-                    <button class="btn btn-outline-danger btn-sm">Xoá</button></form></div></td></tr>
-        }</tbody>
-    </table></div>
+    <partial name="_DataTable" model="table" />
 }
 </div>

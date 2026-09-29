@@ -101,6 +101,18 @@ public class CatalogRepository(AivesDbContext context) : ICatalogRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<int>> ListStudentIdsInCourseAsync(
+        int courseId,
+        CancellationToken cancellationToken = default)
+    {
+        return await context.ClassStudents
+            .AsNoTracking()
+            .Where(item => item.Class.CourseId == courseId && item.Class.IsActive)
+            .Select(item => item.StudentId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<bool> CourseExistsAsync(int courseId, CancellationToken cancellationToken = default)
     {
         return context.Courses.AnyAsync(course => course.CourseId == courseId && course.IsActive, cancellationToken);

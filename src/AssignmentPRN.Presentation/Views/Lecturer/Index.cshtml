@@ -24,7 +24,7 @@
 @if (Model.NextSession is not null)
 {
     var next = Model.NextSession;
-    <div class="content-card mb-4">
+    <div class="content-card">
         <div class="section-heading with-action mb-0">
             <div class="d-flex gap-3 align-items-start">
                 <span class="icon-chip icon-chip--accent"><partial name="_Icon" model="@("clock")" /></span>
@@ -48,6 +48,11 @@
     <a class="dashboard-tile" asp-controller="Courses" asp-action="Index">
         <span class="icon-chip"><partial name="_Icon" model="@("plus")" /></span>
         <div class="dashboard-tile__body"><h3>Môn học</h3><p>Quản lý các môn học do bạn phụ trách.</p></div>
+        <span class="dashboard-tile__arrow"><partial name="_Icon" model="@("arrow-right")" /></span>
+    </a>
+    <a class="dashboard-tile" asp-controller="Classes" asp-action="Index">
+        <span class="icon-chip"><partial name="_Icon" model="@("users")" /></span>
+        <div class="dashboard-tile__body"><h3>Lớp học</h3><p>Tạo lớp và thêm sinh viên trước khi xếp lịch thi.</p></div>
         <span class="dashboard-tile__arrow"><partial name="_Icon" model="@("arrow-right")" /></span>
     </a>
     <a class="dashboard-tile" asp-controller="ExamSessions" asp-action="Create">

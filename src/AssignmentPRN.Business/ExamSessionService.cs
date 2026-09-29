@@ -25,8 +25,12 @@ public class ExamSessionService(
             BusinessValidation.InRange(request.MainQuestionCount, 1, 50, "Số câu hỏi chính");
             BusinessValidation.InRange(request.MaxFollowUpCount, 0, 50, "Số câu hỏi phụ");
             if (request.StartTime == default) throw new BusinessValidationException("Vui lòng chọn ngày giờ thi.");
-            if (request.CourseId != current.Course.CourseId && !await catalogRepository.CourseExistsAsync(request.CourseId, cancellationToken))
-                throw new BusinessValidationException("Môn học không tồn tại hoặc đã ngừng hoạt động.");
+            if (request.CourseId != current.Course.CourseId)
+            {
+                if (!await catalogRepository.CourseExistsAsync(request.CourseId, cancellationToken))
+                    throw new BusinessValidationException("Môn học không tồn tại hoặc đã ngừng hoạt động.");
+                await EnsureCandidatesBelongToCourseAsync(current, request.CourseId, cancellationToken);
+            }
             return MapDetail(await examSessionRepository.UpdateAsync(request, cancellationToken));
         }, "Không thể cập nhật phiên thi.");
 
@@ -235,6 +239,27 @@ public class ExamSessionService(
                 return MapSchedule(schedule);
             },
             "Không thể tải lịch thi của sinh viên.");
+    }
+
+    /// <summary>
+    /// Moving a session to another course only makes sense when everyone already queued in it
+    /// studies that course; otherwise the roster and the course would disagree.
+    /// </summary>
+    private async Task EnsureCandidatesBelongToCourseAsync(
+        ExamSessionDetail current,
+        int courseId,
+        CancellationToken cancellationToken)
+    {
+        var enrolled = (await catalogRepository.ListStudentIdsInCourseAsync(courseId, cancellationToken)).ToHashSet();
+        var outsiders = current.Candidates
+            .Where(candidate => !enrolled.Contains(candidate.StudentId))
+            .Select(candidate => candidate.StudentName)
+            .ToList();
+        if (outsiders.Count > 0)
+        {
+            throw new BusinessValidationException(
+                $"Không thể đổi sang môn học này: {string.Join(", ", outsiders)} không thuộc lớp nào của môn.");
+        }
     }
 
     /// <summary>

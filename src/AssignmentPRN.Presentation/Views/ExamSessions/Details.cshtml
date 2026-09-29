@@ -4,6 +4,11 @@
     var session = Model.Session;
     var candidates = session.Candidates;
     ViewData["Title"] = session.ExamName;
+    ViewData["Breadcrumb"] = new List<BreadcrumbItem>
+    {
+        new("Lịch thi", "ExamSessions", "Index"),
+        new(session.ExamName)
+    };
 }
 
 <div class="page-header">
@@ -25,10 +30,17 @@
     }
 </div>
 
+@{
+    // A slot may only be moved inside the exam day, and it has to finish before
+    // midnight — so the picker is handed exactly that window.
+    var examDay = session.StartTime.Date;
+    var lastStart = examDay.AddDays(1).AddMinutes(-1 - session.TimePerStudent);
+    if (lastStart < examDay) { lastStart = examDay; }
+}
 @{ var nextStatuses = Enum.GetValues<ExamSessionStatus>().Where(x => ExamSessionRules.CanTransition(session.Status, x)).ToList(); }
 @if (nextStatuses.Count > 0)
 {
-    <form asp-action="ChangeStatus" asp-route-id="@session.ExamId" method="post" class="content-card mb-3" data-confirm="Xác nhận chuyển trạng thái phiên thi? Không thể quay lại trạng thái trước.">
+    <form asp-action="ChangeStatus" asp-route-id="@session.ExamId" method="post" class="content-card" data-confirm="Xác nhận chuyển trạng thái phiên thi? Không thể quay lại trạng thái trước.">
         <label for="session-status" class="form-label">Chuyển trạng thái</label>
         <div class="d-flex gap-2"><select id="session-status" name="status" class="form-select">
             @foreach (var status in nextStatuses) { <option value="@status">@ExamSessionText.Status(status)</option> }
@@ -50,7 +62,7 @@
 
 @if (!string.IsNullOrWhiteSpace(session.Description))
 {
-    <div class="content-card mb-3">
+    <div class="content-card">
         <p>@session.Description</p>
     </div>
 }
@@ -117,7 +129,9 @@
                                         Name = "ScheduledTime",
                                         Value = candidate.ScheduledTime?.ToString("yyyy-MM-ddTHH:mm"),
                                         DisplayLabel = candidate.ScheduledTime?.ToString("dd/MM/yyyy · HH:mm"),
-                                        Placeholder = "Chọn ngày và giờ"
+                                        Placeholder = "Chọn giờ",
+                                        Earliest = examDay,
+                                        Latest = lastStart
                                     })" />
                                 </div>
                                 <div class="info-note">Kéo dài @session.TimePerStudent phút</div>

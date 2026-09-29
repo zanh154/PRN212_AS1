@@ -1,6 +1,11 @@
 @model ExamSessionCreateViewModel
 @{
     ViewData["Title"] = "Tạo lịch thi";
+    ViewData["Breadcrumb"] = new List<BreadcrumbItem>
+    {
+        new("Lịch thi", "ExamSessions", "Index"),
+        new("Tạo lịch thi")
+    };
 }
 
 <div class="page-header">
@@ -150,6 +155,7 @@
                 </div>
             </div>
 
+            <div class="alert alert-warning" role="alert" data-schedule-overflow hidden></div>
             <div id="participant-rows" class="participant-list" aria-live="polite"></div>
             <div id="participant-empty" class="participant-empty visible">
                 Chọn lớp học để tải danh sách sinh viên.

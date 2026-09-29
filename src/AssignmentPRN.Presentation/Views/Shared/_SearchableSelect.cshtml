@@ -47,6 +47,7 @@
                 <button class="select-picker__option @(isSelected ? "is-selected" : null)"
                         type="button" role="option" aria-selected="@(isSelected ? "true" : "false")"
                         data-select-option data-value="@option.Value"
+                        data-group="@option.Group?.Name"
                         data-label="@primary" data-search-text="@option.Text">
                     <span class="select-picker__avatar" aria-hidden="true">
                         @(string.IsNullOrWhiteSpace(primary) ? "?" : primary[..1].ToUpperInvariant())

@@ -1,5 +1,13 @@
 @model ExamSessionEditViewModel
-@{ ViewData["Title"] = "Sửa phiên thi"; }
+@{
+    ViewData["Title"] = "Sửa phiên thi";
+    ViewData["Breadcrumb"] = new List<BreadcrumbItem>
+    {
+        new("Lịch thi", "ExamSessions", "Index"),
+        new(Model.ExamName, "ExamSessions", "Details", new { id = Model.ExamId }),
+        new("Sửa")
+    };
+}
 <div class="page-header"><div><a class="back-link" asp-action="Details" asp-route-id="@Model.ExamId">← Chi tiết phiên thi</a><h1>Sửa phiên thi</h1>
 <p>Cập nhật thông tin, ngày giờ và thời lượng của phiên thi.</p></div></div>
 <form method="post" asp-action="Edit" asp-route-id="@Model.ExamId" class="content-card">
