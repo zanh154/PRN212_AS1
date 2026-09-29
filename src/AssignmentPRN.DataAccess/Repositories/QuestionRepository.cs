@@ -22,6 +22,14 @@ public interface IQuestionRepository
     /// <summary>True when at least one exam slot already holds this question.</summary>
     Task<bool> IsAssignedToExamAsync(int questionId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Id, text and status of every live question in the course, so the service can turn
+    /// away a question that repeats one already there. Archived rows are excluded.
+    /// </summary>
+    Task<IReadOnlyList<QuestionTextMatch>> ListTextMatchesAsync(
+        int courseId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Identifiers of every approved question still free for the exam being built.</summary>
     Task<IReadOnlyList<int>> ListPoolIdsAsync(QuestionPickRequest request, CancellationToken cancellationToken = default);
 
@@ -240,6 +248,27 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
 
     public Task<bool> IsAssignedToExamAsync(int questionId, CancellationToken cancellationToken = default) =>
         context.ExamQuestions.AnyAsync(item => item.QuestionId == questionId, cancellationToken);
+
+    public async Task<IReadOnlyList<QuestionTextMatch>> ListTextMatchesAsync(
+        int courseId,
+        CancellationToken cancellationToken = default)
+    {
+        // Only the id, text and status are needed to spot a repeat, and a question bank
+        // for one course is small enough to compare in memory once the rows are trimmed
+        // the same way on both sides.
+        return await context.Questions
+            .AsNoTracking()
+            .Where(question => question.CourseId == courseId
+                && question.Status != QuestionStatus.Archived)
+            .Select(question => new QuestionTextMatch
+            {
+                QuestionId = question.QuestionId,
+                QuestionText = question.QuestionText,
+                Status = question.Status,
+                MaterialId = question.SourceMaterialId
+            })
+            .ToListAsync(cancellationToken);
+    }
 
     public async Task<IReadOnlyList<int>> ListPoolIdsAsync(
         QuestionPickRequest request,

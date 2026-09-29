@@ -153,6 +153,14 @@ public class QuestionService(
                     await EnsureMaterialBelongsToCourseAsync(materialId, courseId, cancellationToken);
                 }
 
+                // Checked last, so a lecture that only mistypes the text still gets the
+                // more specific message about the topic.
+                await EnsureNotDuplicateAsync(
+                    courseId,
+                    body,
+                    request.QuestionId,
+                    cancellationToken);
+
                 var saved = await questionRepository.SaveAsync(
                     new QuestionUpsertInput
                     {
@@ -218,6 +226,11 @@ public class QuestionService(
                 var errors = new List<string>();
                 var imported = 0;
 
+                // Loaded once and kept up to date as rows go in, so a file that repeats a
+                // question, or repeats itself, is caught without a query per line.
+                var known = new List<QuestionTextMatch>(
+                    await questionRepository.ListTextMatchesAsync(targetCourseId, cancellationToken));
+
                 for (var index = 0; index < rows.Count; index++)
                 {
                     var row = rows[index];
@@ -239,7 +252,9 @@ public class QuestionService(
                             await EnsureMaterialBelongsToCourseAsync(materialId, targetCourseId, cancellationToken);
                         }
 
-                        await questionRepository.SaveAsync(
+                        EnsureNotDuplicate(known, body, editingQuestionId: 0);
+
+                        var saved = await questionRepository.SaveAsync(
                             new QuestionUpsertInput
                             {
                                 CourseId = targetCourseId,
@@ -252,6 +267,14 @@ public class QuestionService(
                             },
                             lecturerId,
                             cancellationToken);
+
+                        known.Add(new QuestionTextMatch
+                        {
+                            QuestionId = saved.QuestionId,
+                            QuestionText = body,
+                            Status = saved.Status,
+                            MaterialId = row.MaterialId
+                        });
 
                         imported++;
                     }
@@ -874,8 +897,95 @@ public class QuestionService(
     /// Trims the choices, drops the blank ones and enforces the multiple-choice shape:
     /// at least two choices and exactly one correct answer.
     /// </summary>
-    private static IReadOnlyList<QuestionOptionInput> NormaliseOptions(
-        IReadOnlyList<QuestionOptionInput> options)
+    private async Task EnsureNotDuplicateAsync(
+        int courseId,
+        string questionText,
+        int editingQuestionId,
+        CancellationToken cancellationToken)
+    {
+        var existing = await questionRepository.ListTextMatchesAsync(courseId, cancellationToken);
+        EnsureNotDuplicate(existing, questionText, editingQuestionId);
+    }
+
+    /// <summary>
+    /// Collapses a question to the form used to spot a repeat: lower case, no leading or    /// trailing space and a single space between words. Without this, "  She  goes to
+    /// school " would pass as a brand new question.
+    /// </summary>
+    internal static string FoldForDuplicateCheck(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var builder = new System.Text.StringBuilder(text.Length);
+        var pendingSpace = false;
+
+        foreach (var character in text.Trim())
+        {
+            if (char.IsWhiteSpace(character))
+            {
+                pendingSpace = builder.Length > 0;
+                continue;
+            }
+
+            if (pendingSpace)
+            {
+                builder.Append(' ');
+                pendingSpace = false;
+            }
+
+            builder.Append(char.ToLowerInvariant(character));
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Refuses a question whose wording already exists in the same course. Editing a
+    /// question is allowed, so the question being changed never counts against itself.
+    /// </summary>
+    private static void EnsureNotDuplicate(
+        IReadOnlyList<QuestionTextMatch> existing,
+        string questionText,
+        int editingQuestionId)
+    {
+        var folded = FoldForDuplicateCheck(questionText);
+        if (folded.Length == 0)
+        {
+            return;
+        }
+
+        var clash = existing.FirstOrDefault(item =>
+            item.QuestionId != editingQuestionId
+            // Retiring a question and re-adding a better one is allowed, so an archived
+            // row never blocks. The repository already leaves those out; the check is
+            // repeated here so the rule does not depend on the query.
+            && item.Status != QuestionStatus.Archived
+            && string.Equals(FoldForDuplicateCheck(item.QuestionText), folded, StringComparison.Ordinal));
+
+        if (clash is null)
+        {
+            return;
+        }
+
+        var id = clash.QuestionId;
+        throw new BusinessValidationException(
+            $"Câu hỏi đã tồn tại trong môn này (mã #{id}, trạng thái {DescribeStatus(clash.Status)}). "
+            + "Hãy sửa câu cũ hoặc đổi nội dung câu mới.");
+    }
+
+    private static string DescribeStatus(QuestionStatus status) => status switch
+    {
+        QuestionStatus.Draft => "nháp",
+        QuestionStatus.PendingReview => "chờ duyệt",
+        QuestionStatus.Approved => "đã duyệt",
+        QuestionStatus.Rejected => "bị từ chối",
+        QuestionStatus.Archived => "đã lưu trữ",
+        _ => status.ToString()
+    };
+
+    private static IReadOnlyList<QuestionOptionInput> NormaliseOptions(        IReadOnlyList<QuestionOptionInput> options)
     {
         if (options is null || options.Count == 0)
         {
