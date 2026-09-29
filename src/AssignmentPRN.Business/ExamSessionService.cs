@@ -12,6 +12,24 @@ public class ExamSessionService(
     private const string StudentRole = "Student";
     private const int SearchResultLimit = 25;
 
+    public Task<ServiceResponse<ExamStudentSearchResult>> SearchExamStudentsAsync(
+        ExamStudentSearch filter, int? lecturerId, CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(async () =>
+        {
+            if (lecturerId.HasValue) BusinessValidation.PositiveId(lecturerId.Value, "giảng viên");
+            if (filter.ExamId.HasValue) BusinessValidation.PositiveId(filter.ExamId.Value, "phiên thi");
+            filter.Query = BusinessValidation.OptionalText(filter.Query, "tên hoặc email", 255);
+            if (filter.From?.Date > filter.To?.Date)
+                throw new BusinessValidationException("Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
+            if (filter.To?.Date == DateTime.MaxValue.Date)
+                throw new BusinessValidationException("Ngày kết thúc không hợp lệ.");
+            if (filter.Status.HasValue && !Enum.IsDefined(filter.Status.Value))
+                throw new BusinessValidationException("Trạng thái không hợp lệ.");
+            return await examSessionRepository.SearchExamStudentsAsync(filter, lecturerId, cancellationToken);
+        }, "Không thể tra cứu sinh viên trong phiên thi.");
+    }
+
     public Task<ServiceResponse> RemoveStudentAsync(int examId, int candidateId,
         CancellationToken cancellationToken = default)
     {

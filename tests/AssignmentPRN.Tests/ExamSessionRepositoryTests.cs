@@ -21,6 +21,66 @@ public sealed class ExamSessionRepositoryTests
     private static readonly DateTime Start = new(2026, 10, 10, 8, 0, 0);
 
     [Fact]
+    public async Task SearchStudents_CombinesFiltersAndIncludesEntireEndDate()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var first = await fixture.Repository.CreateAsync(Input("Search", LecturerA, 1, Start, 30, StudentA, StudentB));
+        await fixture.Repository.CreateAsync(Input("Other", LecturerB, 2, Start.AddDays(1), 30, StudentA));
+        var result = await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch
+        {
+            Query = "  USER20@EXAMPLE.TEST  ", ExamId = first.ExamId,
+            From = Start.Date, To = Start.Date, Status = CandidateStatus.Waiting
+        }, null);
+        Assert.True(result.Success, result.Error);
+        Assert.Equal(StudentA, first.Candidates.Single(c => c.CandidateId == Assert.Single(result.Data!.Items).CandidateId).StudentId);
+        Assert.Equal(1, result.Data!.Total);
+        var byName = await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch { Query = "SINH VIÊN" }, null);
+        Assert.Equal(3, byName.Data!.Total);
+    }
+
+    [Fact]
+    public async Task SearchStudents_ScopesResultsAndOptionsToLecturer()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var own = await fixture.Repository.CreateAsync(Input("Own", LecturerA, 1, Start, 30, StudentA));
+        var other = await fixture.Repository.CreateAsync(Input("Other", LecturerB, 2, Start, 30, StudentB));
+        var result = await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch(), LecturerA);
+        Assert.Equal(own.ExamId, Assert.Single(result.Data!.Items).ExamId);
+        Assert.Equal(own.ExamId, Assert.Single(result.Data.Sessions).ExamId);
+        var forged = await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch { ExamId = other.ExamId }, LecturerA);
+        Assert.Empty(forged.Data!.Items);
+        Assert.False((await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch(), 0)).Success);
+    }
+
+    [Fact]
+    public async Task SearchStudents_PaginatesAndClampsOutOfRangePages()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        for (var index = 0; index < 21; index++)
+            await fixture.Repository.CreateAsync(Input($"Page {index}", LecturerA, 1, Start.AddDays(index), 30, StudentA));
+        var first = await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch { Page = -1 }, null);
+        var last = await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch { Page = int.MaxValue }, null);
+        Assert.Equal(20, first.Data!.Items.Count);
+        Assert.Equal(1, first.Data.Page);
+        Assert.Equal(21, last.Data!.Total);
+        Assert.Equal(2, last.Data.Page);
+        Assert.DoesNotContain(Assert.Single(last.Data.Items).CandidateId, first.Data.Items.Select(x => x.CandidateId));
+    }
+
+    [Fact]
+    public async Task SearchStudents_ValidatesDatesStatusAndEmptyResults()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        Assert.False((await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch { From = Start.AddDays(1), To = Start }, null)).Success);
+        Assert.False((await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch { To = DateTime.MaxValue }, null)).Success);
+        Assert.False((await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch { Status = (CandidateStatus)99 }, null)).Success);
+        var empty = await fixture.Service.SearchExamStudentsAsync(new ExamStudentSearch { Query = "missing", Page = 99 }, null);
+        Assert.True(empty.Success);
+        Assert.Empty(empty.Data!.Items);
+        Assert.Equal(1, empty.Data.Page);
+    }
+
+    [Fact]
     public async Task RemoveStudent_RemovesOnlyEnrollmentAndAllowsAddingAgain()
     {
         await using var fixture = await RepositoryFixture.CreateAsync();

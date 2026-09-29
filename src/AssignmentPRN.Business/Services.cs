@@ -16,6 +16,9 @@ public interface IAuthService
 
 public interface IExamSessionService
 {
+    Task<ServiceResponse<AssignmentPRN.DataAccess.Contracts.ExamStudentSearchResult>> SearchExamStudentsAsync(
+        AssignmentPRN.DataAccess.Contracts.ExamStudentSearch filter, int? lecturerId,
+        CancellationToken cancellationToken = default);
     Task<ServiceResponse> RemoveStudentAsync(int examId, int candidateId,
         CancellationToken cancellationToken = default);
 

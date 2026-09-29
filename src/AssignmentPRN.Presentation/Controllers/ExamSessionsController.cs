@@ -72,6 +72,9 @@ public class ExamSessionsController(IExamSessionService examSessionService) : Co
             return RedirectToAction(nameof(Index));
         }
 
+        if (HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
+            && response.Data.Lecturer.UserId != HttpContext.Session.GetInt32(SessionKeys.UserId))
+            return Forbid();
         return View(new ExamSessionDetailViewModel { Session = response.Data });
     }
 

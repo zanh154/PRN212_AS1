@@ -8,6 +8,39 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public class ExamSessionRepository(AivesDbContext context) : IExamSessionRepository
 {
+    public async Task<ExamStudentSearchResult> SearchExamStudentsAsync(ExamStudentSearch filter,
+        int? lecturerId, CancellationToken cancellationToken = default)
+    {
+        var sessions = context.ExamSessions.AsNoTracking()
+            .Where(s => !lecturerId.HasValue || s.LecturerId == lecturerId.Value);
+        var query = context.ExamCandidates.AsNoTracking()
+            .Where(c => !lecturerId.HasValue || c.Session.LecturerId == lecturerId.Value);
+        var term = filter.Query?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrEmpty(term))
+            query = query.Where(c => c.Student.FullName.ToLower().Contains(term) || c.Student.Email.ToLower().Contains(term));
+        if (filter.ExamId.HasValue) query = query.Where(c => c.ExamId == filter.ExamId.Value);
+        if (filter.Status.HasValue) query = query.Where(c => c.Status == filter.Status.Value);
+        if (filter.From.HasValue) query = query.Where(c => c.ScheduledTime >= filter.From.Value.Date);
+        if (filter.To.HasValue)
+        {
+            var until = filter.To.Value.Date.AddDays(1);
+            query = query.Where(c => c.ScheduledTime < until);
+        }
+        var total = await query.CountAsync(cancellationToken);
+        var page = Math.Clamp(filter.Page, 1, Math.Max(1, (int)Math.Ceiling(total / 20d)));
+        return new ExamStudentSearchResult
+        {
+            Total = total, Page = page,
+            Sessions = await sessions.OrderBy(s => s.StartTime).ThenBy(s => s.ExamId)
+                .Select(s => new ExamStudentSessionOption(s.ExamId, s.ExamName)).ToListAsync(cancellationToken),
+            Items = await query.OrderBy(c => c.ScheduledTime).ThenBy(c => c.CandidateId)
+                .Skip((page - 1) * 20).Take(20)
+                .Select(c => new ExamStudentRow(c.CandidateId, c.ExamId, c.Student.FullName,
+                    c.Student.Email, c.Session.ExamName, c.Session.Course.CourseName,
+                    c.ScheduledTime, c.Status)).ToListAsync(cancellationToken)
+        };
+    }
+
     public async Task RemoveStudentAsync(int examId, int candidateId,
         CancellationToken cancellationToken = default)
     {
