@@ -573,3 +573,99 @@ public sealed class QuestionImportResult
 
     public bool Success => Errors.Count == 0;
 }
+
+/// <summary>A session's score sheet as the examiner reads it.</summary>
+public sealed class SessionResultResponse
+{
+    public int ExamId { get; init; }
+
+    public string ExamName { get; init; } = string.Empty;
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public string CourseName { get; init; } = string.Empty;
+
+    public string LecturerName { get; init; } = string.Empty;
+
+    public DateTime StartTime { get; init; }
+
+    public int TimePerStudent { get; init; }
+
+    public int MainQuestionCount { get; init; }
+
+    public int MaxFollowUpCount { get; init; }
+
+    public DataAccess.Enums.ExamSessionStatus Status { get; init; }
+
+    public IReadOnlyList<CandidateResultItemResponse> Candidates { get; init; } =
+        Array.Empty<CandidateResultItemResponse>();
+
+    /// <summary>Slots whose time is over but are still Waiting or In progress.</summary>
+    public int OverdueCount { get; init; }
+
+    public int CompletedCount => Candidates.Count(item => item.Status == DataAccess.Enums.CandidateStatus.Completed);
+
+    public int AbsentCount => Candidates.Count(item => item.Status == DataAccess.Enums.CandidateStatus.Absent);
+
+    /// <summary>Mean score of the completed papers; null while none is completed.</summary>
+    public decimal? AverageScore => CompletedCount == 0
+        ? null
+        : Math.Round(
+            Candidates.Where(item => item.Score.HasValue).Average(item => item.Score!.Value),
+            1,
+            MidpointRounding.AwayFromZero);
+}
+
+/// <summary>One row of the score sheet.</summary>
+public sealed class CandidateResultItemResponse
+{
+    public int CandidateId { get; init; }
+
+    public string StudentName { get; init; } = string.Empty;
+
+    public string StudentEmail { get; init; } = string.Empty;
+
+    public DateTime? ScheduledTime { get; init; }
+
+    public DataAccess.Enums.CandidateStatus Status { get; init; }
+
+    public int MainCorrect { get; init; }
+
+    public int MainTotal { get; init; }
+
+    public int FollowUpCorrect { get; init; }
+
+    public int FollowUpTotal { get; init; }
+
+    /// <summary>Out of 10, only once the paper is completed.</summary>
+    public decimal? Score { get; init; }
+}
+
+/// <summary>One candidate's marked paper, for the examiner.</summary>
+public sealed class CandidateResultResponse
+{
+    public int ExamId { get; init; }
+
+    public string StudentName { get; init; } = string.Empty;
+
+    public string StudentEmail { get; init; } = string.Empty;
+
+    public DataAccess.Enums.CandidateStatus Status { get; init; }
+
+    public DateTime? ScheduledTime { get; init; }
+
+    public DateTime? StartedAt { get; init; }
+
+    public DateTime? FinishedAt { get; init; }
+
+    /// <summary>The paper, graded; its score only means something once the slot is completed.</summary>
+    public ExamResultResponse Paper { get; init; } = new();
+}
+
+/// <summary>How many slots a close-overdue pass moved.</summary>
+public sealed class OverdueSlotsResult
+{
+    public int MarkedAbsent { get; init; }
+
+    public int Completed { get; init; }
+}

@@ -177,6 +177,34 @@ public interface IQuestionService
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Results of a session for the examiner. A lecturer only sees the sessions they run;
+/// pass a null lecturer id for an admin.
+/// </summary>
+public interface IExamResultService
+{
+    /// <summary>The score sheet of a session: one row per candidate plus a summary.</summary>
+    Task<ServiceResponse<SessionResultResponse>> GetSessionResultsAsync(
+        int examId,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>One candidate's paper with the answer key and the examiner notes.</summary>
+    Task<ServiceResponse<CandidateResultResponse>> GetCandidateResultAsync(
+        int candidateId,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Closes every slot of the session whose time is over: no-shows become Absent, papers
+    /// left open are completed as saved. See <see cref="OverdueSlotRules"/>.
+    /// </summary>
+    Task<ServiceResponse<OverdueSlotsResult>> CloseOverdueSlotsAsync(
+        int examId,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ICourseMaterialService
 {
     Task<ServiceResponse<IReadOnlyList<CourseMaterialResponse>>> ListAsync(

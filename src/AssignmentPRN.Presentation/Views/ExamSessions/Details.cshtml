@@ -140,6 +140,21 @@
 <div class="content-card">
     <div class="section-heading">
         <div>
+            <h2>Kết quả thi</h2>
+            <p>
+                Bảng điểm từng sinh viên, gồm @session.MainQuestionCount câu chính và tối đa
+                @session.MaxFollowUpCount câu đào sâu mỗi người. Chốt ca đã hết giờ để ghi nhận vắng thi.
+            </p>
+        </div>
+        <a class="btn btn-outline-primary" asp-controller="ExamResults" asp-action="Index" asp-route-id="@session.ExamId">
+            Xem kết quả
+        </a>
+    </div>
+</div>
+
+<div class="content-card">
+    <div class="section-heading">
+        <div>
             <h2>Lịch từng sinh viên</h2>
             <p>Có thể đổi giờ từng ca. Hệ thống sẽ từ chối nếu trùng lịch sinh viên hoặc giảng viên.</p>
         </div>

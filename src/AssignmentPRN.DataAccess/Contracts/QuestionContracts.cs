@@ -347,6 +347,9 @@ public sealed class ExamResultQuestion
 
     public bool IsFollowUp => ParentExamQuestionId.HasValue;
 
+    /// <summary>Examiner notes on the question; filled only for the lecturer's review.</summary>
+    public string? ExpectedAnswer { get; init; }
+
     public bool IsCorrect => SelectedOptionId is int selected
         && Options.Any(option => option.OptionId == selected && option.IsCorrect);
 }

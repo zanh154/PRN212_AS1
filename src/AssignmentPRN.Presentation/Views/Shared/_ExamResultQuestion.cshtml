@@ -55,4 +55,13 @@
             <strong>@correctOption.Text</strong>
         </div>
     }
+
+    @* Only the examiner's review reads the expected answer, so a student never sees it. *@
+    @if (!string.IsNullOrWhiteSpace(question.ExpectedAnswer))
+    {
+        <div class="exam-result-expected">
+            <span>Đáp án mong đợi</span>
+            <p>@question.ExpectedAnswer</p>
+        </div>
+    }
 </li>

@@ -58,9 +58,13 @@ public interface IQuestionRepository
         int candidateId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>One completed paper with the student's choices and answer key.</summary>
+    /// <summary>
+    /// One completed paper with the student's choices and answer key. The expected answer
+    /// is examiner material, so it is only read when <paramref name="includeExpectedAnswer"/> is set.
+    /// </summary>
     Task<IReadOnlyList<ExamResultQuestion>> ListCandidateResultsAsync(
         int candidateId,
+        bool includeExpectedAnswer = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -464,6 +468,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
 
     public async Task<IReadOnlyList<ExamResultQuestion>> ListCandidateResultsAsync(
         int candidateId,
+        bool includeExpectedAnswer = false,
         CancellationToken cancellationToken = default) =>
         await context.ExamQuestions
             .AsNoTracking()
@@ -489,7 +494,8 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                     .Select(answer => answer.SelectedOptionId)
                     .FirstOrDefault(),
                 MaterialId = item.Question.SourceMaterialId,
-                ParentExamQuestionId = item.ParentExamQuestionId
+                ParentExamQuestionId = item.ParentExamQuestionId,
+                ExpectedAnswer = includeExpectedAnswer ? item.Question.ExpectedAnswer : null
             })
             .ToListAsync(cancellationToken);
 

@@ -502,7 +502,7 @@ public class QuestionService(
                     CourseCode = candidate.CourseCode,
                     CourseName = candidate.CourseName,
                     LecturerName = candidate.LecturerName,
-                    Questions = await questionRepository.ListCandidateResultsAsync(candidateId, cancellationToken)
+                    Questions = await questionRepository.ListCandidateResultsAsync(candidateId, cancellationToken: cancellationToken)
                 };
             },
             "Không thể tải kết quả bài thi.");
@@ -599,7 +599,7 @@ public class QuestionService(
         }
 
         // The key is read here, server side; the answers themselves are not saved yet.
-        var answered = (await questionRepository.ListCandidateResultsAsync(candidate.CandidateId, cancellationToken))
+        var answered = (await questionRepository.ListCandidateResultsAsync(candidate.CandidateId, cancellationToken: cancellationToken))
             .Where(question => !question.IsFollowUp)
             .Select(question => new FollowUpSource(
                 question.ExamQuestionId,

@@ -40,20 +40,25 @@
 
 @if (room.CanAnswer && room.IsFollowUpRound)
 {
+    @* One inline wrapper: .info-note is a flex row and would split loose text into columns. *@
     <div class="info-note">
-        <strong>Vòng 2 · Câu hỏi đào sâu.</strong>
-        Dựa trên bài làm vòng 1, hệ thống hỏi thêm những câu cùng chủ đề: câu bạn làm sai sẽ
-        được hỏi lại ở mức dễ hơn, câu làm đúng được hỏi sâu hơn. Mỗi câu đào sâu tính nửa
-        điểm một câu chính. <strong>Hết giờ bài sẽ tự nộp.</strong>
+        <span>
+            <strong>Vòng 2 · Câu hỏi đào sâu.</strong>
+            Dựa trên bài làm vòng 1, hệ thống hỏi thêm những câu cùng chủ đề: câu bạn làm sai sẽ
+            được hỏi lại ở mức dễ hơn, câu làm đúng được hỏi sâu hơn. Mỗi câu đào sâu tính nửa
+            điểm một câu chính. <strong>Hết giờ bài sẽ tự nộp.</strong>
+        </span>
     </div>
 }
 else if (room.CanAnswer)
 {
     <div class="info-note">
-        Đề của bạn được rút ngẫu nhiên từ ngân hàng câu hỏi của môn, không trùng với sinh viên
-        nào khác trong cùng phiên thi. Sau khi nộp, bạn có thể được hỏi thêm vài câu đào sâu.
-        <strong>Hết giờ bài sẽ tự nộp, và vòng đã nộp thì không sửa lại được.</strong>
-        Đừng rời trang khi chưa nộp.
+        <span>
+            Đề của bạn được rút ngẫu nhiên từ ngân hàng câu hỏi của môn, không trùng với sinh viên
+            nào khác trong cùng phiên thi. Sau khi nộp, bạn có thể được hỏi thêm vài câu đào sâu.
+            <strong>Hết giờ bài sẽ tự nộp, và vòng đã nộp thì không sửa lại được.</strong>
+            Đừng rời trang khi chưa nộp.
+        </span>
     </div>
 }
 else if (room.CandidateStatus == CandidateStatus.Completed)

@@ -32,3 +32,27 @@
 .exam-result-stat--follow-up::before {
   background: $color-info;
 }
+
+// -- Examiner notes on a question (lecturer's review only) ------------------
+.exam-result-expected {
+  margin-top: $space-3;
+  padding: $space-3 $space-4;
+  color: $color-info;
+  background: $color-info-soft;
+  border: 1px solid $color-info-border;
+  border-radius: $radius-md;
+
+  span {
+    display: block;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-bold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  p {
+    margin: $space-1 0 0;
+    color: $color-heading;
+    white-space: pre-line;
+  }
+}
