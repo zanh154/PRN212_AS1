@@ -7,6 +7,12 @@ Hai tệp này dùng để chạy thử ngân hàng câu hỏi mà không cần 
 | `bai-giang-01.pdf` | Tài liệu môn, đóng vai trò **một chủ đề** |
 | `cau-hoi-prn212.csv` | 18 câu trắc nghiệm, cột `material` trỏ vào tệp PDF trên |
 
+## Trước khi bắt đầu
+
+Phải chạy `database/20260929_add_question_options.sql` một lần trên database đang dùng.
+Chưa chạy thì cả thêm câu hỏi lẫn nhập CSV đều báo "Không thể lưu câu hỏi." vì bảng
+`question_options` chưa tồn tại.
+
 ## Thứ tự chạy
 
 **Phải tải PDF lên trước**, vì CSV ghép chủ đề theo *tên tệp đã lưu*. Nhập CSV trước

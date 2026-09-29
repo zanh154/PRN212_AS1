@@ -22,6 +22,12 @@ mysql -u root -p aives_db < database/20260929_add_question_options.sql
 Script an toàn khi chạy lại nhiều lần, không xóa dữ liệu cũ.
 Chi tiết từng thay đổi DB nằm trong comment ngay trong file script.
 
+> **Chưa chạy script thì thêm câu hỏi sẽ báo "Không thể lưu câu hỏi."**
+> Đó là thông báo dự phòng của `ServiceExecutor` khi có lỗi ngoài dự kiến; lỗi thật
+> là MySQL không tìm thấy bảng `question_options`. Nhập từ CSV cũng hỏng y như vậy.
+> Chạy xong script, 4 câu `SELECT` ở cuối file phải trả về đúng như phần "Kết quả
+> mong đợi" ghi trong đó.
+
 ---
 
 ## 2. Phạm vi đã làm
