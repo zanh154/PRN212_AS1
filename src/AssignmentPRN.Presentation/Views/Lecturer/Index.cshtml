@@ -73,6 +73,24 @@
         <span class="dashboard-tile__arrow"><partial name="_Icon" model="@("arrow-right")" /></span>
     </a>
 
+    <a class="dashboard-tile" asp-controller="Questions" asp-action="Index">
+        <span class="icon-chip"><partial name="_Icon" model="@("question")" /></span>
+        <div class="dashboard-tile__body">
+            <h3>Ngân hàng câu hỏi</h3>
+            <p>Quản lý câu hỏi theo môn, chủ đề và độ khó; nhập hàng loạt từ CSV.</p>
+        </div>
+        <span class="dashboard-tile__arrow"><partial name="_Icon" model="@("arrow-right")" /></span>
+    </a>
+
+    <a class="dashboard-tile" asp-controller="CourseMaterials" asp-action="Index">
+        <span class="icon-chip icon-chip--accent"><partial name="_Icon" model="@("file-text")" /></span>
+        <div class="dashboard-tile__body">
+            <h3>Tài liệu môn</h3>
+            <p>Tải tài liệu lên; mỗi tài liệu là một chủ đề để gắn câu hỏi.</p>
+        </div>
+        <span class="dashboard-tile__arrow"><partial name="_Icon" model="@("arrow-right")" /></span>
+    </a>
+
     <a class="dashboard-tile" asp-controller="StudentSchedule" asp-action="Index">
         <span class="icon-chip icon-chip--accent"><partial name="_Icon" model="@("search")" /></span>
         <div class="dashboard-tile__body">

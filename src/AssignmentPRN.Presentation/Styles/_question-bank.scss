@@ -118,3 +118,59 @@
   color: $color-danger;
   font-size: $font-size-sm;
 }
+
+/* Checkbox filters on the "phát đề" screen. A column count instead of a fixed
+   width keeps long file names from pushing the grid off the card. */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: $space-2 $space-4;
+}
+
+.exam-paper-list {
+  display: grid;
+  gap: $space-4;
+}
+
+.exam-paper {
+  padding: $space-4;
+  background: $color-surface-alt;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+}
+
+.exam-paper__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-2 $space-4;
+  align-items: center;
+
+  span {
+    font-size: $font-size-sm;
+  }
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    margin-right: auto;
+  }
+}
+
+.exam-paper__questions {
+  padding-left: $space-5;
+  margin: $space-3 0 0;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+    align-items: baseline;
+    padding: $space-2 0;
+    border-top: 1px solid $color-border;
+    font-size: $font-size-sm;
+  }
+}
+
+.exam-paper__text {
+  flex: 1 1 320px;
+}

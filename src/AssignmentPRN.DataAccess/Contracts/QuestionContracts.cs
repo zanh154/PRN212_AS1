@@ -225,3 +225,39 @@ public sealed class CourseMaterialItem
     /// <summary>How many questions are filed under this topic.</summary>
     public int QuestionCount { get; init; }
 }
+
+/// <summary>
+/// One candidate's paper, read back after the bank has dealt the exam. The exam screen
+/// shows it so the lecturer can see exactly what each student will be asked.
+/// </summary>
+public sealed class ExamPaperItem
+{
+    public int CandidateId { get; init; }
+
+    public string StudentName { get; init; } = string.Empty;
+
+    public string StudentEmail { get; init; } = string.Empty;
+
+    public DateTime? ScheduledTime { get; init; }
+
+    public IReadOnlyList<ExamPaperQuestion> Questions { get; init; } = Array.Empty<ExamPaperQuestion>();
+}
+
+public sealed class ExamPaperQuestion
+{
+    public int ExamQuestionId { get; init; }
+
+    public int QuestionId { get; init; }
+
+    /// <summary>1-based position inside the candidate's own paper.</summary>
+    public int OrderNo { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public QuestionDifficulty Difficulty { get; init; }
+
+    public string? MaterialName { get; init; }
+
+    /// <summary>True once the student has answered it; such a paper may no longer be redealt.</summary>
+    public bool IsCompleted { get; init; }
+}

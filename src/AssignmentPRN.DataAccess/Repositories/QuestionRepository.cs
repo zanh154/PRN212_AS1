@@ -36,6 +36,17 @@ public interface IQuestionRepository
         int examId,
         IReadOnlyList<ExamQuestionInput> rows,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Every candidate of the exam with the paper the bank dealt them.</summary>
+    Task<IReadOnlyList<ExamPaperItem>> ListExamPaperAsync(
+        int examId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>True once any slot of the exam has been asked or answered.</summary>
+    Task<bool> HasStartedExamQuestionsAsync(int examId, CancellationToken cancellationToken = default);
+
+    /// <summary>Drops the exam's papers so they can be dealt again. Returns how many rows went.</summary>
+    Task<int> ClearExamQuestionsAsync(int examId, CancellationToken cancellationToken = default);
 }
 
 public class QuestionRepository(AivesDbContext context) : IQuestionRepository
@@ -262,6 +273,91 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         }));
 
         await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ExamPaperItem>> ListExamPaperAsync(
+        int examId,
+        CancellationToken cancellationToken = default)
+    {
+        // Every candidate is listed, dealt or not, so a half-finished assignment is visible
+        // instead of silently looking like an exam with fewer students.
+        var candidates = await context.ExamCandidates
+            .AsNoTracking()
+            .Where(candidate => candidate.ExamId == examId)
+            .OrderBy(candidate => candidate.ScheduledTime)
+            .ThenBy(candidate => candidate.CandidateId)
+            .Select(candidate => new
+            {
+                candidate.CandidateId,
+                candidate.Student.FullName,
+                candidate.Student.Email,
+                candidate.ScheduledTime
+            })
+            .ToListAsync(cancellationToken);
+
+        var papers = await context.ExamQuestions
+            .AsNoTracking()
+            .Where(item => item.ExamId == examId)
+            .OrderBy(item => item.OrderNo)
+            .Select(item => new
+            {
+                item.CandidateId,
+                Question = new ExamPaperQuestion
+                {
+                    ExamQuestionId = item.ExamQuestionId,
+                    QuestionId = item.QuestionId,
+                    OrderNo = item.OrderNo,
+                    QuestionText = item.Question.QuestionText,
+                    Difficulty = item.Question.Difficulty,
+                    MaterialName = item.Question.SourceMaterial == null
+                        ? null
+                        : item.Question.SourceMaterial.FileName,
+                    IsCompleted = item.IsCompleted
+                }
+            })
+            .ToListAsync(cancellationToken);
+
+        var byCandidate = papers
+            .GroupBy(item => item.CandidateId)
+            .ToDictionary(group => group.Key, group => group.Select(item => item.Question).ToList());
+
+        return candidates
+            .Select(candidate => new ExamPaperItem
+            {
+                CandidateId = candidate.CandidateId,
+                StudentName = candidate.FullName,
+                StudentEmail = candidate.Email,
+                ScheduledTime = candidate.ScheduledTime,
+                Questions = byCandidate.TryGetValue(candidate.CandidateId, out var questions)
+                    ? questions
+                    : []
+            })
+            .ToList();
+    }
+
+    public Task<bool> HasStartedExamQuestionsAsync(
+        int examId,
+        CancellationToken cancellationToken = default) =>
+        context.ExamQuestions.AnyAsync(
+            item => item.ExamId == examId && (item.IsCompleted || item.AskedAt != null),
+            cancellationToken);
+
+    public async Task<int> ClearExamQuestionsAsync(
+        int examId,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await context.ExamQuestions
+            .Where(item => item.ExamId == examId)
+            .ToListAsync(cancellationToken);
+
+        if (rows.Count == 0)
+        {
+            return 0;
+        }
+
+        context.ExamQuestions.RemoveRange(rows);
+        await context.SaveChangesAsync(cancellationToken);
+        return rows.Count;
     }
 
     private static QuestionDetail MapDetail(Question question) => new()    {

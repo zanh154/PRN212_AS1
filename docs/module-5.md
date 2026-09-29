@@ -1,15 +1,16 @@
 # Module 5 - Bộ câu hỏi (Question bank)
 
-Trạng thái: **đã code xong, đã build và chạy thử trên database local.**
-Ngày cập nhật: 2026-09-29. Nhánh: `TriNguyen`.
+Trạng thái: **đã code xong, đã nối vào luồng tạo lịch thi, đã có unit test.**
+Ngày cập nhật: 2026-09-29. Đã merge `TriNguyen` vào `QuocAnh_Dev`.
 
 ---
 
 ## 1. Cài đặt cho thành viên mới
 
 ```bash
-git checkout TriNguyen
-dotnet build src/AssignmentPRN.Presentation/AssignmentPRN.Presentation.csproj
+git checkout QuocAnh_Dev
+dotnet build AssignmentPRN.slnx
+dotnet test AssignmentPRN.slnx
 ```
 
 Sau đó chạy đúng **1 script SQL**:
@@ -21,11 +22,6 @@ mysql -u root -p aives_db < database/20260929_add_question_options.sql
 Script an toàn khi chạy lại nhiều lần, không xóa dữ liệu cũ.
 Chi tiết từng thay đổi DB nằm trong comment ngay trong file script.
 
-> Lưu ý: `AssignmentPRN.slnx` đang trỏ tới
-> `tests/AssignmentPRN.Tests/AssignmentPRN.Tests.csproj` — file này **chưa có**.
-> Vì vậy `dotnet build` trên toàn solution sẽ báo lỗi `MSB3202`.
-> Hãy build từng project như lệnh trên.
-
 ---
 
 ## 2. Phạm vi đã làm
@@ -34,7 +30,8 @@ Chi tiết từng thay đổi DB nằm trong comment ngay trong file script.
 |---|---|
 | DataAccess | Entity `Question`, `QuestionOption`, `CourseMaterial`, `ExamQuestion`; enum; mapping `AivesDbContext`; repository + contract |
 | Business | `QuestionService`, `CourseMaterialService`, `QuestionPicker`, `QuestionCsvReader` |
-| Presentation | `QuestionsController`, `CourseMaterialsController`, viewmodel, 5 view, menu, SCSS |
+| Presentation | `QuestionsController`, `CourseMaterialsController`, màn hình phát đề của `ExamSessionsController`, viewmodel, 6 view, menu, SCSS |
+| Tests | `tests/AssignmentPRN.Tests`: `QuestionPickerTests`, `QuestionCsvReaderTests` |
 
 Các controller mới chỉ hiện với vai trò `Admin` và `Lecturer`.
 
@@ -76,7 +73,7 @@ Script có sẵn 4 câu `SELECT` kiểm tra ở cuối, chạy xong nhìn kết 
 
 ## 4. Luồng CSV import
 
-Tải mẫu tại `/Questions/DownloadTemplate`. File `.csv` hoặc `.txt`, phân cách bằng `;`
+Tải mẫu tại `/Questions/Template`. File `.csv` hoặc `.txt`, phân cách bằng `;`
 hoặc `,`, có dòng tiêu đề:
 
 ```
@@ -103,16 +100,38 @@ nào bị ghi nửa vời: toàn bộ thao tác của một dòng nằm trong m�
 | POST | `/Questions/Save` | Lưu (dùng chung tạo và sửa) |
 | POST | `/Questions/Archive/{id}` | Ngừng cấp phát |
 | GET | `/Questions/Import?courseId=` | Nhập CSV |
-| GET | `/Questions/DownloadTemplate` | Tải file mẫu |
+| GET | `/Questions/Template` | Tải file mẫu |
 | GET | `/CourseMaterials` | Danh sách tài liệu |
 | GET/POST | `/CourseMaterials/Upload` | Tải tài liệu lên |
 | GET | `/CourseMaterials/Download/{id}` | Mở tài liệu |
 | POST | `/CourseMaterials/Delete/{id}` | Xóa (chặn nếu câu hỏi còn dùng) |
 
-Random cho lượt thi nằm ở tầng Business:
-`IQuestionService.AssignToExamAsync` → trả về `ExamQuestionInput` → repository ghi vào
-`exam_questions`. Module tạo lượt thi sẽ gọi hàm này sau khi đã tạo session và danh sách
-thi.
+Phát đề cho lượt thi nằm trong `ExamSessionsController`:
+
+| Method | Đường dẫn | Công dụng |
+|---|---|---|
+| GET | `/ExamSessions/Questions/{id}` | Giao diện cấu hình + xem đề từng sinh viên |
+| POST | `/ExamSessions/AssignQuestions` | Phát đề ngẫu nhiên theo cấu hình |
+| POST | `/ExamSessions/ClearQuestions/{id}` | Huỷ đề để phát lại |
+
+---
+
+## 5b. Luồng phát đề (đã nối)
+
+1. **Tạo lịch thi** (`POST /ExamSessions/Create`) → sau khi session và danh sách thi đã
+   lưu, controller gọi ngay `IQuestionService.AssignToExamAsync` với
+   `MainQuestionCount` của phiên thi và **toàn bộ** ngân hàng của môn.
+2. Phát đề **thành công** → về `Details`, báo đã phát đề cho N sinh viên.
+3. Ngân hàng **không đủ câu** → lịch thi vẫn được giữ (không rollback), người dùng được
+   đưa thẳng sang `/ExamSessions/Questions/{id}` kèm lý do, để chọn lại phạm vi.
+4. Ở màn hình đó có thể đổi **số câu mỗi sinh viên**, lọc theo **chủ đề** và **độ khó**;
+   số câu khả dụng được tính lại theo đúng bộ lọc đang chọn trước khi bấm phát.
+5. Chạy lại `AssignToExamAsync` chỉ bù cho sinh viên **chưa có đề**; sinh viên đã có đề
+   được bỏ qua nên không ai bị phát chồng hai bộ câu.
+6. `ClearExamAssignmentAsync` xoá đề để phát lại, và **từ chối** khi đã có câu được hỏi
+   hoặc trả lời (`exam_questions.asked_at` / `is_completed`).
+
+Vào màn hình phát đề từ: `Lịch thi → chi tiết phiên thi → thẻ "Ngân hàng câu hỏi"`.
 
 ---
 
@@ -127,13 +146,20 @@ thi.
 | Tạo câu hỏi | 3 option, đúng 1 đáp án, `status=Approved`, đúng `source_material_id` |
 | Từ chối 2 đáp án đúng / thiếu option / nội dung rỗng | Bị chặn, DB không thêm câu nào |
 | Import CSV có dòng lỗi | Dòng hợp lệ vào DB, dòng lỗi báo kèm số dòng |
+| Build toàn solution + `dotnet test` | 0 warning, 0 error, 23/23 test pass |
+
+### Unit test tự động (`dotnet test AssignmentPRN.slnx`)
+
+| File | Kiểm tra |
+|---|---|
+| `QuestionPickerTests` | Đúng số câu; không trùng trong một đề; loại câu đã phát; pool cạn thì trả về phần còn lại thay vì ném lỗi; có xáo thật; **phát cả phiên thi 8 sinh viên × 5 câu không ai trùng ai** |
+| `QuestionCsvReaderTests` | Đọc đúng dòng hợp lệ; `correct` dạng chữ và dạng số; giá trị mặc định `Medium`/`Understand`; dòng lỗi báo kèm số dòng mà dòng tốt vẫn vào; ô có dấu nháy chứa `;`; file phân cách bằng `,`; tài liệu không khớp thì để trống chủ đề; file rỗng / thiếu cột |
 
 ### Chưa kiểm thử
 
-- Phân câu hỏi cho lượt thi thật (`AssignToExamAsync`) — mới chỉ có logic tầng Business.
 - Nhập CSV với tên tài liệu tiếng Việt có dấu.
-- Test tự động (`tests/AssignmentPRN.Tests`) — chưa tạo.
 - Sửa / Archive / xóa tài liệu / tải tài liệu qua giao diện.
+- Phát đề trên database thật với phiên thi nhiều sinh viên (mới test ở tầng logic).
 
 ---
 

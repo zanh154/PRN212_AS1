@@ -323,15 +323,26 @@ public class QuestionService(
                     50,
                     "Số câu hỏi mỗi sinh viên");
 
-                var candidateIds = await questionRepository.ListCandidateIdsAsync(examId, cancellationToken);
-                if (candidateIds.Count == 0)
+                var papers = await questionRepository.ListExamPaperAsync(examId, cancellationToken);
+                if (papers.Count == 0)
                 {
                     throw new BusinessValidationException(
                         "Lịch thi này chưa có sinh viên nào để phân câu hỏi.");
                 }
 
-                // The exam may already hold rows if the scheduler retried; reuse them as
-                // the starting point so a rerun never doubles up a candidate's paper.
+                // The exam may already hold rows if the scheduler retried. Candidates that
+                // already have a paper are skipped and their questions seed `taken`, so a
+                // rerun tops up the missing students instead of doubling anyone's paper.
+                var candidateIds = papers
+                    .Where(paper => paper.Questions.Count == 0)
+                    .Select(paper => paper.CandidateId)
+                    .ToList();
+                if (candidateIds.Count == 0)
+                {
+                    throw new BusinessValidationException(
+                        "Mọi sinh viên của lịch thi này đã có đề. Hãy huỷ đề hiện tại trước khi phát lại.");
+                }
+
                 var taken = (await questionRepository.ListAssignedQuestionIdsAsync(examId, cancellationToken))
                     .ToHashSet();
 
@@ -393,6 +404,41 @@ public class QuestionService(
                 };
             },
             "Không thể phân câu hỏi cho lịch thi.");
+    }
+
+    public Task<ServiceResponse<IReadOnlyList<ExamPaperItem>>> GetExamPaperAsync(
+        int examId,
+        CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync<IReadOnlyList<ExamPaperItem>>(
+            async () =>
+            {
+                var id = BusinessValidation.PositiveId(examId, "lịch thi");
+                return await questionRepository.ListExamPaperAsync(id, cancellationToken);
+            },
+            "Không thể tải đề thi đã phát.");
+    }
+
+    public Task<ServiceResponse> ClearExamAssignmentAsync(
+        int examId,
+        CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(
+            async () =>
+            {
+                var id = BusinessValidation.PositiveId(examId, "lịch thi");
+
+                // Once a question has been put to a student the paper is part of the exam
+                // record, so it is frozen rather than reshuffled underneath them.
+                if (await questionRepository.HasStartedExamQuestionsAsync(id, cancellationToken))
+                {
+                    throw new BusinessValidationException(
+                        "Đã có sinh viên bắt đầu trả lời, không thể huỷ đề của lịch thi này.");
+                }
+
+                await questionRepository.ClearExamQuestionsAsync(id, cancellationToken);
+            },
+            "Không thể huỷ đề đã phát.");
     }
 
     /// <summary>

@@ -116,6 +116,20 @@ public interface IQuestionService
     Task<ServiceResponse<IReadOnlyList<int>>> PickAsync(
         AssignmentPRN.DataAccess.Contracts.QuestionPickRequest request,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads back the papers of an exam, one per candidate, so the lecturer can review
+    /// what the randomiser handed out before the session starts.
+    /// </summary>
+    Task<ServiceResponse<IReadOnlyList<AssignmentPRN.DataAccess.Contracts.ExamPaperItem>>> GetExamPaperAsync(
+        int examId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Throws away the papers of an exam so they can be dealt again with another
+    /// configuration. Refused once a student has been asked a question.
+    /// </summary>
+    Task<ServiceResponse> ClearExamAssignmentAsync(int examId, CancellationToken cancellationToken = default);
 }
 
 public interface ICourseMaterialService
