@@ -1,4 +1,5 @@
 using AssignmentPRN.Business;
+using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.Presentation.Constants;
 using AssignmentPRN.Presentation.Filters;
 using AssignmentPRN.Presentation.Models;
@@ -51,7 +52,25 @@ public class ExamRoomController(IQuestionService questionService) : Controller
             return RedirectToAction("Mine", "StudentSchedule");
         }
 
+        if (result.Data.CandidateStatus == CandidateStatus.Completed)
+        {
+            return RedirectToAction(nameof(Result), new { id });
+        }
+
         return View(new ExamRoomViewModel { Room = result.Data });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Result(int id, CancellationToken ct)
+    {
+        var result = await questionService.GetExamResultAsync(id, CurrentUserId, ct);
+        if (!result.Success || result.Data is null)
+        {
+            TempData["Error"] = result.Error;
+            return RedirectToAction("Mine", "StudentSchedule");
+        }
+
+        return View(new ExamResultViewModel { Result = result.Data });
     }
 
     /// <summary>
@@ -74,6 +93,8 @@ public class ExamRoomController(IQuestionService questionService) : Controller
             ? $"Đã nộp bài: {result.Data!.AnsweredCount}/{result.Data.Questions.Count} câu có đáp án."
             : result.Error;
 
-        return RedirectToAction(nameof(Index), new { id });
+        return result.Success
+            ? RedirectToAction(nameof(Result), new { id })
+            : RedirectToAction(nameof(Index), new { id });
     }
 }

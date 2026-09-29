@@ -458,6 +458,40 @@ public class QuestionService(
             "Không thể mở phòng thi.");
     }
 
+    public Task<ServiceResponse<ExamResultResponse>> GetExamResultAsync(
+        int candidateId,
+        int studentUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(
+            async () =>
+            {
+                var candidate = await questionRepository.GetExamRoomCandidateAsync(candidateId, cancellationToken)
+                    ?? throw new BusinessValidationException("Không tìm thấy lượt thi.");
+
+                if (candidate.StudentId != studentUserId)
+                {
+                    throw new BusinessValidationException("Đây không phải lượt thi của bạn.");
+                }
+
+                if (candidate.CandidateStatus != CandidateStatus.Completed)
+                {
+                    throw new BusinessValidationException("Kết quả chỉ hiển thị sau khi bạn đã nộp bài.");
+                }
+
+                return new ExamResultResponse
+                {
+                    CandidateId = candidate.CandidateId,
+                    ExamName = candidate.ExamName,
+                    CourseCode = candidate.CourseCode,
+                    CourseName = candidate.CourseName,
+                    LecturerName = candidate.LecturerName,
+                    Questions = await questionRepository.ListCandidateResultsAsync(candidateId, cancellationToken)
+                };
+            },
+            "Không thể tải kết quả bài thi.");
+    }
+
     public Task<ServiceResponse<ExamRoomResponse>> SubmitExamAsync(
         int candidateId,
         int studentUserId,

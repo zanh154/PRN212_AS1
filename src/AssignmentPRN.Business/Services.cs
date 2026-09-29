@@ -150,6 +150,12 @@ public interface IQuestionService
         int studentUserId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Grades and returns a completed paper. The answer key is never exposed before completion.</summary>
+    Task<ServiceResponse<ExamResultResponse>> GetExamResultAsync(
+        int candidateId,
+        int studentUserId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Saves the student's choices and closes the slot. Submitting is final: the slot
     /// moves to Completed and the room becomes read-only.

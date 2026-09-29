@@ -69,3 +69,8 @@ public class ExamRoomViewModel
 {
     public ExamRoomResponse Room { get; init; } = new();
 }
+
+public class ExamResultViewModel
+{
+    public ExamResultResponse Result { get; init; } = new();
+}

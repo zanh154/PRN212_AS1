@@ -58,6 +58,11 @@ public interface IQuestionRepository
         int candidateId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>One completed paper with the student's choices and answer key.</summary>
+    Task<IReadOnlyList<ExamResultQuestion>> ListCandidateResultsAsync(
+        int candidateId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Marks the slot as being sat. Only the first entry records the clock, so refreshing
     /// the page does not restart the exam.
@@ -439,6 +444,35 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                     {
                         OptionId = option.OptionId,
                         Text = option.OptionText
+                    })
+                    .ToList(),
+                SelectedOptionId = context.Answers
+                    .Where(answer => answer.ExamQuestionId == item.ExamQuestionId)
+                    .Select(answer => answer.SelectedOptionId)
+                    .FirstOrDefault()
+            })
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<ExamResultQuestion>> ListCandidateResultsAsync(
+        int candidateId,
+        CancellationToken cancellationToken = default) =>
+        await context.ExamQuestions
+            .AsNoTracking()
+            .Where(item => item.CandidateId == candidateId)
+            .OrderBy(item => item.OrderNo)
+            .Select(item => new ExamResultQuestion
+            {
+                ExamQuestionId = item.ExamQuestionId,
+                OrderNo = item.OrderNo,
+                QuestionText = item.Question.QuestionText,
+                Difficulty = item.Question.Difficulty,
+                Options = item.Question.Options
+                    .OrderBy(option => option.DisplayOrder)
+                    .Select(option => new ExamResultOption
+                    {
+                        OptionId = option.OptionId,
+                        Text = option.OptionText,
+                        IsCorrect = option.IsCorrect
                     })
                     .ToList(),
                 SelectedOptionId = context.Answers

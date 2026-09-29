@@ -417,6 +417,35 @@ public sealed class ExamRoomResponse
     public int AnsweredCount => Questions.Count(question => question.SelectedOptionId.HasValue);
 }
 
+/// <summary>A completed paper together with its grade and answer review.</summary>
+public sealed class ExamResultResponse
+{
+    public int CandidateId { get; init; }
+
+    public string ExamName { get; init; } = string.Empty;
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public string CourseName { get; init; } = string.Empty;
+
+    public string LecturerName { get; init; } = string.Empty;
+
+    public IReadOnlyList<DataAccess.Contracts.ExamResultQuestion> Questions { get; init; } =
+        Array.Empty<DataAccess.Contracts.ExamResultQuestion>();
+
+    public int TotalQuestions => Questions.Count;
+
+    public int CorrectCount => Questions.Count(question => question.IsCorrect);
+
+    public int UnansweredCount => Questions.Count(question => !question.SelectedOptionId.HasValue);
+
+    public int IncorrectCount => TotalQuestions - CorrectCount - UnansweredCount;
+
+    public decimal Score => TotalQuestions == 0
+        ? 0
+        : Math.Round(CorrectCount * 10m / TotalQuestions, 1, MidpointRounding.AwayFromZero);
+}
+
 /// <summary>How many questions the bank can still hand out for one exam.</summary>
 public sealed class QuestionAvailabilityResponse
 {

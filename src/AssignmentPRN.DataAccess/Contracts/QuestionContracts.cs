@@ -294,6 +294,37 @@ public sealed class ExamRoomOption
 }
 
 /// <summary>
+/// One graded question returned only after the candidate has completed the exam.
+/// Unlike <see cref="ExamRoomQuestion"/>, this type intentionally carries the answer key.
+/// </summary>
+public sealed class ExamResultQuestion
+{
+    public int ExamQuestionId { get; init; }
+
+    public int OrderNo { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public QuestionDifficulty Difficulty { get; init; }
+
+    public IReadOnlyList<ExamResultOption> Options { get; init; } = Array.Empty<ExamResultOption>();
+
+    public int? SelectedOptionId { get; init; }
+
+    public bool IsCorrect => SelectedOptionId is int selected
+        && Options.Any(option => option.OptionId == selected && option.IsCorrect);
+}
+
+public sealed class ExamResultOption
+{
+    public int OptionId { get; init; }
+
+    public string Text { get; init; } = string.Empty;
+
+    public bool IsCorrect { get; init; }
+}
+
+/// <summary>
 /// One candidate's paper, read back after the bank has dealt the exam. The exam screen
 /// shows it so the lecturer can see exactly what each student will be asked.
 /// </summary>

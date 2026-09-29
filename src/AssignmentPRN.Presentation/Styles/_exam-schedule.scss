@@ -1244,6 +1244,235 @@
   font-weight: $font-weight-bold;
 }
 
+// -- Completed exam result ---------------------------------------------
+.exam-result-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $space-5;
+}
+
+.exam-result-score {
+  flex: 0 0 auto;
+  min-width: 180px;
+  padding: $space-4 $space-5;
+  color: $color-surface;
+  background: $color-primary-deep;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-md;
+  text-align: center;
+
+  span {
+    display: block;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  strong {
+    font-size: $font-size-3xl;
+    line-height: 1.15;
+  }
+
+  small {
+    color: rgba(255, 255, 255, 0.72);
+    font-weight: $font-weight-semibold;
+  }
+}
+
+.exam-result-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: $space-3;
+  margin-bottom: $space-5;
+}
+
+.exam-result-stat {
+  position: relative;
+  overflow: hidden;
+  padding: $space-4;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+
+  &::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: $color-primary;
+    content: "";
+  }
+
+  span {
+    display: block;
+    color: $color-muted;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  strong {
+    display: block;
+    margin-top: $space-1;
+    color: $color-heading;
+    font-size: $font-size-2xl;
+    line-height: 1.2;
+  }
+}
+
+.exam-result-stat--correct::before {
+  background: $color-success;
+}
+
+.exam-result-stat--incorrect::before {
+  background: $color-danger;
+}
+
+.exam-result-stat--unanswered::before {
+  background: $color-warning;
+}
+
+.exam-result-question {
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    content: "";
+  }
+
+  &.is-correct::before {
+    background: $color-success;
+  }
+
+  &.is-incorrect::before {
+    background: $color-danger;
+  }
+
+  &.is-unanswered::before {
+    background: $color-warning;
+  }
+}
+
+.exam-result-state {
+  margin-left: auto;
+  padding: $space-1 $space-3;
+  border: 1px solid currentColor;
+  border-radius: $radius-pill;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+}
+
+.is-correct .exam-result-state {
+  color: $color-success;
+  background: $color-success-soft;
+}
+
+.is-incorrect .exam-result-state {
+  color: $color-danger;
+  background: $color-danger-soft;
+}
+
+.is-unanswered .exam-result-state {
+  color: $color-warning;
+  background: $color-warning-soft;
+}
+
+.exam-result-question .exam-room-option {
+  &:hover {
+    border-color: $color-border;
+  }
+
+  &.is-answer-correct,
+  &.is-correct-answer {
+    background: $color-success-soft;
+    border-color: $color-success-border;
+
+    .exam-room-options__label {
+      color: $color-success;
+      background: $color-surface;
+    }
+  }
+
+  &.is-answer-incorrect {
+    background: $color-danger-soft;
+    border-color: $color-danger-border;
+
+    .exam-room-options__label {
+      color: $color-danger;
+      background: $color-surface;
+    }
+  }
+}
+
+.exam-result-option-note {
+  margin-left: auto;
+  color: $color-muted;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
+.exam-result-correct-answer {
+  display: flex;
+  gap: $space-3;
+  align-items: baseline;
+  margin-top: $space-3;
+  padding: $space-3 $space-4;
+  color: $color-success;
+  background: $color-success-soft;
+  border: 1px solid $color-success-border;
+  border-radius: $radius-md;
+
+  span {
+    flex: 0 0 auto;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-bold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
+@include respond-below($breakpoint-md) {
+  .exam-result-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .exam-result-score {
+    min-width: 0;
+  }
+
+  .exam-result-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@include respond-below($breakpoint-sm) {
+  .exam-result-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .exam-room-question__head {
+    flex-wrap: wrap;
+  }
+
+  .exam-result-state {
+    margin-left: 0;
+  }
+
+  .exam-result-correct-answer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: $space-1;
+  }
+}
+
 .student-schedule-date {
   padding-right: $space-3;
   border-right: 1px solid $color-border;
