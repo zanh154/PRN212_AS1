@@ -21,6 +21,92 @@ public sealed class ExamSessionRepositoryTests
     private static readonly DateTime Start = new(2026, 10, 10, 8, 0, 0);
 
     [Fact]
+    public async Task RemoveStudent_RemovesOnlyEnrollmentAndAllowsAddingAgain()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var start = DateTime.Today.AddDays(10).AddHours(8);
+        var session = await fixture.Repository.CreateAsync(Input("Remove", LecturerA, 1, start, 30, StudentA, StudentB));
+        var other = await fixture.Repository.CreateAsync(Input("Other", LecturerB, 2, start.AddDays(1), 30, StudentA));
+        var candidate = session.Candidates.Single(x => x.StudentId == StudentA);
+        var result = await fixture.Service.RemoveStudentAsync(session.ExamId, candidate.CandidateId);
+        Assert.True(result.Success, result.Error);
+        var saved = await fixture.Repository.GetDetailAsync(session.ExamId);
+        Assert.Equal(StudentB, Assert.Single(saved!.Candidates).StudentId);
+        Assert.Equal(start.AddMinutes(30), saved.Candidates[0].ScheduledTime);
+        Assert.Equal(session.StartTime, saved.StartTime);
+        Assert.Equal(session.EndTime, saved.EndTime);
+        Assert.Single((await fixture.Repository.GetDetailAsync(other.ExamId))!.Candidates);
+        Assert.Single((await fixture.Repository.GetStudentScheduleAsync(StudentA))!.Items);
+        Assert.True((await fixture.Service.AddStudentAsync(session.ExamId, "user20@example.test", start)).Success);
+    }
+
+    [Fact]
+    public async Task RemoveStudent_LastCandidateLeavesEmptySessionAndRepeatedRemovalFails()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var start = DateTime.Today.AddDays(10).AddHours(8);
+        var session = await fixture.Repository.CreateAsync(Input("Remove", LecturerA, 1, start, 30, StudentA));
+        var candidate = Assert.Single(session.Candidates);
+        Assert.True((await fixture.Service.RemoveStudentAsync(session.ExamId, candidate.CandidateId)).Success);
+        Assert.Empty((await fixture.Repository.GetDetailAsync(session.ExamId))!.Candidates);
+        Assert.False((await fixture.Service.RemoveStudentAsync(session.ExamId, candidate.CandidateId)).Success);
+    }
+
+    [Fact]
+    public async Task RemoveStudent_RejectsCandidateFromAnotherSession()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var start = DateTime.Today.AddDays(10).AddHours(8);
+        var first = await fixture.Repository.CreateAsync(Input("First", LecturerA, 1, start, 30, StudentA));
+        var second = await fixture.Repository.CreateAsync(Input("Second", LecturerB, 2, start.AddDays(1), 30, StudentB));
+        var result = await fixture.Service.RemoveStudentAsync(first.ExamId, second.Candidates[0].CandidateId);
+        Assert.False(result.Success);
+        Assert.Single((await fixture.Repository.GetDetailAsync(first.ExamId))!.Candidates);
+        Assert.Single((await fixture.Repository.GetDetailAsync(second.ExamId))!.Candidates);
+    }
+
+    [Theory]
+    [InlineData(ExamSessionStatus.InProgress)]
+    [InlineData(ExamSessionStatus.Completed)]
+    [InlineData(ExamSessionStatus.Cancelled)]
+    public async Task RemoveStudent_RejectsClosedSession(ExamSessionStatus status)
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var start = DateTime.Today.AddDays(10).AddHours(8);
+        var session = await fixture.Repository.CreateAsync(Input("Closed", LecturerA, 1, start, 30, StudentA));
+        await fixture.SetSessionStatusAsync(session.ExamId, status);
+        Assert.False((await fixture.Service.RemoveStudentAsync(session.ExamId, session.Candidates[0].CandidateId)).Success);
+        Assert.Single((await fixture.Repository.GetDetailAsync(session.ExamId))!.Candidates);
+    }
+
+    [Theory]
+    [InlineData(CandidateStatus.InProgress, false)]
+    [InlineData(CandidateStatus.Completed, false)]
+    [InlineData(CandidateStatus.Waiting, true)]
+    public async Task RemoveStudent_ProtectsExamData(CandidateStatus status, bool hasStarted)
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var start = DateTime.Today.AddDays(10).AddHours(8);
+        var session = await fixture.Repository.CreateAsync(Input("Protected", LecturerA, 1, start, 30, StudentA));
+        var id = session.Candidates[0].CandidateId;
+        await fixture.SetCandidateStateAsync(id, status, hasStarted);
+        Assert.False((await fixture.Service.RemoveStudentAsync(session.ExamId, id)).Success);
+        Assert.Single((await fixture.Repository.GetDetailAsync(session.ExamId))!.Candidates);
+    }
+
+    [Fact]
+    public async Task RemoveStudent_RejectsPastSessionAndInvalidIds()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var session = await fixture.Repository.CreateAsync(Input("Past", LecturerA, 1, DateTime.Today.AddDays(-1), 30, StudentA));
+        Assert.False((await fixture.Service.RemoveStudentAsync(session.ExamId, session.Candidates[0].CandidateId)).Success);
+        Assert.False((await fixture.Service.RemoveStudentAsync(0, 1)).Success);
+        Assert.False((await fixture.Service.RemoveStudentAsync(1, 0)).Success);
+        Assert.False((await fixture.Service.RemoveStudentAsync(9999, 1)).Success);
+        Assert.Single((await fixture.Repository.GetDetailAsync(session.ExamId))!.Candidates);
+    }
+
+    [Fact]
     public async Task AddStudent_AddsWaitingCandidateAndExtendsWindow()
     {
         await using var fixture = await RepositoryFixture.CreateAsync();
@@ -340,6 +426,14 @@ public sealed class ExamSessionRepositoryTests
         public ExamSessionRepository Repository { get; }
 
         public ExamSessionService Service { get; }
+
+        public async Task SetCandidateStateAsync(int id, CandidateStatus status, bool hasStarted)
+        {
+            var candidate = await _context.ExamCandidates.FindAsync(id);
+            candidate!.Status = status;
+            candidate.StartedAt = hasStarted ? DateTime.Now : null;
+            await _context.SaveChangesAsync();
+        }
 
         public async Task SetSessionStatusAsync(int examId, ExamSessionStatus status)
         {

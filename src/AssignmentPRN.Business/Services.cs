@@ -16,6 +16,9 @@ public interface IAuthService
 
 public interface IExamSessionService
 {
+    Task<ServiceResponse> RemoveStudentAsync(int examId, int candidateId,
+        CancellationToken cancellationToken = default);
+
     Task<ServiceResponse<ExamSessionDetailResponse>> AddStudentAsync(int examId, string email,
         DateTime scheduledTime, CancellationToken cancellationToken = default);
 

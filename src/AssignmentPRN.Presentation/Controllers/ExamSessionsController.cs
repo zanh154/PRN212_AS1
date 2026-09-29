@@ -12,6 +12,23 @@ public class ExamSessionsController(IExamSessionService examSessionService) : Co
 {
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveStudent(int examId, int candidateId,
+        CancellationToken cancellationToken)
+    {
+        var session = await examSessionService.GetAsync(examId, cancellationToken);
+        if (!session.Success || session.Data is null) return NotFound();
+        if (HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
+            && session.Data.Lecturer.UserId != HttpContext.Session.GetInt32(SessionKeys.UserId))
+            return Forbid();
+
+        var response = await examSessionService.RemoveStudentAsync(examId, candidateId, cancellationToken);
+        TempData[response.Success ? "Success" : "Error"] = response.Success
+            ? "Đã xóa sinh viên khỏi phiên thi. Tài khoản sinh viên vẫn được giữ nguyên." : response.Error;
+        return RedirectToAction(nameof(Details), new { id = examId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddStudent(ExamSessionAddStudentViewModel model,
         CancellationToken cancellationToken)
     {

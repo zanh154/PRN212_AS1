@@ -12,6 +12,17 @@ public class ExamSessionService(
     private const string StudentRole = "Student";
     private const int SearchResultLimit = 25;
 
+    public Task<ServiceResponse> RemoveStudentAsync(int examId, int candidateId,
+        CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(async () =>
+        {
+            BusinessValidation.PositiveId(examId, "phiên thi");
+            BusinessValidation.PositiveId(candidateId, "sinh viên cần xóa");
+            await examSessionRepository.RemoveStudentAsync(examId, candidateId, cancellationToken);
+        }, "Không thể xóa sinh viên khỏi phiên thi.");
+    }
+
     public Task<ServiceResponse<ExamSessionDetailResponse>> AddStudentAsync(
         int examId, string email, DateTime scheduledTime, CancellationToken cancellationToken = default)
     {
