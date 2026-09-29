@@ -124,6 +124,22 @@
 <div class="content-card" data-roster-filter>
     <div class="section-heading">
         <div>
+            <h2>Ngân hàng câu hỏi</h2>
+            <p>
+                Mỗi sinh viên nhận @session.MainQuestionCount câu hỏi chính, rút ngẫu nhiên ngay
+                khi họ bấm vào thi và không trùng với sinh viên nào khác trong phiên này.
+                Bạn có thể phát trước để xem đề, nhưng không bắt buộc.
+            </p>
+        </div>
+        <a class="btn btn-outline-primary" asp-action="Questions" asp-route-id="@session.ExamId">
+            Xem và phát đề
+        </a>
+    </div>
+</div>
+
+<div class="content-card">
+    <div class="section-heading">
+        <div>
             <h2>Lịch từng sinh viên</h2>
             <p>Có thể đổi giờ từng ca. Hệ thống sẽ từ chối nếu trùng lịch sinh viên hoặc giảng viên.</p>
         </div>

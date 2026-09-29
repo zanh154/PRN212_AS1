@@ -231,6 +231,9 @@ public sealed class StudentScheduleItemResponse
 {
     public int ExamId { get; init; }
 
+    /// <summary>The student's own slot; what the exam room is opened by.</summary>
+    public int CandidateId { get; init; }
+
     public string ExamName { get; init; } = string.Empty;
 
     public string CourseCode { get; init; } = string.Empty;
@@ -264,4 +267,222 @@ public sealed class BusinessValidationException : Exception
     }
 
     public IReadOnlyList<string> Errors { get; }
+}
+
+public sealed class QuestionResponse
+{
+    public int QuestionId { get; init; }
+
+    public int CourseId { get; init; }
+
+    public int? MaterialId { get; init; }
+
+    public string? MaterialName { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public string? ExpectedAnswer { get; init; }
+
+    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+
+    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+
+    public DataAccess.Enums.QuestionStatus Status { get; init; }
+
+    public IReadOnlyList<QuestionOptionResponse> Options { get; init; } = Array.Empty<QuestionOptionResponse>();
+}
+
+public sealed class QuestionOptionResponse
+{
+    public string Text { get; init; } = string.Empty;
+
+    public bool IsCorrect { get; init; }
+}
+
+public sealed class CourseMaterialResponse
+{
+    public int MaterialId { get; init; }
+
+    public int CourseId { get; init; }
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public string CourseName { get; init; } = string.Empty;
+
+    public string FileName { get; init; } = string.Empty;
+
+    public string FilePath { get; init; } = string.Empty;
+
+    public DataAccess.Enums.MaterialFileType FileType { get; init; }
+
+    public long? FileSize { get; init; }
+
+    public string UploaderName { get; init; } = string.Empty;
+
+    public DateTime UploadedAt { get; init; }
+
+    public int QuestionCount { get; init; }
+}
+
+/// <summary>
+/// How a question should be saved from the editor: <c>Options</c> holds the answer
+/// choices in display order and exactly one of them must be marked correct.
+/// </summary>
+public sealed class QuestionSaveRequest
+{
+    public int QuestionId { get; init; }
+
+    public int CourseId { get; init; }
+
+    public int? MaterialId { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public string? ExpectedAnswer { get; init; }
+
+    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+
+    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+
+    public IReadOnlyList<DataAccess.Contracts.QuestionOptionInput> Options { get; init; } =
+        Array.Empty<DataAccess.Contracts.QuestionOptionInput>();
+}
+
+/// <summary>One row of the question bank list.</summary>
+public sealed class QuestionListItemResponse
+{
+    public int QuestionId { get; init; }
+
+    public int CourseId { get; init; }
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public int? MaterialId { get; init; }
+
+    public string? MaterialName { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+
+    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+
+    public DataAccess.Enums.QuestionStatus Status { get; init; }
+
+    public string AuthorName { get; init; } = string.Empty;
+
+    public DateTime CreatedAt { get; init; }
+}
+
+/// <summary>
+/// What a student sees after opening their slot: the session they are sitting and the
+/// paper the bank dealt them. It carries no answer key.
+/// </summary>
+public sealed class ExamRoomResponse
+{
+    public int CandidateId { get; init; }
+
+    public int ExamId { get; init; }
+
+    public string ExamName { get; init; } = string.Empty;
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public string CourseName { get; init; } = string.Empty;
+
+    public string LecturerName { get; init; } = string.Empty;
+
+    public DateTime ScheduledTime { get; init; }
+
+    public DateTime EndTime { get; init; }
+
+    public int TimePerStudent { get; init; }
+
+    public DataAccess.Enums.CandidateStatus CandidateStatus { get; init; }
+
+    public DateTime? StartedAt { get; init; }
+
+    public IReadOnlyList<DataAccess.Contracts.ExamRoomQuestion> Questions { get; init; } =
+        Array.Empty<DataAccess.Contracts.ExamRoomQuestion>();
+
+    /// <summary>False once the paper has been handed in; the room then only shows it.</summary>
+    public bool CanAnswer { get; init; }
+
+    /// <summary>
+    /// Seconds left in the slot when the page was rendered. The countdown starts from this
+    /// rather than from the browser's clock, which may be minutes out.
+    /// </summary>
+    public int SecondsRemaining { get; init; }
+
+    public int AnsweredCount => Questions.Count(question => question.SelectedOptionId.HasValue);
+}
+
+/// <summary>A completed paper together with its grade and answer review.</summary>
+public sealed class ExamResultResponse
+{
+    public int CandidateId { get; init; }
+
+    public string ExamName { get; init; } = string.Empty;
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public string CourseName { get; init; } = string.Empty;
+
+    public string LecturerName { get; init; } = string.Empty;
+
+    public IReadOnlyList<DataAccess.Contracts.ExamResultQuestion> Questions { get; init; } =
+        Array.Empty<DataAccess.Contracts.ExamResultQuestion>();
+
+    public int TotalQuestions => Questions.Count;
+
+    public int CorrectCount => Questions.Count(question => question.IsCorrect);
+
+    public int UnansweredCount => Questions.Count(question => !question.SelectedOptionId.HasValue);
+
+    public int IncorrectCount => TotalQuestions - CorrectCount - UnansweredCount;
+
+    public decimal Score => TotalQuestions == 0
+        ? 0
+        : Math.Round(CorrectCount * 10m / TotalQuestions, 1, MidpointRounding.AwayFromZero);
+}
+
+/// <summary>How many questions the bank can still hand out for one exam.</summary>
+public sealed class QuestionAvailabilityResponse
+{
+    public int Requested { get; init; }
+
+    public int Available { get; init; }
+
+    public int Missing => Math.Max(0, Requested - Available);
+
+    public bool IsEnough => Missing == 0;
+}
+
+/// <summary>A row of the CSV import, already trimmed and free of empty lines.</summary>
+public sealed class QuestionImportRow
+{
+    /// <summary>Line in the source file, so a later failure can point back at it.</summary>
+    public int SourceLine { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public string? ExpectedAnswer { get; init; }
+
+    public int? MaterialId { get; init; }
+
+    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+
+    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+
+    public IReadOnlyList<DataAccess.Contracts.QuestionOptionInput> Options { get; init; } =
+        Array.Empty<DataAccess.Contracts.QuestionOptionInput>();
+}
+
+public sealed class QuestionImportResult
+{
+    public int Imported { get; init; }
+
+    public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
+
+    public bool Success => Errors.Count == 0;
 }

@@ -10,7 +10,10 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 namespace AssignmentPRN.Presentation.Controllers;
 
 [SessionAuthorize(RoleNames.Admin, RoleNames.Lecturer)]
-public class ExamSessionsController(IExamSessionService examSessionService) : Controller
+public class ExamSessionsController(
+    IExamSessionService examSessionService,
+    IQuestionService questionService,
+    ICourseMaterialService materialService) : Controller
 {
     private int? CurrentLecturerId => HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
         ? HttpContext.Session.GetInt32(SessionKeys.UserId) ?? 0 : null;
@@ -200,7 +203,10 @@ public class ExamSessionsController(IExamSessionService examSessionService) : Co
             return View(model);
         }
 
-        TempData["Success"] = "Đã tạo lịch thi và sinh khung giờ tự động.";
+        // No draw happens here. Each student's paper is dealt when they open their slot,
+        // so a session is never blocked on the lecturer remembering to hand questions out.
+        TempData["Success"] = "Đã tạo lịch thi và sinh khung giờ tự động. "
+            + "Đề sẽ được rút ngẫu nhiên khi từng sinh viên vào thi.";
         return RedirectToAction(nameof(Details), new { id = response.Data.ExamId });
     }
 
@@ -299,6 +305,144 @@ public class ExamSessionsController(IExamSessionService examSessionService) : Co
                 email = student.Email
             })
         });
+    }
+
+    /// <summary>
+    /// The question-bank configuration of one exam: how many questions per student and
+    /// which topics/difficulties they are drawn from, plus the papers already dealt.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> Questions(int id, CancellationToken cancellationToken)
+    {
+        var session = await examSessionService.GetAsync(id, cancellationToken);
+        if (session.Data is null) return NotFound();
+        if (!CanManage(session.Data)) return StatusCode(403);
+
+        var model = new ExamQuestionAssignViewModel
+        {
+            ExamId = id,
+            CountPerCandidate = session.Data.MainQuestionCount
+        };
+
+        await LoadQuestionConfigAsync(model, session.Data, cancellationToken);
+        return View(model);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AssignQuestions(
+        ExamQuestionAssignViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var session = await examSessionService.GetAsync(model.ExamId, cancellationToken);
+        if (session.Data is null) return NotFound();
+        if (!CanManage(session.Data)) return StatusCode(403);
+        if (!ExamSessionRules.CanEdit(session.Data.Status))
+        {
+            TempData["Error"] = "Phiên thi không còn được phép phát đề.";
+            return RedirectToAction(nameof(Details), new { id = model.ExamId });
+        }
+
+        if (ModelState.IsValid)
+        {
+            var result = await questionService.AssignToExamAsync(
+                new ExamQuestionAssignmentRequest
+                {
+                    ExamId = model.ExamId,
+                    CourseId = session.Data.Course.CourseId,
+                    CountPerCandidate = model.CountPerCandidate,
+                    MaterialIds = model.MaterialIds,
+                    Difficulties = model.Difficulties
+                },
+                cancellationToken);
+
+            if (result.Success && result.Data is not null)
+            {
+                TempData["Success"] = $"Đã phát {result.Data.AssignedCount} câu hỏi cho "
+                    + $"{result.Data.CandidateCount} sinh viên, không sinh viên nào trùng câu.";
+                return RedirectToAction(nameof(Questions), new { id = model.ExamId });
+            }
+
+            ModelState.AddModelError(string.Empty, result.Error!);
+        }
+
+        await LoadQuestionConfigAsync(model, session.Data, cancellationToken);
+        return View(nameof(Questions), model);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClearQuestions(int id, CancellationToken cancellationToken)
+    {
+        var session = await examSessionService.GetAsync(id, cancellationToken);
+        if (session.Data is null) return NotFound();
+        if (!CanManage(session.Data)) return StatusCode(403);
+
+        var result = await questionService.ClearExamAssignmentAsync(id, cancellationToken);
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? "Đã huỷ đề đã phát. Có thể phát lại với phạm vi khác."
+            : result.Error;
+
+        return RedirectToAction(nameof(Questions), new { id });
+    }
+
+    /// <summary>
+    /// Fills the config screen: topics of the course, the papers already dealt and how many
+    /// questions the filter currently on screen can still supply.
+    /// </summary>
+    private async Task LoadQuestionConfigAsync(
+        ExamQuestionAssignViewModel model,
+        ExamSessionDetailResponse session,
+        CancellationToken cancellationToken)
+    {
+        model.ExamName = session.ExamName;
+        model.CourseId = session.Course.CourseId;
+        model.CourseCode = session.Course.CourseCode;
+        model.CourseName = session.Course.CourseName;
+        model.CanAssign = ExamSessionRules.CanEdit(session.Status);
+
+        var materials = await materialService.ListAsync(
+            CurrentLecturerId, session.Course.CourseId, cancellationToken);
+        model.MaterialOptions = materials.Data?
+            .OrderBy(item => item.FileName)
+            .Select(item => new SelectListItem(
+                $"{item.FileName} ({item.QuestionCount} câu)", item.MaterialId.ToString()))
+            .ToList() ?? [];
+
+        model.DifficultyOptions = Enum.GetValues<QuestionDifficulty>()
+            .Select(value => new SelectListItem(QuestionText.Difficulty(value), value.ToString()))
+            .ToList();
+
+        var papers = await questionService.GetExamPaperAsync(session.ExamId, cancellationToken);
+        model.Papers = papers.Data ?? [];
+
+        // A paper a student has already answered is part of the exam record, so the redeal
+        // button disappears as soon as one question has been marked completed.
+        model.CanRedeal = model.Papers.Count > 0
+            && model.CanAssign
+            && model.Papers.All(paper => paper.Questions.All(question => !question.IsCompleted));
+
+        // Ask the bank with the filter currently on screen, so the warning matches what the
+        // button would actually draw from. Once everybody holds a paper nothing more is
+        // needed, but the bank still rejects a count of zero — ask for one and read only
+        // the number available.
+        var availability = await questionService.CheckAvailabilityAsync(
+            new QuestionPickRequest
+            {
+                CourseId = session.Course.CourseId,
+                Count = Math.Max(model.RequiredCount, 1),
+                MaterialIds = model.MaterialIds,
+                Difficulties = model.Difficulties,
+                TakenQuestionIds = model.Papers
+                    .SelectMany(paper => paper.Questions)
+                    .Select(question => question.QuestionId)
+                    .Distinct()
+                    .ToList()
+            },
+            cancellationToken);
+
+        model.AvailableCount = availability.Data?.Available ?? 0;
+        model.LoadError = materials.Success && papers.Success && availability.Success
+            ? null
+            : materials.Error ?? papers.Error ?? availability.Error;
     }
 
     private async Task LoadOptionsAsync(ExamSessionCreateViewModel model, CancellationToken cancellationToken)

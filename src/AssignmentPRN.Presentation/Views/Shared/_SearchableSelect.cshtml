@@ -11,7 +11,7 @@
         string.IsNullOrEmpty(a.Value) ? a.Key : $"{a.Key}=\"{a.Value}\""));
 }
 
-<div class="select-picker" data-select-picker>
+<div class="select-picker @(Model.ShowAvatar ? null : "select-picker--plain")" data-select-picker>
     <button class="select-picker__trigger" type="button"
             aria-haspopup="listbox" aria-expanded="false"
             data-select-trigger>
@@ -52,9 +52,12 @@
                         data-select-option data-value="@option.Value"
                         data-group="@option.Group?.Name"
                         data-label="@primary" data-search-text="@option.Text">
-                    <span class="select-picker__avatar" aria-hidden="true">
-                        @(string.IsNullOrWhiteSpace(primary) ? "?" : primary[..1].ToUpperInvariant())
-                    </span>
+                    @if (Model.ShowAvatar)
+                    {
+                        <span class="select-picker__avatar" aria-hidden="true">
+                            @(string.IsNullOrWhiteSpace(primary) ? "?" : primary[..1].ToUpperInvariant())
+                        </span>
+                    }
                     <span class="select-picker__identity">
                         <strong>@primary</strong>
                         @if (!string.IsNullOrWhiteSpace(secondary))

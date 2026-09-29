@@ -1,0 +1,109 @@
+@model ExamResultViewModel
+@{
+    var result = Model.Result;
+    ViewData["Title"] = $"Kết quả · {result.ExamName}";
+    Layout = "_ExamLayout";
+    ViewData["ExamLocked"] = false;
+    ViewData["ExamContextLabel"] = "Kết quả thi";
+}
+
+<div class="exam-result-page">
+    <div class="page-header exam-result-header">
+        <div>
+            <a class="back-link" asp-controller="StudentSchedule" asp-action="Mine">
+                <partial name="_Icon" model="@("arrow-left")" /> Quay lại lịch thi
+            </a>
+            <span class="eyebrow">@result.CourseCode · @result.CourseName</span>
+            <h1>Kết quả bài thi</h1>
+            <p>@result.ExamName · Giảng viên: @result.LecturerName</p>
+        </div>
+        <div class="exam-result-score" aria-label="Điểm @result.Score trên 10">
+            <span>Điểm của bạn</span>
+            <strong>@result.Score.ToString("0.0")</strong>
+            <small>/ 10</small>
+        </div>
+    </div>
+
+    <section class="exam-result-summary" aria-label="Tổng quan kết quả">
+        <div class="exam-result-stat exam-result-stat--total">
+            <span>Tổng số câu</span>
+            <strong>@result.TotalQuestions</strong>
+        </div>
+        <div class="exam-result-stat exam-result-stat--correct">
+            <span>Trả lời đúng</span>
+            <strong>@result.CorrectCount</strong>
+        </div>
+        <div class="exam-result-stat exam-result-stat--incorrect">
+            <span>Trả lời sai</span>
+            <strong>@result.IncorrectCount</strong>
+        </div>
+        <div class="exam-result-stat exam-result-stat--unanswered">
+            <span>Bỏ trống</span>
+            <strong>@result.UnansweredCount</strong>
+        </div>
+    </section>
+
+    <div class="content-card exam-result-review">
+        <div class="section-heading">
+            <div>
+                <h2>Chi tiết bài làm</h2>
+                <p class="text-muted">Câu đúng được đánh dấu màu xanh. Câu sai hiển thị đáp án đúng ngay bên dưới.</p>
+            </div>
+            <span class="status-chip status-chip--success">Đã chấm điểm</span>
+        </div>
+
+        <ol class="exam-room-questions">
+            @foreach (var question in result.Questions)
+            {
+                var stateClass = question.IsCorrect
+                    ? "is-correct"
+                    : question.SelectedOptionId.HasValue ? "is-incorrect" : "is-unanswered";
+                var stateLabel = question.IsCorrect
+                    ? "Đúng"
+                    : question.SelectedOptionId.HasValue ? "Sai" : "Bỏ trống";
+                var correctOption = question.Options.FirstOrDefault(option => option.IsCorrect);
+
+                <li class="exam-room-question exam-result-question @stateClass">
+                    <div class="exam-room-question__head">
+                        <strong>Câu @question.OrderNo</strong>
+                        <span class="status-chip @QuestionText.DifficultyChip(question.Difficulty)">
+                            @QuestionText.Difficulty(question.Difficulty)
+                        </span>
+                        <span class="exam-result-state">@stateLabel</span>
+                    </div>
+                    <p class="exam-room-question__text">@question.QuestionText</p>
+
+                    <ul class="exam-room-options">
+                        @for (var index = 0; index < question.Options.Count; index++)
+                        {
+                            var option = question.Options[index];
+                            var isPicked = question.SelectedOptionId == option.OptionId;
+                            var optionClass = isPicked && option.IsCorrect
+                                ? "is-answer-correct"
+                                : isPicked ? "is-answer-incorrect" : option.IsCorrect && !question.IsCorrect ? "is-correct-answer" : null;
+
+                            <li class="exam-room-option @optionClass">
+                                <div class="exam-room-option__body">
+                                    <span class="exam-room-options__label">@((char)('A' + index))</span>
+                                    <span>@option.Text</span>
+                                    @if (isPicked)
+                                    {
+                                        <span class="exam-result-option-note">Bạn chọn</span>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ul>
+
+                    @if (!question.IsCorrect && correctOption is not null)
+                    {
+                        <div class="exam-result-correct-answer">
+                            <span>Đáp án đúng</span>
+                            <strong>@correctOption.Text</strong>
+                        </div>
+                    }
+                </li>
+            }
+        </ol>
+    </div>
+</div>

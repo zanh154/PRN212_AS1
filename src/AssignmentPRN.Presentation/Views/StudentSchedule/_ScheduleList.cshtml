@@ -1,7 +1,9 @@
 @model StudentScheduleViewModel
+@using AssignmentPRN.DataAccess.Enums
 @{
     // Only staff may follow a slot through to the full session detail page.
     var canOpenSession = Context.Session.GetString(SessionKeys.Role) is RoleNames.Admin or RoleNames.Lecturer;
+    var now = DateTime.Now;
 }
 
 @if (!string.IsNullOrWhiteSpace(Model.Error))
@@ -44,8 +46,24 @@ else if (Model.Schedule is not null)
                 }
                 else
                 {
+                    // The same window the service enforces, so the button is only offered
+                    // when pressing it would actually work.
+                    var canSit = Model.IsOwnSchedule
+                        && ExamSessionRules.CanSit(item.SessionStatus)
+                        && item.CandidateStatus is CandidateStatus.Waiting or CandidateStatus.InProgress
+                        && ExamSessionRules.IsSlotOpen(now, item.ScheduledTime, item.EndTime);
+
                     <div class="student-schedule-item">
                         <partial name="_ScheduleItem" model="item" />
+                        @if (canSit)
+                        {
+                            <form method="post" asp-controller="ExamRoom" asp-action="Enter"
+                                  asp-route-id="@item.CandidateId" class="student-schedule-item__action">
+                                <button class="btn btn-primary" type="submit">
+                                    @(item.CandidateStatus == CandidateStatus.InProgress ? "Tiếp tục thi" : "Vào thi")
+                                </button>
+                            </form>
+                        }
                     </div>
                 }
             }

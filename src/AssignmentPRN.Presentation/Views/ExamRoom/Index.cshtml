@@ -1,0 +1,138 @@
+@model ExamRoomViewModel
+@using AssignmentPRN.DataAccess.Enums
+@{
+    var room = Model.Room;
+    ViewData["Title"] = $"Phòng thi · {room.ExamName}";
+
+    // While the paper is open the exam layout hides every way off the page and runs the
+    // countdown; once it is handed in the page puts the way back on itself.
+    Layout = "_ExamLayout";
+    ViewData["ExamLocked"] = room.CanAnswer;
+    ViewData["SecondsRemaining"] = room.SecondsRemaining;
+}
+
+<div class="page-header">
+    <div>
+        @if (!room.CanAnswer)
+        {
+            <a class="back-link" asp-controller="StudentSchedule" asp-action="Mine">
+                <partial name="_Icon" model="@("arrow-left")" /> Quay lại lịch thi
+            </a>
+        }
+        <span class="eyebrow">@room.CourseCode · @room.CourseName</span>
+        <h1>@room.ExamName</h1>
+        <p>Giảng viên: @room.LecturerName</p>
+    </div>
+</div>
+
+<section class="metric-row">
+    <div class="metric-card">
+        <span>Khung giờ</span>
+        <strong>@room.ScheduledTime.ToString("HH:mm")–@room.EndTime.ToString("HH:mm")</strong>
+    </div>
+    <div class="metric-card"><span>Thời lượng</span><strong>@room.TimePerStudent phút</strong></div>
+    <div class="metric-card"><span>Đã trả lời</span><strong>@room.AnsweredCount / @room.Questions.Count</strong></div>
+    <div class="metric-card">
+        <span>Bắt đầu lúc</span>
+        <strong>@(room.StartedAt?.ToString("HH:mm") ?? "—")</strong>
+    </div>
+</section>
+
+@if (room.CanAnswer)
+{
+    <div class="info-note">
+        Đề của bạn được rút ngẫu nhiên từ ngân hàng câu hỏi của môn, không trùng với sinh viên
+        nào khác trong cùng phiên thi.
+        <strong>Hết giờ bài sẽ tự nộp, và nộp xong là kết thúc, không sửa lại được.</strong>
+        Đừng rời trang khi chưa nộp.
+    </div>
+}
+else if (room.CandidateStatus == CandidateStatus.Completed)
+{
+    <div class="alert alert-success app-alert" role="status">
+        Bạn đã nộp bài · @room.AnsweredCount / @room.Questions.Count câu có đáp án.
+        Dưới đây là bài làm của bạn.
+    </div>
+}
+else
+{
+    <div class="alert alert-warning app-alert" role="alert">
+        Ca thi đã kết thúc, bạn chỉ xem lại được đề.
+    </div>
+}
+
+<form method="post" asp-action="Submit" asp-route-id="@room.CandidateId"
+      data-exam-form
+      data-exam-guard="@(room.CanAnswer ? "true" : null)"
+      data-confirm="@(room.CanAnswer ? "Nộp bài ngay? Nộp xong sẽ không sửa lại được." : null)">
+    <div class="content-card">
+        <div class="section-heading">
+            <div>
+                <h2>Đề thi của bạn</h2>
+                <p class="text-muted">
+                    @(room.CanAnswer
+                        ? "Chọn một phương án cho mỗi câu, rồi bấm Nộp bài."
+                        : "Phương án bạn đã chọn được đánh dấu bên dưới.")
+                </p>
+            </div>
+            <span class="status-chip @ExamSessionText.ChipModifier(room.CandidateStatus)">
+                @ExamSessionText.Status(room.CandidateStatus)
+            </span>
+        </div>
+
+        <ol class="exam-room-questions">
+            @foreach (var question in room.Questions)
+            {
+                <li class="exam-room-question">
+                    <div class="exam-room-question__head">
+                        <strong>Câu @question.OrderNo</strong>
+                        <span class="status-chip @QuestionText.DifficultyChip(question.Difficulty)">
+                            @QuestionText.Difficulty(question.Difficulty)
+                        </span>
+                        @if (!room.CanAnswer && !question.SelectedOptionId.HasValue)
+                        {
+                            <span class="status-chip status-chip--muted">Bỏ trống</span>
+                        }
+                    </div>
+                    <p class="exam-room-question__text">@question.QuestionText</p>
+
+                    @if (question.Options.Count > 0)
+                    {
+                        <ul class="exam-room-options">
+                            @for (var index = 0; index < question.Options.Count; index++)
+                            {
+                                var option = question.Options[index];
+                                var inputId = $"answer-{question.ExamQuestionId}-{option.OptionId}";
+                                var isPicked = question.SelectedOptionId == option.OptionId;
+
+                                <li class="exam-room-option @(isPicked ? "is-picked" : null)">
+                                    @if (room.CanAnswer)
+                                    {
+                                        @* One radio group per question, keyed by the slot id, so
+                                           the controller binds them straight into a dictionary. *@
+                                        <input class="form-check-input" type="radio"
+                                               id="@inputId"
+                                               name="answers[@question.ExamQuestionId]"
+                                               value="@option.OptionId"
+                                               checked="@isPicked" />
+                                    }
+                                    <label class="exam-room-option__body" for="@inputId">
+                                        <span class="exam-room-options__label">@((char)('A' + index))</span>
+                                        <span>@option.Text</span>
+                                    </label>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </li>
+            }
+        </ol>
+
+        @if (room.CanAnswer)
+        {
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit">Nộp bài</button>
+            </div>
+        }
+    </div>
+</form>

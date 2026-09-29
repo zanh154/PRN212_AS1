@@ -12,7 +12,7 @@ Thi vấn đáp (viva/oral exam) hiện được dùng phổ biến trong bảo 
 * **Khó mở rộng:** Gặp trở ngại lớn khi số lượng sinh viên thi quá đông.
 * **Thiếu minh bạch:** Không có bằng chứng khách quan (transcript, điểm từng câu) để đối chiếu khi xảy ra khiếu nại về điểm số.
 
-**💡 Giải pháp từ AIVES:** 
+**💡 Giải pháp từ AIVES:**
 Hệ thống AIVES ra đời nhằm hỗ trợ giảng viên toàn diện trong quá trình thi vấn đáp:
 1. Sinh câu hỏi tự động.
 2. Tổ chức buổi thi với AI (AI trực tiếp đặt câu hỏi và "hỏi xoáy" dựa trên câu trả lời của sinh viên).
@@ -26,6 +26,6 @@ Hệ thống AIVES ra đời nhằm hỗ trợ giảng viên toàn diện trong 
 ### 👉 Nhóm chức năng 2: Quản lý kỳ thi & lịch thi
 
 * **Tạo và quản lý phiên thi:** Giảng viên có thể dễ dàng tạo phiên thi vấn đáp mới (gắn kèm môn học, danh sách sinh viên, và thiết lập khung thời gian cụ thể cho từng thí sinh).
-* **Phân bổ câu hỏi thông minh:** 
+* **Phân bổ câu hỏi thông minh:**
   * Hệ thống tự động chọn ngẫu nhiên/thích ứng bộ câu hỏi cho từng sinh viên, đảm bảo không bị trùng lặp giữa các thí sinh thi liên tiếp.
   * Giảng viên được phép cấu hình: `Số lượng câu hỏi chính` + `Số lượng câu hỏi đào sâu tối đa` cho mỗi thí sinh.
