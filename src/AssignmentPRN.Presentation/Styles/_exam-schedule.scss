@@ -1069,8 +1069,14 @@
 }
 
 .exam-header {
+  // Pinned: the countdown is the one thing a student must be able to see at any
+  // point of a long paper, so it must not scroll away with the page.
+  position: sticky;
+  top: 0;
+  z-index: 60;
   background: $color-primary-deep;
   color: #fff;
+  box-shadow: $shadow-md;
 }
 
 .exam-header__inner {
@@ -1098,6 +1104,7 @@
   align-items: center;
   padding: $space-2 $space-4;
   margin-inline: auto;
+  text-align: center;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: $radius-md;
@@ -1125,6 +1132,22 @@
   font-size: $font-size-xl;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+}
+
+.exam-header__inner {
+  @include respond-below($breakpoint-md) {
+    flex-wrap: wrap;
+    padding-block: $space-2;
+
+    .exam-clock {
+      order: 3;
+      width: 100%;
+      flex-direction: row;
+      justify-content: center;
+      gap: $space-2;
+      margin-inline: 0;
+    }
+  }
 }
 
 .exam-main {
