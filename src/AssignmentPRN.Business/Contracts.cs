@@ -231,6 +231,9 @@ public sealed class StudentScheduleItemResponse
 {
     public int ExamId { get; init; }
 
+    /// <summary>The student's own slot; what the exam room is opened by.</summary>
+    public int CandidateId { get; init; }
+
     public string ExamName { get; init; } = string.Empty;
 
     public string CourseCode { get; init; } = string.Empty;
@@ -369,6 +372,38 @@ public sealed class QuestionListItemResponse
     public string AuthorName { get; init; } = string.Empty;
 
     public DateTime CreatedAt { get; init; }
+}
+
+/// <summary>
+/// What a student sees after opening their slot: the session they are sitting and the
+/// paper the bank dealt them. It carries no answer key.
+/// </summary>
+public sealed class ExamRoomResponse
+{
+    public int CandidateId { get; init; }
+
+    public int ExamId { get; init; }
+
+    public string ExamName { get; init; } = string.Empty;
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public string CourseName { get; init; } = string.Empty;
+
+    public string LecturerName { get; init; } = string.Empty;
+
+    public DateTime ScheduledTime { get; init; }
+
+    public DateTime EndTime { get; init; }
+
+    public int TimePerStudent { get; init; }
+
+    public DataAccess.Enums.CandidateStatus CandidateStatus { get; init; }
+
+    public DateTime? StartedAt { get; init; }
+
+    public IReadOnlyList<DataAccess.Contracts.ExamRoomQuestion> Questions { get; init; } =
+        Array.Empty<DataAccess.Contracts.ExamRoomQuestion>();
 }
 
 /// <summary>How many questions the bank can still hand out for one exam.</summary>

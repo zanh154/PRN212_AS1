@@ -227,6 +227,59 @@ public sealed class CourseMaterialItem
 }
 
 /// <summary>
+/// Everything the exam room needs to decide whether a student may sit their slot, and
+/// to deal them a paper if they do not have one yet.
+/// </summary>
+public sealed class ExamRoomCandidate
+{
+    public int CandidateId { get; init; }
+
+    public int ExamId { get; init; }
+
+    /// <summary>Account the slot belongs to; only this student may open it.</summary>
+    public int StudentId { get; init; }
+
+    public string ExamName { get; init; } = string.Empty;
+
+    public int CourseId { get; init; }
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public string CourseName { get; init; } = string.Empty;
+
+    public string LecturerName { get; init; } = string.Empty;
+
+    /// <summary>Null while the session has not been scheduled; such a slot cannot be sat.</summary>
+    public DateTime? ScheduledTime { get; init; }
+
+    public int TimePerStudent { get; init; }
+
+    /// <summary>How many questions this session gives each student.</summary>
+    public int MainQuestionCount { get; init; }
+
+    public CandidateStatus CandidateStatus { get; init; }
+
+    public ExamSessionStatus SessionStatus { get; init; }
+
+    public DateTime? StartedAt { get; init; }
+}
+
+/// <summary>
+/// One question as the student sees it. There is deliberately no "is correct" here: the
+/// exam room reads this type, so the answer key cannot reach the student by accident.
+/// </summary>
+public sealed class ExamRoomQuestion
+{
+    public int OrderNo { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public QuestionDifficulty Difficulty { get; init; }
+
+    public IReadOnlyList<string> Options { get; init; } = Array.Empty<string>();
+}
+
+/// <summary>
 /// One candidate's paper, read back after the bank has dealt the exam. The exam screen
 /// shows it so the lecturer can see exactly what each student will be asked.
 /// </summary>

@@ -1,3 +1,4 @@
+using AssignmentPRN.Business;
 using AssignmentPRN.DataAccess.Contracts;
 using AssignmentPRN.DataAccess.Enums;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -61,4 +62,10 @@ public class ExamQuestionAssignViewModel
     public bool CanAssign { get; set; }
 
     public string? LoadError { get; set; }
+}
+
+/// <summary>What the student's exam room renders. The response carries no answer key.</summary>
+public class ExamRoomViewModel
+{
+    public ExamRoomResponse Room { get; init; } = new();
 }

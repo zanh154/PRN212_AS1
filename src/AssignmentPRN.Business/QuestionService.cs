@@ -406,6 +406,170 @@ public class QuestionService(
             "Không thể phân câu hỏi cho lịch thi.");
     }
 
+    public Task<ServiceResponse<ExamRoomResponse>> EnterExamAsync(
+        int candidateId,
+        int studentUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(
+            async () =>
+            {
+                var candidate = await LoadSittableCandidateAsync(candidateId, studentUserId, cancellationToken);
+
+                var existing = await questionRepository.ListCandidateQuestionsAsync(candidateId, cancellationToken);
+                if (existing.Count == 0)
+                {
+                    await DealToCandidateAsync(candidate, cancellationToken);
+                }
+
+                await questionRepository.StartCandidateAsync(candidateId, DateTime.Now, cancellationToken);
+
+                // Re-read: the slot now carries its paper and its start time.
+                var opened = await questionRepository.GetExamRoomCandidateAsync(candidateId, cancellationToken)
+                    ?? throw new BusinessValidationException("Không tìm thấy lượt thi.");
+
+                return MapRoom(
+                    opened,
+                    await questionRepository.ListCandidateQuestionsAsync(candidateId, cancellationToken));
+            },
+            "Không thể vào phòng thi.");
+    }
+
+    public Task<ServiceResponse<ExamRoomResponse>> GetExamRoomAsync(
+        int candidateId,
+        int studentUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(
+            async () =>
+            {
+                var candidate = await questionRepository.GetExamRoomCandidateAsync(candidateId, cancellationToken)
+                    ?? throw new BusinessValidationException("Không tìm thấy lượt thi.");
+
+                if (candidate.StudentId != studentUserId)
+                {
+                    throw new BusinessValidationException("Đây không phải lượt thi của bạn.");
+                }
+
+                return MapRoom(
+                    candidate,
+                    await questionRepository.ListCandidateQuestionsAsync(candidateId, cancellationToken));
+            },
+            "Không thể mở phòng thi.");
+    }
+
+    /// <summary>
+    /// The gate in front of the exam room: the slot has to belong to the caller, the
+    /// session has to be running, and the clock has to be inside the slot.
+    /// </summary>
+    private async Task<ExamRoomCandidate> LoadSittableCandidateAsync(
+        int candidateId,
+        int studentUserId,
+        CancellationToken cancellationToken)
+    {
+        var candidate = await questionRepository.GetExamRoomCandidateAsync(candidateId, cancellationToken)
+            ?? throw new BusinessValidationException("Không tìm thấy lượt thi.");
+
+        if (candidate.StudentId != studentUserId)
+        {
+            throw new BusinessValidationException("Đây không phải lượt thi của bạn.");
+        }
+
+        if (candidate.CandidateStatus is CandidateStatus.Cancelled or CandidateStatus.Absent)
+        {
+            throw new BusinessValidationException("Lượt thi này đã bị huỷ hoặc bạn được ghi nhận vắng thi.");
+        }
+
+        if (candidate.CandidateStatus == CandidateStatus.Completed)
+        {
+            throw new BusinessValidationException("Bạn đã hoàn thành lượt thi này.");
+        }
+
+        if (!ExamSessionRules.CanSit(candidate.SessionStatus))
+        {
+            throw new BusinessValidationException(
+                "Phiên thi chưa mở hoặc đã kết thúc, chưa thể vào thi.");
+        }
+
+        if (candidate.ScheduledTime is not DateTime scheduled)
+        {
+            throw new BusinessValidationException("Lượt thi này chưa được xếp giờ.");
+        }
+
+        var now = DateTime.Now;
+        if (!ExamSessionRules.IsSlotOpen(now, scheduled, candidate.TimePerStudent))
+        {
+            throw new BusinessValidationException(
+                now < scheduled
+                    ? $"Chưa đến giờ thi. Bạn vào được từ {scheduled - ExamSessionRules.EarlyEntry:HH:mm} ngày {scheduled:dd/MM}."
+                    : $"Ca thi của bạn đã kết thúc lúc {scheduled.AddMinutes(candidate.TimePerStudent):HH:mm}.");
+        }
+
+        return candidate;
+    }
+
+    /// <summary>
+    /// Deals one student's paper. Everything already handed out inside this session is
+    /// excluded, which is what keeps two students of one session off the same question.
+    /// </summary>
+    private async Task DealToCandidateAsync(
+        ExamRoomCandidate candidate,
+        CancellationToken cancellationToken)
+    {
+        var count = BusinessValidation.InRange(
+            candidate.MainQuestionCount, 1, 50, "Số câu hỏi mỗi sinh viên");
+
+        var taken = (await questionRepository.ListAssignedQuestionIdsAsync(candidate.ExamId, cancellationToken))
+            .ToHashSet();
+
+        var pool = await questionRepository.ListPoolIdsAsync(
+            new QuestionPickRequest
+            {
+                CourseId = candidate.CourseId,
+                Count = count,
+                TakenQuestionIds = taken
+            },
+            cancellationToken);
+
+        var picked = QuestionPicker.Pick(pool, count, taken);
+        if (picked.Count < count)
+        {
+            throw new BusinessValidationException(
+                $"Ngân hàng câu hỏi của môn {candidate.CourseCode} không còn đủ {count} câu chưa dùng "
+                + "cho lượt thi này. Hãy báo giảng viên bổ sung câu hỏi.");
+        }
+
+        await questionRepository.AddExamQuestionsAsync(
+            candidate.ExamId,
+            picked
+                .Select((questionId, index) => new ExamQuestionInput
+                {
+                    CandidateId = candidate.CandidateId,
+                    QuestionId = questionId,
+                    OrderNo = index + 1
+                })
+                .ToList(),
+            cancellationToken);
+    }
+
+    private static ExamRoomResponse MapRoom(
+        ExamRoomCandidate candidate,
+        IReadOnlyList<ExamRoomQuestion> questions) => new()
+    {
+        CandidateId = candidate.CandidateId,
+        ExamId = candidate.ExamId,
+        ExamName = candidate.ExamName,
+        CourseCode = candidate.CourseCode,
+        CourseName = candidate.CourseName,
+        LecturerName = candidate.LecturerName,
+        ScheduledTime = candidate.ScheduledTime ?? default,
+        EndTime = (candidate.ScheduledTime ?? default).AddMinutes(candidate.TimePerStudent),
+        TimePerStudent = candidate.TimePerStudent,
+        CandidateStatus = candidate.CandidateStatus,
+        StartedAt = candidate.StartedAt,
+        Questions = questions
+    };
+
     public Task<ServiceResponse<IReadOnlyList<ExamPaperItem>>> GetExamPaperAsync(
         int examId,
         CancellationToken cancellationToken = default)

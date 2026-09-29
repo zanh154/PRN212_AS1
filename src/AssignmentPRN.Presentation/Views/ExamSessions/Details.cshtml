@@ -72,8 +72,9 @@
         <div>
             <h2>Ngân hàng câu hỏi</h2>
             <p>
-                Mỗi sinh viên nhận @session.MainQuestionCount câu hỏi chính, rút ngẫu nhiên và
-                không trùng nhau giữa các sinh viên trong phiên thi này.
+                Mỗi sinh viên nhận @session.MainQuestionCount câu hỏi chính, rút ngẫu nhiên ngay
+                khi họ bấm vào thi và không trùng với sinh viên nào khác trong phiên này.
+                Bạn có thể phát trước để xem đề, nhưng không bắt buộc.
             </p>
         </div>
         <a class="btn btn-outline-primary" asp-action="Questions" asp-route-id="@session.ExamId">

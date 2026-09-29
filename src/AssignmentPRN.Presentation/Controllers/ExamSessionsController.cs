@@ -162,30 +162,11 @@ public class ExamSessionsController(
             return View(model);
         }
 
-        var examId = response.Data.ExamId;
-
-        // The exam is already saved, so a thin bank must not undo it: the draw is attempted
-        // straight away and, when it cannot be met, the lecturer lands on the config screen
-        // instead of being left with a session nobody dealt questions for.
-        var assignment = await questionService.AssignToExamAsync(
-            new ExamQuestionAssignmentRequest
-            {
-                ExamId = examId,
-                CourseId = model.CourseId,
-                CountPerCandidate = model.MainQuestionCount
-            },
-            cancellationToken);
-
-        if (assignment.Success && assignment.Data is not null)
-        {
-            TempData["Success"] = "Đã tạo lịch thi, sinh khung giờ và phát đề ngẫu nhiên cho "
-                + $"{assignment.Data.CandidateCount} sinh viên.";
-            return RedirectToAction(nameof(Details), new { id = examId });
-        }
-
-        TempData["Success"] = "Đã tạo lịch thi và sinh khung giờ tự động.";
-        TempData["Error"] = $"Chưa phát được đề: {assignment.Error} Hãy chọn lại phạm vi câu hỏi.";
-        return RedirectToAction(nameof(Questions), new { id = examId });
+        // No draw happens here. Each student's paper is dealt when they open their slot,
+        // so a session is never blocked on the lecturer remembering to hand questions out.
+        TempData["Success"] = "Đã tạo lịch thi và sinh khung giờ tự động. "
+            + "Đề sẽ được rút ngẫu nhiên khi từng sinh viên vào thi.";
+        return RedirectToAction(nameof(Details), new { id = response.Data.ExamId });
     }
 
     [HttpPost]
@@ -399,12 +380,14 @@ public class ExamSessionsController(
             && model.Papers.All(paper => paper.Questions.All(question => !question.IsCompleted));
 
         // Ask the bank with the filter currently on screen, so the warning matches what the
-        // button would actually draw from.
+        // button would actually draw from. Once everybody holds a paper nothing more is
+        // needed, but the bank still rejects a count of zero — ask for one and read only
+        // the number available.
         var availability = await questionService.CheckAvailabilityAsync(
             new QuestionPickRequest
             {
                 CourseId = session.Course.CourseId,
-                Count = model.RequiredCount,
+                Count = Math.Max(model.RequiredCount, 1),
                 MaterialIds = model.MaterialIds,
                 Difficulties = model.Difficulties,
                 TakenQuestionIds = model.Papers

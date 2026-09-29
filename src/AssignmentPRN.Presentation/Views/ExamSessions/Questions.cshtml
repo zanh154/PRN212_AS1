@@ -19,7 +19,11 @@
         </a>
         <span class="eyebrow">@Model.CourseCode · Ngân hàng câu hỏi</span>
         <h1>Phát đề cho @Model.ExamName</h1>
-        <p>Mỗi sinh viên nhận một bộ câu hỏi ngẫu nhiên. Hai sinh viên trong cùng phiên thi không bao giờ trùng câu.</p>
+        <p>
+            Đề được rút tự động khi sinh viên bấm vào thi, không cần bạn thao tác. Màn hình này
+            để phát trước và xem đề của từng sinh viên; hai sinh viên trong cùng phiên thi không
+            bao giờ trùng câu.
+        </p>
     </div>
     <div class="d-flex gap-2">
         <a class="btn btn-outline-secondary" asp-controller="Questions" asp-action="Index" asp-route-courseId="@Model.CourseId">
@@ -71,7 +75,10 @@ else if (!Model.IsEnough)
     <div class="section-heading">
         <div>
             <h2>Cấu hình bộ câu hỏi</h2>
-            <p class="text-muted">Bỏ trống chủ đề hoặc độ khó nghĩa là lấy toàn bộ môn @Model.CourseName.</p>
+            <p class="text-muted">
+                Bỏ trống chủ đề hoặc độ khó nghĩa là lấy toàn bộ môn @Model.CourseName. Phạm vi này
+                chỉ áp dụng cho lần phát trước ở đây; sinh viên tự vào thi sẽ rút từ toàn bộ môn.
+            </p>
         </div>
     </div>
 

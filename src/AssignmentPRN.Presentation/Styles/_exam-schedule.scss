@@ -1039,10 +1039,85 @@
 
     .student-schedule-time,
     .student-schedule-main,
-    > .status-chip {
+    > .status-chip,
+    .student-schedule-item__action {
       grid-column: 2;
     }
   }
+}
+
+// The row grows a column only when the "Vào thi" button is actually offered, so a
+// plain row keeps its original layout.
+.student-schedule-item:has(.student-schedule-item__action) {
+  grid-template-columns: 72px 150px minmax(0, 1fr) auto auto;
+
+  @include respond-below($breakpoint-lg) {
+    grid-template-columns: 66px 140px minmax(0, 1fr);
+
+    > .status-chip {
+      grid-column: 2 / 3;
+    }
+  }
+}
+
+// -- Exam room (what the student sees after opening their slot) ----------
+.exam-room-questions {
+  display: grid;
+  gap: $space-4;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.exam-room-question {
+  padding: $space-4;
+  background: $color-surface-alt;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+}
+
+.exam-room-question__head {
+  display: flex;
+  gap: $space-3;
+  align-items: center;
+
+  strong {
+    color: $color-heading;
+  }
+}
+
+.exam-room-question__text {
+  margin-top: $space-2;
+  color: $color-heading;
+}
+
+.exam-room-options {
+  display: grid;
+  gap: $space-2;
+  padding: 0;
+  margin: $space-3 0 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    gap: $space-3;
+    align-items: baseline;
+    font-size: $font-size-sm;
+  }
+}
+
+.exam-room-options__label {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: $color-primary-dark;
+  background: $color-primary-tint;
+  border-radius: 50%;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
 }
 
 .student-schedule-date {

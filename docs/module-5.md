@@ -134,22 +134,46 @@ Phát đề cho lượt thi nằm trong `ExamSessionsController`:
 
 ---
 
-## 5b. Luồng phát đề (đã nối)
+## 5b. Luồng phát đề
 
-1. **Tạo lịch thi** (`POST /ExamSessions/Create`) → sau khi session và danh sách thi đã
-   lưu, controller gọi ngay `IQuestionService.AssignToExamAsync` với
-   `MainQuestionCount` của phiên thi và **toàn bộ** ngân hàng của môn.
-2. Phát đề **thành công** → về `Details`, báo đã phát đề cho N sinh viên.
-3. Ngân hàng **không đủ câu** → lịch thi vẫn được giữ (không rollback), người dùng được
-   đưa thẳng sang `/ExamSessions/Questions/{id}` kèm lý do, để chọn lại phạm vi.
-4. Ở màn hình đó có thể đổi **số câu mỗi sinh viên**, lọc theo **chủ đề** và **độ khó**;
-   số câu khả dụng được tính lại theo đúng bộ lọc đang chọn trước khi bấm phát.
-5. Chạy lại `AssignToExamAsync` chỉ bù cho sinh viên **chưa có đề**; sinh viên đã có đề
-   được bỏ qua nên không ai bị phát chồng hai bộ câu.
-6. `ClearExamAssignmentAsync` xoá đề để phát lại, và **từ chối** khi đã có câu được hỏi
-   hoặc trả lời (`exam_questions.asked_at` / `is_completed`).
+Đề **rút khi sinh viên vào thi**, không phải khi giảng viên bấm. Tạo lịch thi không sinh
+đề gì cả.
 
-Vào màn hình phát đề từ: `Lịch thi → chi tiết phiên thi → thẻ "Ngân hàng câu hỏi"`.
+### Sinh viên tự vào thi (luồng chính)
+
+| Method | Đường dẫn | Công dụng |
+|---|---|---|
+| POST | `/ExamRoom/Enter/{candidateId}` | Vào ca thi: rút đề nếu chưa có, bắt đầu tính giờ |
+| GET | `/ExamRoom/Index/{candidateId}` | Xem lại đề đã rút, không ghi gì thêm |
+
+1. `Lịch thi của tôi` hiện nút **Vào thi** khi tới lượt. Nút chỉ hiện đúng khoảng thời
+   gian mà service cho phép, nên bấm được là vào được.
+2. Bấm vào → `IQuestionService.EnterExamAsync` kiểm tra lần lượt: đúng chủ lượt thi,
+   lượt chưa bị huỷ/vắng/đã xong, phiên thi đang `Scheduled` hoặc `InProgress`, và đồng
+   hồ nằm trong ca (vào sớm được tối đa **15 phút**, `ExamSessionRules.EarlyEntry`).
+3. Qua hết → rút `MainQuestionCount` câu, **loại mọi câu đã phát cho sinh viên khác
+   trong cùng phiên**, ghi vào `exam_questions`, chuyển lượt sang `InProgress` và ghi
+   `started_at`.
+4. Vào lại hoặc F5 → giữ nguyên bộ câu cũ và giữ nguyên `started_at`.
+5. Ngân hàng không đủ câu → báo sinh viên liên hệ giảng viên, không ghi nửa vời.
+
+Kiểu `ExamRoomQuestion` mà sinh viên nhận **không có trường đánh dấu đáp án đúng**, nên
+đáp án không thể lọt ra theo đường này.
+
+### Giảng viên phát trước (tuỳ chọn)
+
+| Method | Đường dẫn | Công dụng |
+|---|---|---|
+| GET | `/ExamSessions/Questions/{id}` | Cấu hình + xem đề từng sinh viên |
+| POST | `/ExamSessions/AssignQuestions` | Phát trước theo chủ đề / độ khó đã chọn |
+| POST | `/ExamSessions/ClearQuestions/{id}` | Huỷ đề để phát lại |
+
+Dùng khi muốn xem trước đề hoặc giới hạn phạm vi theo chủ đề/độ khó. Sinh viên đã có đề
+thì lúc vào thi dùng luôn đề đó. `AssignToExamAsync` chỉ bù cho sinh viên **chưa có đề**,
+nên không ai bị phát chồng. `ClearExamAssignmentAsync` **từ chối** khi đã có câu được hỏi
+hoặc trả lời (`exam_questions.asked_at` / `is_completed`).
+
+Vào màn hình này từ: `Lịch thi → chi tiết phiên thi → thẻ "Ngân hàng câu hỏi"`.
 
 ---
 

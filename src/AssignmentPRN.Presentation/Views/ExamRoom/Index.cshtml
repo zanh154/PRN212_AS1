@@ -1,0 +1,80 @@
+@model ExamRoomViewModel
+@using AssignmentPRN.DataAccess.Enums
+@{
+    var room = Model.Room;
+    ViewData["Title"] = $"Phòng thi · {room.ExamName}";
+    ViewData["Breadcrumb"] = new List<BreadcrumbItem>
+    {
+        new("Lịch thi của tôi", "StudentSchedule", "Mine"),
+        new(room.ExamName)
+    };
+}
+
+<div class="page-header">
+    <div>
+        <a class="back-link" asp-controller="StudentSchedule" asp-action="Mine">
+            <partial name="_Icon" model="@("arrow-left")" /> Quay lại lịch thi
+        </a>
+        <span class="eyebrow">@room.CourseCode · @room.CourseName</span>
+        <h1>@room.ExamName</h1>
+        <p>Giảng viên: @room.LecturerName</p>
+    </div>
+</div>
+
+<section class="metric-row">
+    <div class="metric-card">
+        <span>Khung giờ</span>
+        <strong>@room.ScheduledTime.ToString("HH:mm")–@room.EndTime.ToString("HH:mm")</strong>
+    </div>
+    <div class="metric-card"><span>Thời lượng</span><strong>@room.TimePerStudent phút</strong></div>
+    <div class="metric-card"><span>Số câu</span><strong>@room.Questions.Count</strong></div>
+    <div class="metric-card">
+        <span>Bắt đầu lúc</span>
+        <strong>@(room.StartedAt?.ToString("HH:mm") ?? "—")</strong>
+    </div>
+</section>
+
+<div class="info-note">
+    Đề của bạn được rút ngẫu nhiên từ ngân hàng câu hỏi của môn, không trùng với sinh viên
+    nào khác trong cùng phiên thi. Tải lại trang vẫn giữ nguyên bộ câu này.
+</div>
+
+<div class="content-card">
+    <div class="section-heading">
+        <div>
+            <h2>Đề thi của bạn</h2>
+            <p class="text-muted">Trả lời trực tiếp với giảng viên theo thứ tự bên dưới.</p>
+        </div>
+        <span class="status-chip @ExamSessionText.ChipModifier(room.CandidateStatus)">
+            @ExamSessionText.Status(room.CandidateStatus)
+        </span>
+    </div>
+
+    <ol class="exam-room-questions">
+        @foreach (var question in room.Questions)
+        {
+            <li class="exam-room-question">
+                <div class="exam-room-question__head">
+                    <strong>Câu @question.OrderNo</strong>
+                    <span class="status-chip @QuestionText.DifficultyChip(question.Difficulty)">
+                        @QuestionText.Difficulty(question.Difficulty)
+                    </span>
+                </div>
+                <p class="exam-room-question__text">@question.QuestionText</p>
+
+                @if (question.Options.Count > 0)
+                {
+                    <ul class="exam-room-options">
+                        @for (var index = 0; index < question.Options.Count; index++)
+                        {
+                            <li>
+                                <span class="exam-room-options__label">@((char)('A' + index))</span>
+                                <span>@question.Options[index]</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </li>
+        }
+    </ol>
+</div>

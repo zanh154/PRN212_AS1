@@ -47,6 +47,22 @@ public interface IQuestionRepository
 
     /// <summary>Drops the exam's papers so they can be dealt again. Returns how many rows went.</summary>
     Task<int> ClearExamQuestionsAsync(int examId, CancellationToken cancellationToken = default);
+
+    /// <summary>One slot with its session, for the exam room to check before letting a student in.</summary>
+    Task<ExamRoomCandidate?> GetExamRoomCandidateAsync(
+        int candidateId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>One candidate's paper as the student sees it, without the answer key.</summary>
+    Task<IReadOnlyList<ExamRoomQuestion>> ListCandidateQuestionsAsync(
+        int candidateId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Marks the slot as being sat. Only the first entry records the clock, so refreshing
+    /// the page does not restart the exam.
+    /// </summary>
+    Task StartCandidateAsync(int candidateId, DateTime startedAt, CancellationToken cancellationToken = default);
 }
 
 public class QuestionRepository(AivesDbContext context) : IQuestionRepository
@@ -358,6 +374,73 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         context.ExamQuestions.RemoveRange(rows);
         await context.SaveChangesAsync(cancellationToken);
         return rows.Count;
+    }
+
+    public Task<ExamRoomCandidate?> GetExamRoomCandidateAsync(
+        int candidateId,
+        CancellationToken cancellationToken = default) =>
+        candidateId <= 0
+            ? Task.FromResult<ExamRoomCandidate?>(null)
+            : context.ExamCandidates
+                .AsNoTracking()
+                .Where(candidate => candidate.CandidateId == candidateId)
+                .Select(candidate => new ExamRoomCandidate
+                {
+                    CandidateId = candidate.CandidateId,
+                    ExamId = candidate.ExamId,
+                    StudentId = candidate.StudentId,
+                    ExamName = candidate.Session.ExamName,
+                    CourseId = candidate.Session.CourseId,
+                    CourseCode = candidate.Session.Course.CourseCode,
+                    CourseName = candidate.Session.Course.CourseName,
+                    LecturerName = candidate.Session.Lecturer.FullName,
+                    ScheduledTime = candidate.ScheduledTime,
+                    TimePerStudent = candidate.Session.TimePerStudent,
+                    MainQuestionCount = candidate.Session.MainQuestionCount,
+                    CandidateStatus = candidate.Status,
+                    SessionStatus = candidate.Session.Status,
+                    StartedAt = candidate.StartedAt
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<ExamRoomQuestion>> ListCandidateQuestionsAsync(
+        int candidateId,
+        CancellationToken cancellationToken = default) =>
+        await context.ExamQuestions
+            .AsNoTracking()
+            .Where(item => item.CandidateId == candidateId)
+            .OrderBy(item => item.OrderNo)
+            .Select(item => new ExamRoomQuestion
+            {
+                OrderNo = item.OrderNo,
+                QuestionText = item.Question.QuestionText,
+                Difficulty = item.Question.Difficulty,
+                // Only the text of each choice is projected, so is_correct never leaves
+                // the database on this path.
+                Options = item.Question.Options
+                    .OrderBy(option => option.DisplayOrder)
+                    .Select(option => option.OptionText)
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+    public async Task StartCandidateAsync(
+        int candidateId,
+        DateTime startedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var candidate = await context.ExamCandidates
+            .FirstOrDefaultAsync(item => item.CandidateId == candidateId, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt thi.");
+
+        if (candidate.Status == CandidateStatus.Waiting)
+        {
+            candidate.Status = CandidateStatus.InProgress;
+        }
+
+        // Keep the first timestamp: a refresh must not look like a fresh start.
+        candidate.StartedAt ??= startedAt;
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     private static QuestionDetail MapDetail(Question question) => new()    {

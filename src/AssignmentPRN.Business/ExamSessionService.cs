@@ -439,6 +439,7 @@ public class ExamSessionService(
         Items = schedule.Items.Select(item => new StudentScheduleItemResponse
         {
             ExamId = item.ExamId,
+            CandidateId = item.CandidateId,
             ExamName = item.ExamName,
             CourseCode = item.CourseCode,
             CourseName = item.CourseName,

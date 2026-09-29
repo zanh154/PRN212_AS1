@@ -130,6 +130,25 @@ public interface IQuestionService
     /// configuration. Refused once a student has been asked a question.
     /// </summary>
     Task<ServiceResponse> ClearExamAssignmentAsync(int examId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Opens a slot for the student sitting it. The paper is dealt here, on first entry,
+    /// drawn from the questions nobody else in this session has been given. A student who
+    /// comes back to the page keeps the paper they already hold.
+    /// </summary>
+    Task<ServiceResponse<ExamRoomResponse>> EnterExamAsync(
+        int candidateId,
+        int studentUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads a slot the student has already opened, without dealing anything or touching
+    /// the clock, so a refresh is free of side effects.
+    /// </summary>
+    Task<ServiceResponse<ExamRoomResponse>> GetExamRoomAsync(
+        int candidateId,
+        int studentUserId,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ICourseMaterialService
