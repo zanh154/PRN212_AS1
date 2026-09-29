@@ -1060,6 +1060,78 @@
   }
 }
 
+// -- Exam room chrome: a page with no way off it but handing the paper in --
+.exam-body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: $color-background;
+}
+
+.exam-header {
+  background: $color-primary-deep;
+  color: #fff;
+}
+
+.exam-header__inner {
+  display: flex;
+  gap: $space-4;
+  align-items: center;
+  min-height: 64px;
+
+  .navbar-brand {
+    display: flex;
+    gap: $space-2;
+    align-items: center;
+    color: #fff;
+    font-weight: $font-weight-bold;
+  }
+
+  .nav-user {
+    margin-left: auto;
+  }
+}
+
+.exam-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $space-2 $space-4;
+  margin-inline: auto;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: $radius-md;
+  transition: background $transition, border-color $transition;
+
+  // The last minute has to be noticed without the student watching the digits.
+  &.is-warning {
+    background: rgba($color-danger, 0.24);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+
+  &.is-over {
+    background: rgba($color-danger, 0.4);
+  }
+}
+
+.exam-clock__label {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: $font-size-xs;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.exam-clock__value {
+  font-size: $font-size-xl;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.exam-main {
+  flex: 1;
+  padding-block: $space-6;
+}
+
 // -- Exam room (what the student sees after opening their slot) ----------
 .exam-room-questions {
   display: grid;

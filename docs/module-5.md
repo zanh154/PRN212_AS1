@@ -165,6 +165,29 @@ Phát đề cho lượt thi nằm trong `ExamSessionsController`:
 6. **Nộp xong là kết thúc**: vào lại chỉ xem được bài làm, không sửa và không nộp lại.
 7. Ngân hàng không đủ câu → báo sinh viên liên hệ giảng viên, không ghi nửa vời.
 
+### Đồng hồ và việc khoá màn hình thi
+
+- Phòng thi dùng layout riêng `_ExamLayout`: **không sidebar, không breadcrumb, không nút
+  đăng xuất**. Trong lúc đang làm bài, lối ra duy nhất trên trang là nút Nộp bài. Nộp xong
+  thì link quay lại lịch thi mới hiện ra.
+- Đồng hồ đếm ngược lấy `SecondsRemaining` do **server** tính (`EndTime - DateTime.Now`),
+  không lấy giờ máy sinh viên — máy lệch giờ cũng không ăn gian được. `exam-room.js` đếm
+  theo mốc `Date.now() + seconds` nên tab bị trình duyệt tiết chế vẫn về đúng số giây.
+- Về `00:00` → tự động nộp bài. Server vẫn là nơi quyết định: `CanAnswer` tính lại theo
+  `IsSlotOpen` mỗi lần tải trang, nên hết giờ là không sửa được nữa dù client làm gì.
+- `ExamSessionRules.SubmitGrace` = **2 phút**: cho phép nộp muộn trong 2 phút sau khi hết
+  giờ, để request tự nộp kịp tới nơi. Quá đó thì từ chối. Lưu ý đây là điều kiện **nộp**,
+  khác với điều kiện **vào thi** (`IsSlotOpen`, không vào sớm hay muộn được phút nào).
+- `beforeunload` cảnh báo khi rời trang lúc chưa nộp.
+
+> Giới hạn thật cần biết: **trình duyệt không cho phép khoá cứng**. Sinh viên vẫn có thể
+> đóng tab, gõ URL khác hay tắt máy — chỉ nhận được hộp thoại cảnh báo của trình duyệt.
+> Muốn chặn thật thì phải giám sát phía server (ghi nhận rời phòng thi) hoặc dùng chế độ
+> khoá của hệ điều hành, cả hai đều nằm ngoài Module 5.
+
+> Nếu sinh viên đóng trình duyệt và không quay lại, lượt thi nằm mãi ở `InProgress` vì
+> không có gì chạy nền để chốt. Giảng viên xử lý tay trong màn hình phiên thi.
+
 Hai điều được bảo đảm bằng cấu trúc chứ không nhờ nhớ kiểm tra:
 
 - Kiểu `ExamRoomQuestion` / `ExamRoomOption` mà sinh viên nhận **không có trường đánh dấu

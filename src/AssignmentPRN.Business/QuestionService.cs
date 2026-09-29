@@ -469,7 +469,7 @@ public class QuestionService(
             {
                 ArgumentNullException.ThrowIfNull(selectedOptionByExamQuestion);
 
-                await LoadSittableCandidateAsync(candidateId, studentUserId, cancellationToken);
+                await LoadSubmittableCandidateAsync(candidateId, studentUserId, cancellationToken);
 
                 var allowed = await questionRepository.ListAllowedOptionsAsync(candidateId, cancellationToken);
                 if (allowed.Count == 0)
@@ -508,6 +508,49 @@ public class QuestionService(
                     await questionRepository.ListCandidateQuestionsAsync(candidateId, cancellationToken));
             },
             "Không thể nộp bài.");
+    }
+
+    /// <summary>
+    /// The gate in front of handing a paper in. Deliberately not the same as the gate in
+    /// front of starting one: a student who ran out of time while answering still gets to
+    /// hand in what they did, within <see cref="ExamSessionRules.SubmitGrace"/>.
+    /// </summary>
+    private async Task<ExamRoomCandidate> LoadSubmittableCandidateAsync(
+        int candidateId,
+        int studentUserId,
+        CancellationToken cancellationToken)
+    {
+        var candidate = await questionRepository.GetExamRoomCandidateAsync(candidateId, cancellationToken)
+            ?? throw new BusinessValidationException("Không tìm thấy lượt thi.");
+
+        if (candidate.StudentId != studentUserId)
+        {
+            throw new BusinessValidationException("Đây không phải lượt thi của bạn.");
+        }
+
+        if (candidate.CandidateStatus == CandidateStatus.Completed)
+        {
+            throw new BusinessValidationException("Bạn đã nộp bài cho lượt thi này.");
+        }
+
+        if (candidate.CandidateStatus != CandidateStatus.InProgress)
+        {
+            throw new BusinessValidationException("Bạn chưa vào ca thi này.");
+        }
+
+        if (candidate.ScheduledTime is not DateTime scheduled)
+        {
+            throw new BusinessValidationException("Lượt thi này chưa được xếp giờ.");
+        }
+
+        var endTime = scheduled.AddMinutes(candidate.TimePerStudent);
+        if (!ExamSessionRules.CanSubmit(DateTime.Now, scheduled, endTime))
+        {
+            throw new BusinessValidationException(
+                $"Ca thi của bạn đã kết thúc lúc {endTime:HH:mm}, không nộp bài được nữa.");
+        }
+
+        return candidate;
     }
 
     /// <summary>
@@ -622,8 +665,21 @@ public class QuestionService(
         Questions = questions,
         CanAnswer = candidate.CandidateStatus == CandidateStatus.InProgress
             && candidate.ScheduledTime is DateTime slot
-            && ExamSessionRules.IsSlotOpen(DateTime.Now, slot, candidate.TimePerStudent)
+            && ExamSessionRules.IsSlotOpen(DateTime.Now, slot, candidate.TimePerStudent),
+        SecondsRemaining = RemainingSeconds(candidate)
     };
+
+    /// <summary>Whole seconds left in the slot, never negative.</summary>
+    private static int RemainingSeconds(ExamRoomCandidate candidate)
+    {
+        if (candidate.ScheduledTime is not DateTime scheduled)
+        {
+            return 0;
+        }
+
+        var left = scheduled.AddMinutes(candidate.TimePerStudent) - DateTime.Now;
+        return left <= TimeSpan.Zero ? 0 : (int)left.TotalSeconds;
+    }
 
     public Task<ServiceResponse<IReadOnlyList<ExamPaperItem>>> GetExamPaperAsync(
         int examId,

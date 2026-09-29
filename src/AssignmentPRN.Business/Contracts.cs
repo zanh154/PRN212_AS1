@@ -408,6 +408,12 @@ public sealed class ExamRoomResponse
     /// <summary>False once the paper has been handed in; the room then only shows it.</summary>
     public bool CanAnswer { get; init; }
 
+    /// <summary>
+    /// Seconds left in the slot when the page was rendered. The countdown starts from this
+    /// rather than from the browser's clock, which may be minutes out.
+    /// </summary>
+    public int SecondsRemaining { get; init; }
+
     public int AnsweredCount => Questions.Count(question => question.SelectedOptionId.HasValue);
 }
 
