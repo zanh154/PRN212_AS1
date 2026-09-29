@@ -109,6 +109,76 @@ public class CourseMaterialService(
         return material is null ? null : MapMaterial(material);
     }
 
+    public Task<ServiceResponse<CourseMaterialResponse>> UpdateAsync(
+        CourseMaterialUpdateRequest request,
+        int? lecturerId,
+        CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(
+            async () =>
+            {
+                ArgumentNullException.ThrowIfNull(request);
+
+                var material = await materialRepository.GetAsync(request.MaterialId, cancellationToken)
+                    ?? throw new BusinessValidationException("Không tìm thấy tài liệu.");
+
+                // Both ends are checked: a lecturer may not take a material out of a course
+                // they do not own, nor push one into somebody else's course.
+                await EnsureCourseVisibleAsync(material.CourseId, lecturerId, cancellationToken);
+
+                var courseId = BusinessValidation.PositiveId(request.CourseId, "môn học");
+                await EnsureCourseVisibleAsync(courseId, lecturerId, cancellationToken);
+                if (!await catalogRepository.CourseExistsAsync(courseId, cancellationToken))
+                {
+                    throw new BusinessValidationException("Môn học không tồn tại hoặc đã ngừng hoạt động.");
+                }
+
+                var fileName = BusinessValidation.RequiredText(request.FileName, "tên tệp", MaxFileNameLength);
+
+                // file_type was read from the extension at upload time and the bytes on disk
+                // have not changed, so the extension may not change either.
+                if (!string.Equals(
+                        Path.GetExtension(fileName),
+                        Path.GetExtension(material.FileName),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new BusinessValidationException(
+                        $"Phải giữ nguyên phần mở rộng {Path.GetExtension(material.FileName)} của tệp.");
+                }
+
+                if (courseId != material.CourseId)
+                {
+                    // A question and the topic it is filed under must stay in one course,
+                    // and moving the questions too could break exams already dealt from them.
+                    var questionCount = await materialRepository.CountQuestionsAsync(
+                        request.MaterialId, cancellationToken);
+                    if (questionCount > 0)
+                    {
+                        throw new BusinessValidationException(
+                            $"Tài liệu này đang là chủ đề của {questionCount} câu hỏi thuộc môn "
+                            + $"{material.CourseCode}, nên không đổi được sang môn khác. Hãy xoá hoặc "
+                            + "ẩn các câu hỏi đó trước.");
+                    }
+                }
+
+                if (await materialRepository.FileNameExistsAsync(
+                        courseId, fileName, request.MaterialId, cancellationToken))
+                {
+                    throw new BusinessValidationException(
+                        $"Môn học này đã có tệp tên {fileName}. Hãy đổi tên hoặc xoá tệp cũ.");
+                }
+
+                await materialRepository.UpdateAsync(
+                    request.MaterialId, courseId, fileName, cancellationToken);
+
+                var saved = await materialRepository.GetAsync(request.MaterialId, cancellationToken);
+                return saved is null
+                    ? throw new BusinessValidationException("Không thể đọc lại tài liệu vừa sửa.")
+                    : MapMaterial(saved);
+            },
+            "Không thể sửa tài liệu.");
+    }
+
     public Task<ServiceResponse> DeleteAsync(
         int materialId,
         int? lecturerId,

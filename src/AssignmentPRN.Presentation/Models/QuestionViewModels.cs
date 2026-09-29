@@ -141,6 +141,34 @@ public class CourseMaterialListViewModel
     public string? LoadError { get; init; }
 }
 
+/// <summary>
+/// Fixes a material filed under the wrong course, and renames it. The file itself is
+/// never re-uploaded here, so the extension is fixed and shown read-only.
+/// </summary>
+public class CourseMaterialEditViewModel
+{
+    public int MaterialId { get; set; }
+
+    [Display(Name = "Môn học")]
+    [Range(1, int.MaxValue, ErrorMessage = "Vui lòng chọn môn học.")]
+    public int CourseId { get; set; }
+
+    [Display(Name = "Tên tệp")]
+    [Required(ErrorMessage = "Vui lòng nhập tên tệp.")]
+    [StringLength(255, ErrorMessage = "Tên tệp không được vượt quá 255 ký tự.")]
+    public string FileName { get; set; } = string.Empty;
+
+    /// <summary>Course the material sits in right now, shown so the move is obvious.</summary>
+    public string CurrentCourseLabel { get; set; } = string.Empty;
+
+    /// <summary>Questions filed under this topic; while this is above zero the course is locked.</summary>
+    public int QuestionCount { get; set; }
+
+    public bool CanChangeCourse => QuestionCount == 0;
+
+    public IReadOnlyList<SelectListItem> CourseOptions { get; set; } = Array.Empty<SelectListItem>();
+}
+
 public class CourseMaterialUploadViewModel
 {
     [Display(Name = "Môn học")]

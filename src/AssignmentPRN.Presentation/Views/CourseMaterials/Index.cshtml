@@ -86,6 +86,7 @@
                             <td>
                                 <div class="d-flex gap-2">
                                     <a class="btn btn-outline-secondary btn-sm" asp-action="Download" asp-route-id="@material.MaterialId">Mở</a>
+                                    <a class="btn btn-outline-secondary btn-sm" asp-action="Edit" asp-route-id="@material.MaterialId">Sửa</a>
                                     <form asp-action="Delete" asp-route-id="@material.MaterialId" method="post" data-confirm="Xoá tài liệu này? Tệp sẽ bị xoá khỏi máy chủ.">
                                         <button class="btn btn-outline-danger btn-sm">Xoá</button>
                                     </form>

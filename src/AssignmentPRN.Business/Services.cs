@@ -148,7 +148,31 @@ public interface ICourseMaterialService
     /// <summary>One material by id, or null when the caller may not see it.</summary>
     Task<CourseMaterialResponse?> GetAsync(int materialId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Fixes a material uploaded against the wrong course, and renames it. Moving a
+    /// material that questions already point at is refused, because a question and its
+    /// topic have to stay inside the same course.
+    /// </summary>
+    Task<ServiceResponse<CourseMaterialResponse>> UpdateAsync(
+        CourseMaterialUpdateRequest request,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
     Task<ServiceResponse> DeleteAsync(int materialId, int? lecturerId, CancellationToken cancellationToken = default);
+}
+
+public sealed class CourseMaterialUpdateRequest
+{
+    public int MaterialId { get; init; }
+
+    /// <summary>Course the material should belong to after the edit.</summary>
+    public int CourseId { get; init; }
+
+    /// <summary>
+    /// Display name, and the key the CSV import matches a topic by. The extension has to
+    /// stay as it is: it is what <c>file_type</c> was recorded from.
+    /// </summary>
+    public string FileName { get; init; } = string.Empty;
 }
 
 public sealed class CourseMaterialCreateRequest

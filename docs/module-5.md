@@ -110,7 +110,19 @@ nào bị ghi nửa vời: toàn bộ thao tác của một dòng nằm trong m�
 | GET | `/CourseMaterials` | Danh sách tài liệu |
 | GET/POST | `/CourseMaterials/Upload` | Tải tài liệu lên |
 | GET | `/CourseMaterials/Download/{id}` | Mở tài liệu |
+| GET/POST | `/CourseMaterials/Edit/{id}` | Sửa môn học và tên tệp |
 | POST | `/CourseMaterials/Delete/{id}` | Xóa (chặn nếu câu hỏi còn dùng) |
+
+Luật khi sửa tài liệu:
+
+- **Đổi môn** chỉ được khi tài liệu chưa là chủ đề của câu hỏi nào. Còn câu hỏi thì
+  chặn, vì câu hỏi và chủ đề của nó phải nằm cùng một môn, mà chuyển cả câu hỏi theo
+  có thể làm hỏng đề đã phát.
+- **Đổi tên** thì lúc nào cũng được, kể cả khi đang có câu hỏi — nhưng phải giữ nguyên
+  phần mở rộng, vì `file_type` được ghi từ đuôi tệp lúc tải lên và tệp trên đĩa không
+  đổi. Tên này cũng là giá trị cột `material` của file CSV, đổi tên thì phải sửa CSV.
+- Tên tệp không được trùng với tài liệu khác trong cùng môn.
+- Tệp trên đĩa không bị đụng tới: `file_path` là GUID, `file_name` chỉ là nhãn.
 
 Phát đề cho lượt thi nằm trong `ExamSessionsController`:
 

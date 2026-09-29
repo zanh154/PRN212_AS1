@@ -124,6 +124,81 @@ public class CourseMaterialsController(
         return View(model);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Edit(int id, CancellationToken ct)
+    {
+        var material = await materialService.GetAsync(id, ct);
+        if (material is null)
+        {
+            TempData["Error"] = "Không tìm thấy tài liệu.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // GetAsync is a plain lookup, so ownership is checked here as well as in the
+        // service; otherwise a lecturer could open the editor for somebody else's course.
+        var courses = await catalog.ListActiveCoursesAsync(ct);
+        if (!CoursesFor(courses, LecturerId).Any(course => course.CourseId == material.CourseId))
+        {
+            return StatusCode(403);
+        }
+
+        var model = new CourseMaterialEditViewModel
+        {
+            MaterialId = material.MaterialId,
+            CourseId = material.CourseId,
+            FileName = material.FileName,
+            CurrentCourseLabel = $"{material.CourseCode} · {material.CourseName}",
+            QuestionCount = material.QuestionCount
+        };
+
+        await EditOptionsAsync(model, ct);
+        return View(model);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(CourseMaterialEditViewModel model, CancellationToken ct)
+    {
+        if (ModelState.IsValid)
+        {
+            var result = await materialService.UpdateAsync(
+                new CourseMaterialUpdateRequest
+                {
+                    MaterialId = model.MaterialId,
+                    CourseId = model.CourseId,
+                    FileName = model.FileName
+                },
+                LecturerId,
+                ct);
+
+            if (result.Success && result.Data is not null)
+            {
+                TempData["Success"] = "Đã cập nhật tài liệu.";
+                return RedirectToAction(nameof(Index), new { courseId = result.Data.CourseId });
+            }
+
+            ModelState.AddModelError(string.Empty, result.Error!);
+        }
+
+        // The current course and the question count come from the database, never from
+        // the posted form, so a tampered post cannot unlock the course picker.
+        var material = await materialService.GetAsync(model.MaterialId, ct);
+        if (material is null)
+        {
+            TempData["Error"] = "Không tìm thấy tài liệu.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        model.CurrentCourseLabel = $"{material.CourseCode} · {material.CourseName}";
+        model.QuestionCount = material.QuestionCount;
+        await EditOptionsAsync(model, ct);
+        return View(model);
+    }
+
+    private async Task EditOptionsAsync(CourseMaterialEditViewModel model, CancellationToken ct)
+    {
+        model.CourseOptions = ToCourseOptions(await catalog.ListActiveCoursesAsync(ct));
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {

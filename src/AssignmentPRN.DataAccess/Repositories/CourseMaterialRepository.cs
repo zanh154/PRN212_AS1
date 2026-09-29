@@ -24,6 +24,16 @@ public interface ICourseMaterialRepository
 
     Task<CourseMaterial> SaveAsync(CourseMaterial material, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Moves a material to another course and/or renames it. The file on disk is not
+    /// touched: <c>file_path</c> is a GUID and <c>file_name</c> is only the label.
+    /// </summary>
+    Task UpdateAsync(
+        int materialId,
+        int courseId,
+        string fileName,
+        CancellationToken cancellationToken = default);
+
     Task DeleteAsync(int materialId, CancellationToken cancellationToken = default);
 
     Task<int> CountQuestionsAsync(int materialId, CancellationToken cancellationToken = default);
@@ -85,6 +95,20 @@ public class CourseMaterialRepository(AivesDbContext context) : ICourseMaterialR
         context.CourseMaterials.Add(material);
         await context.SaveChangesAsync(cancellationToken);
         return material;
+    }
+
+    public async Task UpdateAsync(
+        int materialId,
+        int courseId,
+        string fileName,
+        CancellationToken cancellationToken = default)
+    {
+        var material = await context.CourseMaterials.FindAsync([materialId], cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy tài liệu.");
+
+        material.CourseId = courseId;
+        material.FileName = fileName;
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(int materialId, CancellationToken cancellationToken = default)
