@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.Presentation.Models;
 
 namespace AssignmentPRN.Tests;
@@ -73,6 +74,31 @@ public class QuestionEditViewModelTests
         Assert.Contains(
             Validate(model),
             error => error.MemberNames.Contains(nameof(QuestionEditViewModel.CourseId)));
+    }
+
+    [Fact]
+    public void A_follow_up_without_a_topic_is_rejected()
+    {
+        var model = Model(0, "A", "B");
+        model.QuestionType = QuestionType.FollowUp;
+
+        Assert.Contains(nameof(QuestionEditViewModel.MaterialId), Assert.Single(Validate(model)).MemberNames);
+    }
+
+    [Fact]
+    public void A_follow_up_with_a_topic_passes()
+    {
+        var model = Model(0, "A", "B");
+        model.QuestionType = QuestionType.FollowUp;
+        model.MaterialId = 5;
+
+        Assert.Empty(Validate(model));
+    }
+
+    [Fact]
+    public void A_main_question_does_not_need_a_topic()
+    {
+        Assert.Empty(Validate(Model(0, "A", "B")));
     }
 
     [Fact]

@@ -74,8 +74,8 @@ public class ExamRoomController(IQuestionService questionService) : Controller
     }
 
     /// <summary>
-    /// Hands the paper in. The form posts one radio per question, named by the slot id,
-    /// so an unanswered question simply does not appear among the posted values.
+    /// Hands in the round being sat. The form posts one radio per question, named by the
+    /// slot id, so an unanswered question simply does not appear among the posted values.
     /// </summary>
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Submit(
@@ -89,12 +89,24 @@ public class ExamRoomController(IQuestionService questionService) : Controller
             answers ?? new Dictionary<int, int?>(),
             ct);
 
-        TempData[result.Success ? "Success" : "Error"] = result.Success
-            ? $"Đã nộp bài: {result.Data!.AnsweredCount}/{result.Data.Questions.Count} câu có đáp án."
-            : result.Error;
+        if (!result.Success || result.Data is null)
+        {
+            TempData["Error"] = result.Error;
+            return RedirectToAction(nameof(Index), new { id });
+        }
 
-        return result.Success
-            ? RedirectToAction(nameof(Result), new { id })
-            : RedirectToAction(nameof(Index), new { id });
+        var room = result.Data;
+
+        // Still open after a submit means the main round went in and follow-ups were dealt.
+        if (room.CandidateStatus != CandidateStatus.Completed)
+        {
+            TempData["Success"] =
+                $"Đã nộp vòng câu hỏi chính. Bạn có thêm {room.OpenRound.Count} câu hỏi đào sâu, "
+                + "hãy trả lời trong thời gian còn lại.";
+            return RedirectToAction(nameof(Index), new { id });
+        }
+
+        TempData["Success"] = $"Đã nộp bài: {room.AnsweredCount}/{room.Questions.Count} câu có đáp án.";
+        return RedirectToAction(nameof(Result), new { id });
     }
 }

@@ -58,9 +58,13 @@ public interface IQuestionRepository
         int candidateId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>One completed paper with the student's choices and answer key.</summary>
+    /// <summary>
+    /// One completed paper with the student's choices and answer key. The expected answer
+    /// is examiner material, so it is only read when <paramref name="includeExpectedAnswer"/> is set.
+    /// </summary>
     Task<IReadOnlyList<ExamResultQuestion>> ListCandidateResultsAsync(
         int candidateId,
+        bool includeExpectedAnswer = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -70,18 +74,22 @@ public interface IQuestionRepository
     Task StartCandidateAsync(int candidateId, DateTime startedAt, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Stores the candidate's choices and closes the slot. Answers are written per exam
-    /// question, one row each, so a resubmit overwrites rather than piles up.
+    /// Stores the candidate's choices for one round. Answers are written per exam question,
+    /// one row each, so a resubmit overwrites rather than piles up. With no
+    /// <paramref name="followUps"/> the slot closes; otherwise they are dealt as the next
+    /// round and the slot stays open. Either way it is a single transaction.
     /// </summary>
     Task SubmitAnswersAsync(
         int candidateId,
         IReadOnlyDictionary<int, int?> selectedOptionByExamQuestion,
         DateTime finishedAt,
+        IReadOnlyList<ExamQuestionInput> followUps,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Which option ids the caller may legally pick, keyed by exam question id.</summary>
-    Task<IReadOnlyDictionary<int, IReadOnlyList<int>>> ListAllowedOptionsAsync(
-        int candidateId,
+    /// <summary>Approved follow-up questions of the course filed under the given topics.</summary>
+    Task<IReadOnlyList<FollowUpPoolItem>> ListFollowUpPoolAsync(
+        int courseId,
+        IReadOnlyCollection<int> materialIds,
         CancellationToken cancellationToken = default);
 }
 
@@ -139,6 +147,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                 QuestionText = question.QuestionText,
                 Difficulty = question.Difficulty,
                 BloomLevel = question.BloomLevel,
+                QuestionType = question.QuestionType,
                 Status = question.Status,
                 AuthorName = question.CreatedByUser.FullName,
                 CreatedAt = question.CreatedAt
@@ -186,7 +195,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                 ExpectedAnswer = input.ExpectedAnswer,
                 BloomLevel = input.BloomLevel,
                 Difficulty = input.Difficulty,
-                QuestionType = QuestionType.Main,
+                QuestionType = input.QuestionType,
                 Status = QuestionStatus.Approved,
                 CreatedAt = DateTime.Now,
                 Options = options
@@ -211,6 +220,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         existing.ExpectedAnswer = input.ExpectedAnswer;
         existing.BloomLevel = input.BloomLevel;
         existing.Difficulty = input.Difficulty;
+        existing.QuestionType = input.QuestionType;
         existing.UpdatedAt = DateTime.Now;
         existing.Options = options;
 
@@ -303,6 +313,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
             ExamId = examId,
             CandidateId = row.CandidateId,
             QuestionId = row.QuestionId,
+            ParentExamQuestionId = row.ParentExamQuestionId,
             OrderNo = row.OrderNo,
             AskedAt = null,
             IsCompleted = false
@@ -417,6 +428,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                     ScheduledTime = candidate.ScheduledTime,
                     TimePerStudent = candidate.Session.TimePerStudent,
                     MainQuestionCount = candidate.Session.MainQuestionCount,
+                    MaxFollowUpCount = candidate.Session.MaxFollowUpCount,
                     CandidateStatus = candidate.Status,
                     SessionStatus = candidate.Session.Status,
                     StartedAt = candidate.StartedAt
@@ -449,12 +461,14 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                 SelectedOptionId = context.Answers
                     .Where(answer => answer.ExamQuestionId == item.ExamQuestionId)
                     .Select(answer => answer.SelectedOptionId)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                ParentExamQuestionId = item.ParentExamQuestionId
             })
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<ExamResultQuestion>> ListCandidateResultsAsync(
         int candidateId,
+        bool includeExpectedAnswer = false,
         CancellationToken cancellationToken = default) =>
         await context.ExamQuestions
             .AsNoTracking()
@@ -478,7 +492,10 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                 SelectedOptionId = context.Answers
                     .Where(answer => answer.ExamQuestionId == item.ExamQuestionId)
                     .Select(answer => answer.SelectedOptionId)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                MaterialId = item.Question.SourceMaterialId,
+                ParentExamQuestionId = item.ParentExamQuestionId,
+                ExpectedAnswer = includeExpectedAnswer ? item.Question.ExpectedAnswer : null
             })
             .ToListAsync(cancellationToken);
 
@@ -486,8 +503,11 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         int candidateId,
         IReadOnlyDictionary<int, int?> selectedOptionByExamQuestion,
         DateTime finishedAt,
+        IReadOnlyList<ExamQuestionInput> followUps,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(followUps);
+
         var slots = await context.ExamQuestions
             .Where(item => item.CandidateId == candidateId)
             .ToListAsync(cancellationToken);
@@ -527,30 +547,56 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
             .FirstOrDefaultAsync(item => item.CandidateId == candidateId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy lượt thi.");
 
-        candidate.Status = CandidateStatus.Completed;
-        candidate.FinishedAt = finishedAt;
+        if (followUps.Count == 0)
+        {
+            candidate.Status = CandidateStatus.Completed;
+            candidate.FinishedAt = finishedAt;
+        }
+        else
+        {
+            // The next round is put to the student right now, so it is asked at this moment.
+            context.ExamQuestions.AddRange(followUps.Select(row => new ExamQuestion
+            {
+                ExamId = candidate.ExamId,
+                CandidateId = candidateId,
+                QuestionId = row.QuestionId,
+                ParentExamQuestionId = row.ParentExamQuestionId,
+                OrderNo = row.OrderNo,
+                AskedAt = finishedAt,
+                IsCompleted = false
+            }));
+        }
 
-        // One SaveChanges: the paper, the answers and the slot close together or not at all.
+        // One SaveChanges: the answers and either the closed slot or the next round land
+        // together or not at all.
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyDictionary<int, IReadOnlyList<int>>> ListAllowedOptionsAsync(
-        int candidateId,
+    public async Task<IReadOnlyList<FollowUpPoolItem>> ListFollowUpPoolAsync(
+        int courseId,
+        IReadOnlyCollection<int> materialIds,
         CancellationToken cancellationToken = default)
     {
-        var rows = await context.ExamQuestions
+        if (materialIds.Count == 0)
+        {
+            return Array.Empty<FollowUpPoolItem>();
+        }
+
+        return await context.Questions
             .AsNoTracking()
-            .Where(item => item.CandidateId == candidateId)
-            .Select(item => new
+            .Where(question => question.CourseId == courseId
+                && question.QuestionType == QuestionType.FollowUp
+                && question.Status == QuestionStatus.Approved
+                && question.SourceMaterialId.HasValue
+                && materialIds.Contains(question.SourceMaterialId.Value))
+            .OrderBy(question => question.QuestionId)
+            .Select(question => new FollowUpPoolItem
             {
-                item.ExamQuestionId,
-                OptionIds = item.Question.Options.Select(option => option.OptionId).ToList()
+                QuestionId = question.QuestionId,
+                MaterialId = question.SourceMaterialId!.Value,
+                Difficulty = question.Difficulty
             })
             .ToListAsync(cancellationToken);
-
-        return rows.ToDictionary(
-            row => row.ExamQuestionId,
-            row => (IReadOnlyList<int>)row.OptionIds);
     }
 
     public async Task StartCandidateAsync(
@@ -580,6 +626,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         ExpectedAnswer = question.ExpectedAnswer,
         BloomLevel = question.BloomLevel,
         Difficulty = question.Difficulty,
+        QuestionType = question.QuestionType,
         Status = question.Status,
         Options = question.Options
             .OrderBy(option => option.DisplayOrder)

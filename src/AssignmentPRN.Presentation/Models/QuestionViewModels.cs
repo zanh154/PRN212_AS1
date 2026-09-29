@@ -75,6 +75,9 @@ public class QuestionEditViewModel : IValidatableObject
     [Display(Name = "Mức độ Bloom")]
     public BloomLevel BloomLevel { get; set; } = BloomLevel.Understand;
 
+    [Display(Name = "Loại câu hỏi")]
+    public QuestionType QuestionType { get; set; } = QuestionType.Main;
+
     public List<QuestionOptionViewModel> Options { get; set; } = [];
 
     /// <summary>
@@ -92,11 +95,19 @@ public class QuestionEditViewModel : IValidatableObject
 
     public IReadOnlyList<SelectListItem> BloomOptions { get; set; } = Array.Empty<SelectListItem>();
 
+    public IReadOnlyList<SelectListItem> QuestionTypeOptions { get; set; } = Array.Empty<SelectListItem>();
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (CourseId <= 0)
         {
             yield return new ValidationResult("Vui lòng chọn môn học.", [nameof(CourseId)]);
+        }
+
+        if (QuestionType == QuestionType.FollowUp && MaterialId is null or <= 0)
+        {
+            yield return new ValidationResult(
+                "Câu hỏi đào sâu phải gắn với một chủ đề (tài liệu).", [nameof(MaterialId)]);
         }
 
         var filled = Options.Count(option => !string.IsNullOrWhiteSpace(option.Text));
@@ -224,6 +235,13 @@ public static class QuestionText
         QuestionStatus.PendingReview => "Chờ duyệt",
         QuestionStatus.Rejected => "Bị từ chối",
         _ => status.ToString()
+    };
+
+    public static string Type(QuestionType type) => type switch
+    {
+        QuestionType.Main => "Câu chính",
+        QuestionType.FollowUp => "Đào sâu",
+        _ => type.ToString()
     };
 
     public static string DifficultyChip(QuestionDifficulty difficulty) => difficulty switch

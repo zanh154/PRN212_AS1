@@ -15,6 +15,12 @@ public class ExamQuestion
 
     public int QuestionId { get; set; }
 
+    /// <summary>
+    /// The main question this one follows up on. Null for a main question; set for a
+    /// follow-up dealt after the student handed in the main round.
+    /// </summary>
+    public int? ParentExamQuestionId { get; set; }
+
     /// <summary>1-based position of the question in the candidate's paper.</summary>
     public int OrderNo { get; set; }
 

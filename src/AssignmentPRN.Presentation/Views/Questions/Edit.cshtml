@@ -68,6 +68,21 @@
                 Options = Model.BloomOptions
             })" />
         </div>
+        <div class="col-md-6">
+            <label asp-for="QuestionType" class="form-label"></label>
+            <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = nameof(QuestionEditViewModel.QuestionType),
+                SelectedKey = Model.QuestionType.ToString(),
+                ShowAvatar = false,
+                Placeholder = "Chọn loại câu hỏi",
+                SearchPlaceholder = "Tìm loại câu",
+                EmptyText = "Không có loại nào phù hợp",
+                Options = Model.QuestionTypeOptions
+            })" />
+            <p class="text-muted">Câu đào sâu chỉ được hỏi sau vòng câu chính, theo cùng chủ đề; bắt buộc chọn chủ đề.</p>
+            <span asp-validation-for="MaterialId" class="text-danger"></span>
+        </div>
         <div class="col-12">
             <label asp-for="QuestionText" class="form-label"></label>
             <textarea asp-for="QuestionText" class="form-control" rows="3"></textarea>

@@ -95,6 +95,7 @@ public class QuestionsController(
             ExpectedAnswer = detail.ExpectedAnswer,
             Difficulty = detail.Difficulty,
             BloomLevel = detail.BloomLevel,
+            QuestionType = detail.QuestionType,
             Options = detail.Options.Count > 0
                 ? detail.Options
                     .Select(option => new QuestionOptionViewModel { Text = option.Text })
@@ -131,6 +132,7 @@ public class QuestionsController(
                     ExpectedAnswer = model.ExpectedAnswer,
                     Difficulty = model.Difficulty,
                     BloomLevel = model.BloomLevel,
+                    QuestionType = model.QuestionType,
                     Options = model.Options
                         .Select((option, index) => new QuestionOptionInput
                         {
@@ -274,6 +276,7 @@ public class QuestionsController(
             model.CourseId > 0 ? model.CourseId : null, ct);
         model.DifficultyOptions = DifficultySelectList();
         model.BloomOptions = BloomSelectList();
+        model.QuestionTypeOptions = QuestionTypeSelectList();
     }
 
     private async Task ImportOptionsAsync(QuestionImportViewModel model, CancellationToken ct)
@@ -327,5 +330,10 @@ public class QuestionsController(
     private static IReadOnlyList<SelectListItem> BloomSelectList() =>
         Enum.GetValues<BloomLevel>()
             .Select(value => new SelectListItem(QuestionText.Bloom(value), value.ToString()))
+            .ToList();
+
+    private static IReadOnlyList<SelectListItem> QuestionTypeSelectList() =>
+        Enum.GetValues<QuestionType>()
+            .Select(value => new SelectListItem(QuestionText.Type(value), value.ToString()))
             .ToList();
 }

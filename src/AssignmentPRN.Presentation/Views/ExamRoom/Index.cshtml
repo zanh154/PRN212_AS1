@@ -38,13 +38,27 @@
     </div>
 </section>
 
-@if (room.CanAnswer)
+@if (room.CanAnswer && room.IsFollowUpRound)
+{
+    @* One inline wrapper: .info-note is a flex row and would split loose text into columns. *@
+    <div class="info-note">
+        <span>
+            <strong>Vòng 2 · Câu hỏi đào sâu.</strong>
+            Dựa trên bài làm vòng 1, hệ thống hỏi thêm những câu cùng chủ đề: câu bạn làm sai sẽ
+            được hỏi lại ở mức dễ hơn, câu làm đúng được hỏi sâu hơn. Mỗi câu đào sâu tính nửa
+            điểm một câu chính. <strong>Hết giờ bài sẽ tự nộp.</strong>
+        </span>
+    </div>
+}
+else if (room.CanAnswer)
 {
     <div class="info-note">
-        Đề của bạn được rút ngẫu nhiên từ ngân hàng câu hỏi của môn, không trùng với sinh viên
-        nào khác trong cùng phiên thi.
-        <strong>Hết giờ bài sẽ tự nộp, và nộp xong là kết thúc, không sửa lại được.</strong>
-        Đừng rời trang khi chưa nộp.
+        <span>
+            Đề của bạn được rút ngẫu nhiên từ ngân hàng câu hỏi của môn, không trùng với sinh viên
+            nào khác trong cùng phiên thi. Sau khi nộp, bạn có thể được hỏi thêm vài câu đào sâu.
+            <strong>Hết giờ bài sẽ tự nộp, và vòng đã nộp thì không sửa lại được.</strong>
+            Đừng rời trang khi chưa nộp.
+        </span>
     </div>
 }
 else if (room.CandidateStatus == CandidateStatus.Completed)
@@ -64,11 +78,11 @@ else
 <form method="post" asp-action="Submit" asp-route-id="@room.CandidateId"
       data-exam-form
       data-exam-guard="@(room.CanAnswer ? "true" : null)"
-      data-confirm="@(room.CanAnswer ? "Nộp bài ngay? Nộp xong sẽ không sửa lại được." : null)">
+      data-confirm="@(room.CanAnswer ? "Nộp bài ngay? Vòng đã nộp sẽ không sửa lại được." : null)">
     <div class="content-card">
         <div class="section-heading">
             <div>
-                <h2>Đề thi của bạn</h2>
+                <h2>@(room.IsFollowUpRound ? "Câu hỏi đào sâu" : "Đề thi của bạn")</h2>
                 <p class="text-muted">
                     @(room.CanAnswer
                         ? "Chọn một phương án cho mỗi câu, rồi bấm Nộp bài."
@@ -81,58 +95,44 @@ else
         </div>
 
         <ol class="exam-room-questions">
-            @foreach (var question in room.Questions)
+            @foreach (var question in room.OpenRound)
             {
-                <li class="exam-room-question">
-                    <div class="exam-room-question__head">
-                        <strong>Câu @question.OrderNo</strong>
-                        <span class="status-chip @QuestionText.DifficultyChip(question.Difficulty)">
-                            @QuestionText.Difficulty(question.Difficulty)
-                        </span>
-                        @if (!room.CanAnswer && !question.SelectedOptionId.HasValue)
-                        {
-                            <span class="status-chip status-chip--muted">Bỏ trống</span>
-                        }
-                    </div>
-                    <p class="exam-room-question__text">@question.QuestionText</p>
-
-                    @if (question.Options.Count > 0)
-                    {
-                        <ul class="exam-room-options">
-                            @for (var index = 0; index < question.Options.Count; index++)
-                            {
-                                var option = question.Options[index];
-                                var inputId = $"answer-{question.ExamQuestionId}-{option.OptionId}";
-                                var isPicked = question.SelectedOptionId == option.OptionId;
-
-                                <li class="exam-room-option @(isPicked ? "is-picked" : null)">
-                                    @if (room.CanAnswer)
-                                    {
-                                        @* One radio group per question, keyed by the slot id, so
-                                           the controller binds them straight into a dictionary. *@
-                                        <input class="form-check-input" type="radio"
-                                               id="@inputId"
-                                               name="answers[@question.ExamQuestionId]"
-                                               value="@option.OptionId"
-                                               checked="@isPicked" />
-                                    }
-                                    <label class="exam-room-option__body" for="@inputId">
-                                        <span class="exam-room-options__label">@((char)('A' + index))</span>
-                                        <span>@option.Text</span>
-                                    </label>
-                                </li>
-                            }
-                        </ul>
-                    }
-                </li>
+                <partial name="_ExamRoomQuestion" model="@(new ExamRoomQuestionViewModel
+                {
+                    Question = question,
+                    Editable = room.CanAnswer,
+                    ParentOrderNo = Model.OrderOf(question.ParentExamQuestionId)
+                })" />
             }
         </ol>
 
         @if (room.CanAnswer)
         {
             <div class="form-actions">
-                <button class="btn btn-primary" type="submit">Nộp bài</button>
+                <button class="btn btn-primary" type="submit">
+                    @(room.IsFollowUpRound ? "Nộp bài" : "Nộp vòng câu hỏi chính")
+                </button>
             </div>
         }
     </div>
 </form>
+
+@if (room.SubmittedRound.Count > 0)
+{
+    <div class="content-card">
+        <div class="section-heading">
+            <div>
+                <h2>Vòng 1 · Câu hỏi chính</h2>
+                <p class="text-muted">Đã nộp, chỉ xem lại. Đáp án đúng hiển thị sau khi bạn nộp toàn bộ bài.</p>
+            </div>
+            <span class="status-chip status-chip--muted">Đã nộp</span>
+        </div>
+
+        <ol class="exam-room-questions">
+            @foreach (var question in room.SubmittedRound)
+            {
+                <partial name="_ExamRoomQuestion" model="@(new ExamRoomQuestionViewModel { Question = question })" />
+            }
+        </ol>
+    </div>
+}

@@ -41,6 +41,9 @@ public sealed class QuestionUpsertInput
 
     public QuestionDifficulty Difficulty { get; init; }
 
+    /// <summary>Main questions go out in the first round; follow-ups only after it.</summary>
+    public QuestionType QuestionType { get; init; } = QuestionType.Main;
+
     public IReadOnlyList<QuestionOptionInput> Options { get; init; } = Array.Empty<QuestionOptionInput>();
 }
 
@@ -63,6 +66,19 @@ public sealed class ExamQuestionInput
 
     /// <summary>1-based position inside the candidate's own paper.</summary>
     public int OrderNo { get; init; }
+
+    /// <summary>The main slot a follow-up digs into; null for a main question.</summary>
+    public int? ParentExamQuestionId { get; init; }
+}
+
+/// <summary>A follow-up question of the bank, with what the planner matches it on.</summary>
+public sealed class FollowUpPoolItem
+{
+    public int QuestionId { get; init; }
+
+    public int MaterialId { get; init; }
+
+    public QuestionDifficulty Difficulty { get; init; }
 }
 
 /// <summary>
@@ -159,6 +175,8 @@ public sealed class QuestionListItem
 
     public BloomLevel BloomLevel { get; init; }
 
+    public QuestionType QuestionType { get; init; }
+
     public QuestionStatus Status { get; init; }
 
     public string AuthorName { get; init; } = string.Empty;
@@ -182,6 +200,8 @@ public sealed class QuestionDetail
     public BloomLevel BloomLevel { get; init; }
 
     public QuestionDifficulty Difficulty { get; init; }
+
+    public QuestionType QuestionType { get; init; }
 
     public QuestionStatus Status { get; init; }
 
@@ -257,6 +277,9 @@ public sealed class ExamRoomCandidate
     /// <summary>How many questions this session gives each student.</summary>
     public int MainQuestionCount { get; init; }
 
+    /// <summary>Cap on follow-ups this session may ask one student after the main round.</summary>
+    public int MaxFollowUpCount { get; init; }
+
     public CandidateStatus CandidateStatus { get; init; }
 
     public ExamSessionStatus SessionStatus { get; init; }
@@ -283,6 +306,11 @@ public sealed class ExamRoomQuestion
 
     /// <summary>The choice the student has ticked, or null while the question is unanswered.</summary>
     public int? SelectedOptionId { get; init; }
+
+    /// <summary>The main slot this follow-up digs into; null for a main question.</summary>
+    public int? ParentExamQuestionId { get; init; }
+
+    public bool IsFollowUp => ParentExamQuestionId.HasValue;
 }
 
 /// <summary>One choice on the student's paper. Carries no "is correct" for the same reason.</summary>
@@ -310,6 +338,17 @@ public sealed class ExamResultQuestion
     public IReadOnlyList<ExamResultOption> Options { get; init; } = Array.Empty<ExamResultOption>();
 
     public int? SelectedOptionId { get; init; }
+
+    /// <summary>Topic of the question; follow-ups are matched on it.</summary>
+    public int? MaterialId { get; init; }
+
+    /// <summary>The main slot this follow-up digs into; null for a main question.</summary>
+    public int? ParentExamQuestionId { get; init; }
+
+    public bool IsFollowUp => ParentExamQuestionId.HasValue;
+
+    /// <summary>Examiner notes on the question; filled only for the lecturer's review.</summary>
+    public string? ExpectedAnswer { get; init; }
 
     public bool IsCorrect => SelectedOptionId is int selected
         && Options.Any(option => option.OptionId == selected && option.IsCorrect);

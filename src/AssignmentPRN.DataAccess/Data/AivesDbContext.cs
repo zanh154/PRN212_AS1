@@ -417,6 +417,8 @@ public class AivesDbContext(DbContextOptions<AivesDbContext> options) : DbContex
                 .HasColumnName("candidate_id");
             entity.Property(item => item.QuestionId)
                 .HasColumnName("question_id");
+            entity.Property(item => item.ParentExamQuestionId)
+                .HasColumnName("parent_exam_question_id");
             entity.Property(item => item.OrderNo)
                 .HasColumnName("order_no");
             entity.Property(item => item.AskedAt)
@@ -438,6 +440,11 @@ public class AivesDbContext(DbContextOptions<AivesDbContext> options) : DbContex
                 .WithMany()
                 .HasForeignKey(item => item.QuestionId)
                 .OnDelete(DeleteBehavior.Restrict);
+            // A follow-up means nothing without its main question, so it goes with it.
+            entity.HasOne<ExamQuestion>()
+                .WithMany()
+                .HasForeignKey(item => item.ParentExamQuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Answer>(entity =>

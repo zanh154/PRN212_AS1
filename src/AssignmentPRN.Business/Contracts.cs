@@ -345,6 +345,8 @@ public sealed class QuestionResponse
 
     public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
 
+    public DataAccess.Enums.QuestionType QuestionType { get; init; }
+
     public DataAccess.Enums.QuestionStatus Status { get; init; }
 
     public IReadOnlyList<QuestionOptionResponse> Options { get; init; } = Array.Empty<QuestionOptionResponse>();
@@ -402,6 +404,8 @@ public sealed class QuestionSaveRequest
 
     public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
 
+    public DataAccess.Enums.QuestionType QuestionType { get; init; } = DataAccess.Enums.QuestionType.Main;
+
     public IReadOnlyList<DataAccess.Contracts.QuestionOptionInput> Options { get; init; } =
         Array.Empty<DataAccess.Contracts.QuestionOptionInput>();
 }
@@ -424,6 +428,8 @@ public sealed class QuestionListItemResponse
     public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
 
     public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+
+    public DataAccess.Enums.QuestionType QuestionType { get; init; }
 
     public DataAccess.Enums.QuestionStatus Status { get; init; }
 
@@ -472,6 +478,21 @@ public sealed class ExamRoomResponse
     /// </summary>
     public int SecondsRemaining { get; init; }
 
+    /// <summary>
+    /// True once the main round is handed in and follow-ups were dealt. Only the follow-ups
+    /// can then be answered; the main round is shown as it was submitted.
+    /// </summary>
+    public bool IsFollowUpRound => Questions.Any(question => question.IsFollowUp);
+
+    /// <summary>The questions the student is working on right now.</summary>
+    public IReadOnlyList<DataAccess.Contracts.ExamRoomQuestion> OpenRound =>
+        Questions.Where(question => question.IsFollowUp == IsFollowUpRound).ToList();
+
+    /// <summary>The main round, already handed in, while the follow-ups are being answered.</summary>
+    public IReadOnlyList<DataAccess.Contracts.ExamRoomQuestion> SubmittedRound => IsFollowUpRound
+        ? Questions.Where(question => !question.IsFollowUp).ToList()
+        : Array.Empty<DataAccess.Contracts.ExamRoomQuestion>();
+
     public int AnsweredCount => Questions.Count(question => question.SelectedOptionId.HasValue);
 }
 
@@ -499,9 +520,17 @@ public sealed class ExamResultResponse
 
     public int IncorrectCount => TotalQuestions - CorrectCount - UnansweredCount;
 
-    public decimal Score => TotalQuestions == 0
-        ? 0
-        : Math.Round(CorrectCount * 10m / TotalQuestions, 1, MidpointRounding.AwayFromZero);
+    public IReadOnlyList<DataAccess.Contracts.ExamResultQuestion> MainQuestions =>
+        Questions.Where(question => !question.IsFollowUp).ToList();
+
+    public IReadOnlyList<DataAccess.Contracts.ExamResultQuestion> FollowUpQuestions =>
+        Questions.Where(question => question.IsFollowUp).ToList();
+
+    public int FollowUpCorrectCount => Questions.Count(question => question.IsFollowUp && question.IsCorrect);
+
+    /// <summary>Out of 10; a follow-up weighs half a main question, see <see cref="ExamScoring"/>.</summary>
+    public decimal Score => ExamScoring.Score(
+        Questions.Select(question => (question.IsFollowUp, question.IsCorrect)));
 }
 
 /// <summary>How many questions the bank can still hand out for one exam.</summary>
@@ -543,4 +572,100 @@ public sealed class QuestionImportResult
     public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
 
     public bool Success => Errors.Count == 0;
+}
+
+/// <summary>A session's score sheet as the examiner reads it.</summary>
+public sealed class SessionResultResponse
+{
+    public int ExamId { get; init; }
+
+    public string ExamName { get; init; } = string.Empty;
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public string CourseName { get; init; } = string.Empty;
+
+    public string LecturerName { get; init; } = string.Empty;
+
+    public DateTime StartTime { get; init; }
+
+    public int TimePerStudent { get; init; }
+
+    public int MainQuestionCount { get; init; }
+
+    public int MaxFollowUpCount { get; init; }
+
+    public DataAccess.Enums.ExamSessionStatus Status { get; init; }
+
+    public IReadOnlyList<CandidateResultItemResponse> Candidates { get; init; } =
+        Array.Empty<CandidateResultItemResponse>();
+
+    /// <summary>Slots whose time is over but are still Waiting or In progress.</summary>
+    public int OverdueCount { get; init; }
+
+    public int CompletedCount => Candidates.Count(item => item.Status == DataAccess.Enums.CandidateStatus.Completed);
+
+    public int AbsentCount => Candidates.Count(item => item.Status == DataAccess.Enums.CandidateStatus.Absent);
+
+    /// <summary>Mean score of the completed papers; null while none is completed.</summary>
+    public decimal? AverageScore => CompletedCount == 0
+        ? null
+        : Math.Round(
+            Candidates.Where(item => item.Score.HasValue).Average(item => item.Score!.Value),
+            1,
+            MidpointRounding.AwayFromZero);
+}
+
+/// <summary>One row of the score sheet.</summary>
+public sealed class CandidateResultItemResponse
+{
+    public int CandidateId { get; init; }
+
+    public string StudentName { get; init; } = string.Empty;
+
+    public string StudentEmail { get; init; } = string.Empty;
+
+    public DateTime? ScheduledTime { get; init; }
+
+    public DataAccess.Enums.CandidateStatus Status { get; init; }
+
+    public int MainCorrect { get; init; }
+
+    public int MainTotal { get; init; }
+
+    public int FollowUpCorrect { get; init; }
+
+    public int FollowUpTotal { get; init; }
+
+    /// <summary>Out of 10, only once the paper is completed.</summary>
+    public decimal? Score { get; init; }
+}
+
+/// <summary>One candidate's marked paper, for the examiner.</summary>
+public sealed class CandidateResultResponse
+{
+    public int ExamId { get; init; }
+
+    public string StudentName { get; init; } = string.Empty;
+
+    public string StudentEmail { get; init; } = string.Empty;
+
+    public DataAccess.Enums.CandidateStatus Status { get; init; }
+
+    public DateTime? ScheduledTime { get; init; }
+
+    public DateTime? StartedAt { get; init; }
+
+    public DateTime? FinishedAt { get; init; }
+
+    /// <summary>The paper, graded; its score only means something once the slot is completed.</summary>
+    public ExamResultResponse Paper { get; init; } = new();
+}
+
+/// <summary>How many slots a close-overdue pass moved.</summary>
+public sealed class OverdueSlotsResult
+{
+    public int MarkedAbsent { get; init; }
+
+    public int Completed { get; init; }
 }
