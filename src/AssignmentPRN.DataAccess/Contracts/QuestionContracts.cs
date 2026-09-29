@@ -270,13 +270,27 @@ public sealed class ExamRoomCandidate
 /// </summary>
 public sealed class ExamRoomQuestion
 {
+    /// <summary>The slot this question occupies; an answer is saved against it.</summary>
+    public int ExamQuestionId { get; init; }
+
     public int OrderNo { get; init; }
 
     public string QuestionText { get; init; } = string.Empty;
 
     public QuestionDifficulty Difficulty { get; init; }
 
-    public IReadOnlyList<string> Options { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<ExamRoomOption> Options { get; init; } = Array.Empty<ExamRoomOption>();
+
+    /// <summary>The choice the student has ticked, or null while the question is unanswered.</summary>
+    public int? SelectedOptionId { get; init; }
+}
+
+/// <summary>One choice on the student's paper. Carries no "is correct" for the same reason.</summary>
+public sealed class ExamRoomOption
+{
+    public int OptionId { get; init; }
+
+    public string Text { get; init; } = string.Empty;
 }
 
 /// <summary>

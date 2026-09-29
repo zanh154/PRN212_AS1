@@ -458,6 +458,58 @@ public class QuestionService(
             "Không thể mở phòng thi.");
     }
 
+    public Task<ServiceResponse<ExamRoomResponse>> SubmitExamAsync(
+        int candidateId,
+        int studentUserId,
+        IReadOnlyDictionary<int, int?> selectedOptionByExamQuestion,
+        CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(
+            async () =>
+            {
+                ArgumentNullException.ThrowIfNull(selectedOptionByExamQuestion);
+
+                await LoadSittableCandidateAsync(candidateId, studentUserId, cancellationToken);
+
+                var allowed = await questionRepository.ListAllowedOptionsAsync(candidateId, cancellationToken);
+                if (allowed.Count == 0)
+                {
+                    throw new BusinessValidationException("Bạn chưa vào ca thi này.");
+                }
+
+                // Each pick has to be a choice of the very question it was posted for, so a
+                // tampered form cannot attach someone else's option to a slot.
+                var cleaned = new Dictionary<int, int?>(allowed.Count);
+                foreach (var (examQuestionId, optionIds) in allowed)
+                {
+                    if (!selectedOptionByExamQuestion.TryGetValue(examQuestionId, out var optionId))
+                    {
+                        cleaned[examQuestionId] = null;
+                        continue;
+                    }
+
+                    if (optionId is int picked && !optionIds.Contains(picked))
+                    {
+                        throw new BusinessValidationException(
+                            "Đáp án gửi lên không thuộc câu hỏi tương ứng.");
+                    }
+
+                    cleaned[examQuestionId] = optionId;
+                }
+
+                await questionRepository.SubmitAnswersAsync(
+                    candidateId, cleaned, DateTime.Now, cancellationToken);
+
+                var submitted = await questionRepository.GetExamRoomCandidateAsync(candidateId, cancellationToken)
+                    ?? throw new BusinessValidationException("Không tìm thấy lượt thi.");
+
+                return MapRoom(
+                    submitted,
+                    await questionRepository.ListCandidateQuestionsAsync(candidateId, cancellationToken));
+            },
+            "Không thể nộp bài.");
+    }
+
     /// <summary>
     /// The gate in front of the exam room: the slot has to belong to the caller, the
     /// session has to be running, and the clock has to be inside the slot.
@@ -501,7 +553,7 @@ public class QuestionService(
         {
             throw new BusinessValidationException(
                 now < scheduled
-                    ? $"Chưa đến giờ thi. Bạn vào được từ {scheduled - ExamSessionRules.EarlyEntry:HH:mm} ngày {scheduled:dd/MM}."
+                    ? $"Chưa đến giờ thi. Ca của bạn bắt đầu lúc {scheduled:HH:mm} ngày {scheduled:dd/MM}."
                     : $"Ca thi của bạn đã kết thúc lúc {scheduled.AddMinutes(candidate.TimePerStudent):HH:mm}.");
         }
 
@@ -567,7 +619,10 @@ public class QuestionService(
         TimePerStudent = candidate.TimePerStudent,
         CandidateStatus = candidate.CandidateStatus,
         StartedAt = candidate.StartedAt,
-        Questions = questions
+        Questions = questions,
+        CanAnswer = candidate.CandidateStatus == CandidateStatus.InProgress
+            && candidate.ScheduledTime is DateTime slot
+            && ExamSessionRules.IsSlotOpen(DateTime.Now, slot, candidate.TimePerStudent)
     };
 
     public Task<ServiceResponse<IReadOnlyList<ExamPaperItem>>> GetExamPaperAsync(

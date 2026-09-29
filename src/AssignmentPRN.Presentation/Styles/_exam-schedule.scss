@@ -1098,13 +1098,42 @@
   padding: 0;
   margin: $space-3 0 0;
   list-style: none;
+}
 
-  li {
-    display: flex;
-    gap: $space-3;
-    align-items: baseline;
-    font-size: $font-size-sm;
+.exam-room-option {
+  display: flex;
+  gap: $space-3;
+  align-items: center;
+  padding: $space-2 $space-3;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  transition: border-color $transition, background $transition;
+
+  &:hover {
+    border-color: $color-primary;
   }
+
+  // The chosen row stays obvious after the paper is handed in, when the radio is gone.
+  &.is-picked {
+    background: $color-primary-soft;
+    border-color: $color-primary;
+  }
+
+  .form-check-input {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+}
+
+.exam-room-option__body {
+  flex: 1;
+  display: flex;
+  gap: $space-3;
+  align-items: center;
+  margin: 0;
+  cursor: pointer;
 }
 
 .exam-room-options__label {

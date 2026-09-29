@@ -63,6 +63,21 @@ public interface IQuestionRepository
     /// the page does not restart the exam.
     /// </summary>
     Task StartCandidateAsync(int candidateId, DateTime startedAt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stores the candidate's choices and closes the slot. Answers are written per exam
+    /// question, one row each, so a resubmit overwrites rather than piles up.
+    /// </summary>
+    Task SubmitAnswersAsync(
+        int candidateId,
+        IReadOnlyDictionary<int, int?> selectedOptionByExamQuestion,
+        DateTime finishedAt,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Which option ids the caller may legally pick, keyed by exam question id.</summary>
+    Task<IReadOnlyDictionary<int, IReadOnlyList<int>>> ListAllowedOptionsAsync(
+        int candidateId,
+        CancellationToken cancellationToken = default);
 }
 
 public class QuestionRepository(AivesDbContext context) : IQuestionRepository
@@ -412,17 +427,97 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
             .OrderBy(item => item.OrderNo)
             .Select(item => new ExamRoomQuestion
             {
+                ExamQuestionId = item.ExamQuestionId,
                 OrderNo = item.OrderNo,
                 QuestionText = item.Question.QuestionText,
                 Difficulty = item.Question.Difficulty,
-                // Only the text of each choice is projected, so is_correct never leaves
-                // the database on this path.
+                // Only the id and the text of each choice are projected, so is_correct
+                // never leaves the database on this path.
                 Options = item.Question.Options
                     .OrderBy(option => option.DisplayOrder)
-                    .Select(option => option.OptionText)
-                    .ToList()
+                    .Select(option => new ExamRoomOption
+                    {
+                        OptionId = option.OptionId,
+                        Text = option.OptionText
+                    })
+                    .ToList(),
+                SelectedOptionId = context.Answers
+                    .Where(answer => answer.ExamQuestionId == item.ExamQuestionId)
+                    .Select(answer => answer.SelectedOptionId)
+                    .FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
+
+    public async Task SubmitAnswersAsync(
+        int candidateId,
+        IReadOnlyDictionary<int, int?> selectedOptionByExamQuestion,
+        DateTime finishedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var slots = await context.ExamQuestions
+            .Where(item => item.CandidateId == candidateId)
+            .ToListAsync(cancellationToken);
+
+        var existing = await context.Answers
+            .Where(answer => answer.CandidateId == candidateId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var slot in slots)
+        {
+            if (!selectedOptionByExamQuestion.TryGetValue(slot.ExamQuestionId, out var optionId))
+            {
+                continue;
+            }
+
+            var answer = existing.FirstOrDefault(item => item.ExamQuestionId == slot.ExamQuestionId);
+            if (answer is null)
+            {
+                answer = new Answer
+                {
+                    ExamQuestionId = slot.ExamQuestionId,
+                    CandidateId = candidateId,
+                    CreatedAt = finishedAt,
+                    StartedAt = slot.AskedAt
+                };
+                context.Answers.Add(answer);
+            }
+
+            answer.SelectedOptionId = optionId;
+            answer.FinishedAt = finishedAt;
+
+            slot.IsCompleted = optionId.HasValue;
+            slot.AskedAt ??= finishedAt;
+        }
+
+        var candidate = await context.ExamCandidates
+            .FirstOrDefaultAsync(item => item.CandidateId == candidateId, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy lượt thi.");
+
+        candidate.Status = CandidateStatus.Completed;
+        candidate.FinishedAt = finishedAt;
+
+        // One SaveChanges: the paper, the answers and the slot close together or not at all.
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyDictionary<int, IReadOnlyList<int>>> ListAllowedOptionsAsync(
+        int candidateId,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await context.ExamQuestions
+            .AsNoTracking()
+            .Where(item => item.CandidateId == candidateId)
+            .Select(item => new
+            {
+                item.ExamQuestionId,
+                OptionIds = item.Question.Options.Select(option => option.OptionId).ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows.ToDictionary(
+            row => row.ExamQuestionId,
+            row => (IReadOnlyList<int>)row.OptionIds);
+    }
 
     public async Task StartCandidateAsync(
         int candidateId,

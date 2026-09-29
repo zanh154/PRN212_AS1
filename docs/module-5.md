@@ -17,6 +17,7 @@ Sau đó chạy đúng **1 script SQL**:
 
 ```bash
 mysql -u root -p aives_db < database/20260929_add_question_options.sql
+mysql -u root -p aives_db < database/20260930_add_answer_selected_option.sql
 ```
 
 Script an toàn khi chạy lại nhiều lần, không xóa dữ liệu cũ.
@@ -61,10 +62,11 @@ Các controller mới chỉ hiện với vai trò `Admin` và `Lecturer`.
 
 ## 3. Thay đổi database
 
-Chỉ có **một** thay đổi schema, các phần còn lại là sửa dữ liệu:
+Hai thay đổi schema, các phần còn lại là sửa dữ liệu:
 
 | # | Loại | Nội dung |
 |---|---|---|
+| 0 | ALTER | `answers.selected_option_id` — phương án sinh viên đã chọn (script 20260930) |
 | 1 | CREATE | Bảng `question_options` — lưu các đáp án A/B/C/D |
 | 2 | INDEX | `idx_questions_bank (course_id, question_type, status)` cho truy vấn lấy ngân hàng câu hỏi |
 | 3 | UPDATE | Câu `Main` còn `Draft`/`PendingReview` → `Approved` |
@@ -144,21 +146,31 @@ Phát đề cho lượt thi nằm trong `ExamSessionsController`:
 | Method | Đường dẫn | Công dụng |
 |---|---|---|
 | POST | `/ExamRoom/Enter/{candidateId}` | Vào ca thi: rút đề nếu chưa có, bắt đầu tính giờ |
-| GET | `/ExamRoom/Index/{candidateId}` | Xem lại đề đã rút, không ghi gì thêm |
+| GET | `/ExamRoom/Index/{candidateId}` | Làm bài / xem lại bài, không ghi gì thêm |
+| POST | `/ExamRoom/Submit/{candidateId}` | Nộp bài: lưu đáp án và kết thúc lượt thi |
 
 1. `Lịch thi của tôi` hiện nút **Vào thi** khi tới lượt. Nút chỉ hiện đúng khoảng thời
    gian mà service cho phép, nên bấm được là vào được.
 2. Bấm vào → `IQuestionService.EnterExamAsync` kiểm tra lần lượt: đúng chủ lượt thi,
    lượt chưa bị huỷ/vắng/đã xong, phiên thi đang `Scheduled` hoặc `InProgress`, và đồng
-   hồ nằm trong ca (vào sớm được tối đa **15 phút**, `ExamSessionRules.EarlyEntry`).
+   hồ nằm **trong đúng khung giờ của ca** (`ExamSessionRules.IsSlotOpen`, không vào sớm
+   được phút nào).
 3. Qua hết → rút `MainQuestionCount` câu, **loại mọi câu đã phát cho sinh viên khác
    trong cùng phiên**, ghi vào `exam_questions`, chuyển lượt sang `InProgress` và ghi
    `started_at`.
 4. Vào lại hoặc F5 → giữ nguyên bộ câu cũ và giữ nguyên `started_at`.
-5. Ngân hàng không đủ câu → báo sinh viên liên hệ giảng viên, không ghi nửa vời.
+5. Chọn đáp án rồi bấm **Nộp bài** → `SubmitExamAsync` ghi một dòng `answers` cho mỗi
+   câu (`selected_option_id`, câu bỏ trống thì `NULL`), đặt `exam_questions.is_completed`,
+   chuyển lượt sang `Completed` và ghi `finished_at`. Tất cả trong một `SaveChanges`.
+6. **Nộp xong là kết thúc**: vào lại chỉ xem được bài làm, không sửa và không nộp lại.
+7. Ngân hàng không đủ câu → báo sinh viên liên hệ giảng viên, không ghi nửa vời.
 
-Kiểu `ExamRoomQuestion` mà sinh viên nhận **không có trường đánh dấu đáp án đúng**, nên
-đáp án không thể lọt ra theo đường này.
+Hai điều được bảo đảm bằng cấu trúc chứ không nhờ nhớ kiểm tra:
+
+- Kiểu `ExamRoomQuestion` / `ExamRoomOption` mà sinh viên nhận **không có trường đánh dấu
+  đáp án đúng**, nên đáp án không thể lọt ra theo đường này.
+- Mỗi đáp án gửi lên phải là phương án **của đúng câu hỏi đó** (`ListAllowedOptionsAsync`),
+  nên sửa HTML để gán đáp án của câu khác sẽ bị từ chối và không ghi gì cả.
 
 ### Giảng viên phát trước (tuỳ chọn)
 

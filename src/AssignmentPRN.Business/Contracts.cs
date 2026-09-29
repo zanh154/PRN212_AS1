@@ -404,6 +404,11 @@ public sealed class ExamRoomResponse
 
     public IReadOnlyList<DataAccess.Contracts.ExamRoomQuestion> Questions { get; init; } =
         Array.Empty<DataAccess.Contracts.ExamRoomQuestion>();
+
+    /// <summary>False once the paper has been handed in; the room then only shows it.</summary>
+    public bool CanAnswer { get; init; }
+
+    public int AnsweredCount => Questions.Count(question => question.SelectedOptionId.HasValue);
 }
 
 /// <summary>How many questions the bank can still hand out for one exam.</summary>

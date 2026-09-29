@@ -149,6 +149,16 @@ public interface IQuestionService
         int candidateId,
         int studentUserId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Saves the student's choices and closes the slot. Submitting is final: the slot
+    /// moves to Completed and the room becomes read-only.
+    /// </summary>
+    Task<ServiceResponse<ExamRoomResponse>> SubmitExamAsync(
+        int candidateId,
+        int studentUserId,
+        IReadOnlyDictionary<int, int?> selectedOptionByExamQuestion,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ICourseMaterialService

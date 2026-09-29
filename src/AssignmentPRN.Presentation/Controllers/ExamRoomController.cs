@@ -53,4 +53,27 @@ public class ExamRoomController(IQuestionService questionService) : Controller
 
         return View(new ExamRoomViewModel { Room = result.Data });
     }
+
+    /// <summary>
+    /// Hands the paper in. The form posts one radio per question, named by the slot id,
+    /// so an unanswered question simply does not appear among the posted values.
+    /// </summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Submit(
+        int id,
+        [FromForm] Dictionary<int, int?> answers,
+        CancellationToken ct)
+    {
+        var result = await questionService.SubmitExamAsync(
+            id,
+            CurrentUserId,
+            answers ?? new Dictionary<int, int?>(),
+            ct);
+
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? $"Đã nộp bài: {result.Data!.AnsweredCount}/{result.Data.Questions.Count} câu có đáp án."
+            : result.Error;
+
+        return RedirectToAction(nameof(Index), new { id });
+    }
 }

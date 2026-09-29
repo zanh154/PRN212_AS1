@@ -12,12 +12,6 @@ public static class ExamSessionRules
         _ => false
     };
 
-    /// <summary>
-    /// How early a student may open their slot. A few minutes of slack keeps a clock that
-    /// is slightly out, or a student who is simply ready, from being turned away.
-    /// </summary>
-    public static readonly TimeSpan EarlyEntry = TimeSpan.FromMinutes(15);
-
     /// <summary>A session whose slots a student may sit; a draft has not been published yet.</summary>
     public static bool CanSit(ExamSessionStatus status) =>
         status is ExamSessionStatus.Scheduled or ExamSessionStatus.InProgress;
@@ -31,5 +25,5 @@ public static class ExamSessionRules
 
     /// <summary>Same window, for callers that already hold the end of the slot.</summary>
     public static bool IsSlotOpen(DateTime now, DateTime scheduledTime, DateTime endTime) =>
-        now >= scheduledTime - EarlyEntry && now <= endTime;
+        now >= scheduledTime && now <= endTime;
 }

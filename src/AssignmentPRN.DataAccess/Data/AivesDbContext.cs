@@ -28,6 +28,8 @@ public class AivesDbContext(DbContextOptions<AivesDbContext> options) : DbContex
 
     public DbSet<ExamQuestion> ExamQuestions => Set<ExamQuestion>();
 
+    public DbSet<Answer> Answers => Set<Answer>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Role>(entity =>
@@ -436,6 +438,46 @@ public class AivesDbContext(DbContextOptions<AivesDbContext> options) : DbContex
                 .WithMany()
                 .HasForeignKey(item => item.QuestionId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Answer>(entity =>
+        {
+            entity.ToTable("answers");
+            entity.HasKey(answer => answer.AnswerId);
+
+            entity.Property(answer => answer.AnswerId)
+                .HasColumnName("answer_id")
+                .ValueGeneratedOnAdd();
+            entity.Property(answer => answer.ExamQuestionId)
+                .HasColumnName("exam_question_id");
+            entity.Property(answer => answer.CandidateId)
+                .HasColumnName("candidate_id");
+            entity.Property(answer => answer.SelectedOptionId)
+                .HasColumnName("selected_option_id");
+            entity.Property(answer => answer.Transcript)
+                .HasColumnName("transcript");
+            entity.Property(answer => answer.AudioPath)
+                .HasColumnName("audio_path")
+                .HasMaxLength(1000);
+            entity.Property(answer => answer.StartedAt)
+                .HasColumnName("started_at");
+            entity.Property(answer => answer.FinishedAt)
+                .HasColumnName("finished_at");
+            entity.Property(answer => answer.DurationSeconds)
+                .HasColumnName("duration_seconds");
+            entity.Property(answer => answer.CreatedAt)
+                .HasColumnName("created_at");
+
+            // One answer per slot, matching ux_answers_exam_question in the database.
+            entity.HasIndex(answer => answer.ExamQuestionId).IsUnique();
+            entity.HasOne(answer => answer.ExamQuestion)
+                .WithMany()
+                .HasForeignKey(answer => answer.ExamQuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(answer => answer.SelectedOption)
+                .WithMany()
+                .HasForeignKey(answer => answer.SelectedOptionId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
