@@ -12,6 +12,20 @@ public class ExamSessionService(
     private const string StudentRole = "Student";
     private const int SearchResultLimit = 25;
 
+    public Task<ServiceResponse<ExamSessionDetailResponse>> AddStudentAsync(
+        int examId, string email, DateTime scheduledTime, CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(async () =>
+        {
+            BusinessValidation.PositiveId(examId, "phiên thi");
+            var normalizedEmail = BusinessValidation.RequiredText(email, "email sinh viên", 255);
+            if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(normalizedEmail))
+                throw new BusinessValidationException("Email sinh viên không hợp lệ.");
+            return MapDetail(await examSessionRepository.AddStudentAsync(
+                examId, normalizedEmail, scheduledTime, cancellationToken));
+        }, "Không thể thêm sinh viên vào phiên thi.");
+    }
+
     public Task<ServiceResponse<IReadOnlyList<ExamSessionListItemResponse>>> ListAsync(
         CancellationToken cancellationToken = default)
     {

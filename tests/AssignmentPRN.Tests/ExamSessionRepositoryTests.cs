@@ -21,6 +21,85 @@ public sealed class ExamSessionRepositoryTests
     private static readonly DateTime Start = new(2026, 10, 10, 8, 0, 0);
 
     [Fact]
+    public async Task AddStudent_AddsWaitingCandidateAndExtendsWindow()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var start = DateTime.Today.AddDays(10).AddHours(8);
+        var session = await fixture.Repository.CreateAsync(Input("Add", LecturerA, 1, start, 30, StudentA));
+        var result = await fixture.Service.AddStudentAsync(session.ExamId, " USER21@EXAMPLE.TEST ", start.AddMinutes(30));
+        Assert.True(result.Success, result.Error);
+        var saved = await fixture.Repository.GetDetailAsync(session.ExamId);
+        Assert.Equal(2, saved!.Candidates.Count);
+        Assert.Equal(start.AddHours(1), saved.EndTime);
+        Assert.Equal(CandidateStatus.Waiting, saved.Candidates.Single(x => x.StudentId == StudentB).Status);
+        Assert.Equal(start.AddMinutes(30), Assert.Single((await fixture.Repository.GetStudentScheduleAsync(StudentB))!.Items).ScheduledTime);
+    }
+
+    [Theory]
+    [InlineData("user20@example.test", 30, "đã có")]
+    [InlineData("user10@example.test", 30, "đang hoạt động")]
+    [InlineData("missing@example.test", 30, "đang hoạt động")]
+    [InlineData("invalid", 30, "không hợp lệ")]
+    [InlineData("user21@example.test", 15, "Trùng lịch")]
+    [InlineData("user21@example.test", 1440, "ngày thi")]
+    [InlineData("user21@example.test", 945, "ngày thi")]
+    public async Task AddStudent_RejectsInvalidInputWithoutChangingRoster(string email, int minutes, string error)
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var start = DateTime.Today.AddDays(10).AddHours(8);
+        var session = await fixture.Repository.CreateAsync(Input("Add", LecturerA, 1, start, 30, StudentA));
+        var result = await fixture.Service.AddStudentAsync(session.ExamId, email, start.AddMinutes(minutes));
+        Assert.False(result.Success);
+        Assert.Contains(error, result.Error, StringComparison.OrdinalIgnoreCase);
+        var saved = await fixture.Repository.GetDetailAsync(session.ExamId);
+        Assert.Single(saved!.Candidates);
+        Assert.Equal(session.EndTime, saved.EndTime);
+    }
+
+    [Fact]
+    public async Task AddStudent_RejectsStudentConflictAcrossSessions()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var start = DateTime.Today.AddDays(10).AddHours(8);
+        var session = await fixture.Repository.CreateAsync(Input("Add", LecturerA, 1, start, 30, StudentA));
+        await fixture.Repository.CreateAsync(Input("Other", LecturerB, 2, start.AddMinutes(30), 30, StudentB));
+        var result = await fixture.Service.AddStudentAsync(session.ExamId, "user21@example.test", start.AddMinutes(30));
+        Assert.False(result.Success);
+        Assert.Contains("Trùng lịch với sinh viên", result.Error);
+        Assert.Single((await fixture.Repository.GetDetailAsync(session.ExamId))!.Candidates);
+    }
+
+    [Theory]
+    [InlineData(ExamSessionStatus.InProgress)]
+    [InlineData(ExamSessionStatus.Completed)]
+    [InlineData(ExamSessionStatus.Cancelled)]
+    public async Task AddStudent_RejectsClosedSession(ExamSessionStatus status)
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var start = DateTime.Today.AddDays(10).AddHours(8);
+        var input = Input("Closed", LecturerA, 1, start, 30, StudentA);
+        var session = await fixture.Repository.CreateAsync(input);
+        await fixture.SetSessionStatusAsync(session.ExamId, status);
+        var result = await fixture.Service.AddStudentAsync(session.ExamId, "user21@example.test", start.AddMinutes(30));
+        Assert.False(result.Success);
+        Assert.Contains("chưa bắt đầu", result.Error);
+    }
+
+    [Fact]
+    public async Task AddStudent_RejectsPastAndMissingSessions()
+    {
+        await using var fixture = await RepositoryFixture.CreateAsync();
+        var start = DateTime.Today.AddDays(-1).AddHours(8);
+        var session = await fixture.Repository.CreateAsync(Input("Past", LecturerA, 1, start, 30, StudentA));
+        var past = await fixture.Service.AddStudentAsync(session.ExamId, "user21@example.test", start.AddMinutes(30));
+        Assert.False(past.Success);
+        Assert.Contains("quá khứ", past.Error);
+        var missing = await fixture.Service.AddStudentAsync(9999, "user21@example.test", start);
+        Assert.False(missing.Success);
+        Assert.Contains("Không tìm thấy phiên thi", missing.Error);
+    }
+
+    [Fact]
     public async Task CreateAsync_RejectsOverlapForSameStudentAcrossSessions()
     {
         await using var fixture = await RepositoryFixture.CreateAsync();
@@ -261,6 +340,13 @@ public sealed class ExamSessionRepositoryTests
         public ExamSessionRepository Repository { get; }
 
         public ExamSessionService Service { get; }
+
+        public async Task SetSessionStatusAsync(int examId, ExamSessionStatus status)
+        {
+            var session = await _context.ExamSessions.FindAsync(examId);
+            session!.Status = status;
+            await _context.SaveChangesAsync();
+        }
 
         public static async Task<RepositoryFixture> CreateAsync()
         {

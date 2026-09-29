@@ -8,6 +8,50 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public class ExamSessionRepository(AivesDbContext context) : IExamSessionRepository
 {
+    public async Task<ExamSessionDetail> AddStudentAsync(int examId, string email,
+        DateTime scheduledTime, CancellationToken cancellationToken = default)
+    {
+        // Serialize roster checks and insertion so concurrent requests cannot add duplicates.
+        await using var transaction = await context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
+        var session = await context.ExamSessions.FirstOrDefaultAsync(
+            item => item.ExamId == examId, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên thi.");
+        if (session.Status is not (ExamSessionStatus.Draft or ExamSessionStatus.Scheduled))
+            throw new ArgumentException("Chỉ được thêm sinh viên khi phiên thi chưa bắt đầu.");
+        if (session.StartTime <= DateTime.Now || scheduledTime <= DateTime.Now)
+            throw new ArgumentException("Không thể thêm sinh viên vào lịch thi trong quá khứ.");
+        if (session.TimePerStudent <= 0 || scheduledTime.Date != session.StartTime.Date
+            || scheduledTime.AddMinutes(session.TimePerStudent).Date != session.StartTime.Date)
+            throw new ArgumentException("Khung giờ phải nằm trọn trong ngày thi.");
+
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var student = await context.Users.SingleOrDefaultAsync(user =>
+            user.Email.ToLower() == normalizedEmail && user.Status == "Active"
+            && user.Role.RoleName == "Student", cancellationToken)
+            ?? throw new ArgumentException("Không tìm thấy sinh viên đang hoạt động với email này.");
+        if (await context.ExamCandidates.AnyAsync(item =>
+            item.ExamId == examId && item.StudentId == student.UserId, cancellationToken))
+            throw new ArgumentException("Sinh viên đã có trong phiên thi này.");
+
+        var endTime = scheduledTime.AddMinutes(session.TimePerStudent);
+        await EnsureNoConflictAsync(student.UserId, session.LecturerId, scheduledTime,
+            endTime, null, cancellationToken);
+        context.ExamCandidates.Add(new ExamCandidate
+        {
+            ExamId = examId, StudentId = student.UserId,
+            ScheduledTime = scheduledTime, Status = CandidateStatus.Waiting
+        });
+        if (scheduledTime < session.StartTime) session.StartTime = scheduledTime;
+        if (endTime > session.EndTime) session.EndTime = endTime;
+        session.UpdatedAt = DateTime.Now;
+        await context.SaveChangesAsync(cancellationToken);
+        var detail = await LoadDetailAsync(examId, cancellationToken)
+            ?? throw new InvalidOperationException("Không thể đọc phiên thi vừa cập nhật.");
+        await transaction.CommitAsync(cancellationToken);
+        return detail;
+    }
+
     public async Task<IReadOnlyList<ExamSessionListItem>> ListAsync(CancellationToken cancellationToken = default)
     {
         return await context.ExamSessions

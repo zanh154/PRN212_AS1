@@ -37,6 +37,32 @@
     </div>
 }
 
+@if ((session.Status is AssignmentPRN.DataAccess.Enums.ExamSessionStatus.Draft
+    or AssignmentPRN.DataAccess.Enums.ExamSessionStatus.Scheduled) && session.StartTime > DateTime.Now
+    && (Context.Session.GetString(AssignmentPRN.Presentation.Constants.SessionKeys.Role) == AssignmentPRN.Presentation.Constants.RoleNames.Admin
+        || Context.Session.GetInt32(AssignmentPRN.Presentation.Constants.SessionKeys.UserId) == session.Lecturer.UserId))
+{
+    <section class="content-card mb-3" aria-labelledby="add-student-heading">
+        <h2 id="add-student-heading">Thêm sinh viên vào phiên thi</h2>
+        <p>Nhập email tài khoản sinh viên. Mỗi ca kéo dài @session.TimePerStudent phút, trong ngày @session.StartTime.ToString("dd/MM/yyyy").</p>
+        <form method="post" asp-action="AddStudent" class="reschedule-form">
+            <input type="hidden" name="ExamId" value="@session.ExamId" />
+            <div>
+                <label for="student-email" class="form-label">Email sinh viên</label>
+                <input id="student-email" name="Email" type="email" class="form-control" required maxlength="255" placeholder="student@example.com" />
+            </div>
+            <div>
+                <label for="student-start" class="form-label">Giờ bắt đầu</label>
+                <input id="student-start" name="ScheduledTime" type="datetime-local" class="form-control" required
+                       min="@session.StartTime.ToString("yyyy-MM-ddT00:00")"
+                       max="@session.StartTime.Date.AddDays(1).AddMinutes(-session.TimePerStudent - 1).ToString("yyyy-MM-ddTHH:mm")"
+                       value="@session.EndTime.ToString("yyyy-MM-ddTHH:mm")" />
+            </div>
+            <button type="submit" class="btn btn-primary">Thêm sinh viên</button>
+        </form>
+    </section>
+}
+
 <div class="content-card">
     <div class="section-heading">
         <div>
