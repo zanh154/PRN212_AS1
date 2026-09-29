@@ -465,11 +465,19 @@ document.addEventListener("DOMContentLoaded", () => {
     empty.textContent = "Đang tải danh sách sinh viên…";
     empty.classList.add("visible");
 
+    // Replaced by the server's own wording when it explains a refusal; browser errors
+    // (offline, bad JSON) keep this generic message.
+    let failure = "Không thể tải danh sách sinh viên của lớp.";
+
     try {
       const response = await fetch(`${classPicker.dataset.rosterUrl}?classId=${classId}`, {
         headers: { Accept: "application/json" }
       });
-      if (!response.ok) throw new Error("Không thể tải lớp học");
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        if (typeof body?.error === "string") failure = body.error;
+        throw new Error(failure);
+      }
 
       const data = await response.json();
       if (ticket !== rosterRequest) return;
@@ -481,7 +489,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderRoster(Array.isArray(data.students) ? data.students : []);
     } catch {
       if (ticket === rosterRequest) {
-        empty.textContent = "Không thể tải danh sách sinh viên của lớp.";
+        empty.textContent = failure;
         empty.classList.add("visible");
       }
     }

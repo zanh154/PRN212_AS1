@@ -12,6 +12,19 @@ public static class ExamSessionRules
         _ => false
     };
 
+    /// <summary>
+    /// A session cannot be cancelled under a student who is still answering: their paper
+    /// would be cut off halfway. They have to hand in, or be closed once their slot is over.
+    /// </summary>
+    public static bool BlocksCancellation(CandidateStatus status) => status == CandidateStatus.InProgress;
+
+    /// <summary>
+    /// What a slot becomes when its session is cancelled: a slot not sat yet is cancelled
+    /// with it, while a handed-in paper or a recorded absence keeps its record.
+    /// </summary>
+    public static CandidateStatus StatusAfterCancellation(CandidateStatus status) =>
+        status == CandidateStatus.Waiting ? CandidateStatus.Cancelled : status;
+
     /// <summary>A session whose slots a student may sit; a draft has not been published yet.</summary>
     public static bool CanSit(ExamSessionStatus status) =>
         status is ExamSessionStatus.Scheduled or ExamSessionStatus.InProgress;

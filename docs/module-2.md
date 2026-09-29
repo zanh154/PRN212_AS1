@@ -9,7 +9,7 @@ dotnet run --project src/AssignmentPRN.Presentation
 dotnet test tests/AssignmentPRN.Tests/AssignmentPRN.Tests.csproj
 ```
 
-Không cần migration cho thay đổi này. Ứng dụng sử dụng các bảng hiện có; kiểm thử dùng SQLite trong bộ nhớ, không ghi vào Aiven.
+Cần chạy `database/20260928_add_academic_classes.sql` (bảng lớp học) trên database đang dùng. Unit test chỉ kiểm tra các luật nghiệp vụ thuần, không kết nối database. Dữ liệu để chạy thử cả luồng: `database/seed_test_flow.sql` (xem [báo cáo kiểm thử](bao-cao-kiem-thu.md)).
 
 ## Môn học
 
@@ -25,6 +25,9 @@ Không cần migration cho thay đổi này. Ứng dụng sử dụng các bản
 
 - Vào **Lịch thi → Tạo lịch thi**. Chọn môn, giảng viên, lớp và thời gian; danh sách sinh viên lấy từ lớp.
 - Ngày bắt đầu không trong quá khứ, thời lượng 1–1440 phút, toàn bộ lượt thi phải kết thúc trong cùng ngày.
+- Ngân hàng câu hỏi phải đủ câu: cần **số sinh viên × số câu hỏi chính** câu chính (đã duyệt) khác nhau, vì trong một phiên không sinh viên nào trùng câu với người khác. Thiếu thì bị chặn khi tạo phiên, khi sửa số câu/đổi môn, và khi thêm sinh viên.
+- Đổi giờ một ca: giờ mới không được nằm trong quá khứ và phải trong ngày thi.
+- Thêm sinh viên lẻ: sinh viên phải thuộc ít nhất một lớp đang hoạt động của môn và chưa có trong phiên.
 - Vào chi tiết → **Sửa phiên thi** để sửa tên, môn, mô tả, ngày giờ, thời lượng và số câu hỏi.
 - Sửa không thay danh sách sinh viên hoặc giảng viên. Đổi môn vẫn giữ nguyên danh sách sinh viên hiện có.
 - Nếu ngày giờ/thời lượng thay đổi, xếp lại các ca liên tiếp theo thứ tự hiện tại, giữ nguyên mã lượt thi; kiểm tra trùng lịch trước khi ghi. Nếu chỉ sửa thông tin, giữ các khung giờ đã điều chỉnh riêng.
@@ -43,6 +46,10 @@ Phiên mới ở trạng thái **Đã xếp lịch**. Quy tắc chuyển:
 | Đã hoàn thành / Đã huỷ | Không chuyển tiếp |
 
 Không bắt đầu trước giờ thi. Chỉ hoàn thành khi không còn sinh viên Chờ thi/Đang thi; việc cập nhật kết quả từng sinh viên thuộc module kết quả. Phiên đã huỷ không xuất hiện trong lịch sinh viên và không chiếm khung giờ. Không mở lại hoặc xoá phiên đã huỷ/hoàn thành.
+
+Huỷ phiên: bị chặn khi còn sinh viên **Đang thi** (đợi họ nộp bài, hoặc chốt ca khi hết giờ). Khi huỷ được, các lượt **Chờ thi** chuyển sang **Đã huỷ**; bài đã nộp và lượt vắng giữ nguyên.
+
+Phát đề: đề được rút khi sinh viên vào thi, hoặc giảng viên phát trước ở màn **Xem và phát đề**. Mọi lần phát đề của một phiên chạy nối tiếp (khoá dòng phiên thi trong database), nên bấm đúp hay nhiều sinh viên vào cùng lúc cũng không bị trùng câu hoặc phát hai lần. Không huỷ đề được khi đã có sinh viên vào thi.
 
 ## Kiểm tra thủ công
 

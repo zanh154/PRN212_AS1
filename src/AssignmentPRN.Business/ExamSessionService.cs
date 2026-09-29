@@ -6,7 +6,8 @@ namespace AssignmentPRN.Business;
 
 public class ExamSessionService(
     IExamSessionRepository examSessionRepository,
-    ICatalogRepository catalogRepository) : IExamSessionService
+    ICatalogRepository catalogRepository,
+    IQuestionRepository questionRepository) : IExamSessionService
 {
     private const string LecturerRole = "Lecturer";
     private const string StudentRole = "Student";
@@ -25,12 +26,15 @@ public class ExamSessionService(
             BusinessValidation.InRange(request.MainQuestionCount, 1, 50, "Số câu hỏi chính");
             BusinessValidation.InRange(request.MaxFollowUpCount, 0, 50, "Số câu hỏi phụ");
             if (request.StartTime == default) throw new BusinessValidationException("Vui lòng chọn ngày giờ thi.");
-            if (request.CourseId != current.Course.CourseId)
+            var courseChanged = request.CourseId != current.Course.CourseId;
+            if (courseChanged)
             {
                 if (!await catalogRepository.CourseExistsAsync(request.CourseId, cancellationToken))
                     throw new BusinessValidationException("Môn học không tồn tại hoặc đã ngừng hoạt động.");
                 await EnsureCandidatesBelongToCourseAsync(current, request.CourseId, cancellationToken);
             }
+            if (courseChanged || request.MainQuestionCount != current.MainQuestionCount)
+                await EnsureBankCoversAsync(request.CourseId, SeatsToDeal(current), request.MainQuestionCount, cancellationToken);
             return MapDetail(await examSessionRepository.UpdateAsync(request, cancellationToken));
         }, "Không thể cập nhật phiên thi.");
 
@@ -82,6 +86,25 @@ public class ExamSessionService(
             var normalizedEmail = BusinessValidation.RequiredText(email, "email sinh viên", 255);
             if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(normalizedEmail))
                 throw new BusinessValidationException("Email sinh viên không hợp lệ.");
+
+            var session = await examSessionRepository.GetDetailAsync(examId, cancellationToken)
+                ?? throw new BusinessValidationException("Không tìm thấy phiên thi.");
+            var student = (await catalogRepository.FindUsersByEmailsAsync(
+                    StudentRole, [normalizedEmail.ToLowerInvariant()], cancellationToken))
+                .FirstOrDefault()
+                ?? throw new BusinessValidationException("Không tìm thấy sinh viên đang hoạt động với email này.");
+            if (session.Candidates.Any(candidate => candidate.StudentId == student.UserId))
+                throw new BusinessValidationException("Sinh viên đã có trong phiên thi này.");
+
+            // Same rule as moving the session to another course: whoever sits it studies it.
+            var enrolled = await catalogRepository.ListStudentIdsInCourseAsync(session.Course.CourseId, cancellationToken);
+            if (!enrolled.Contains(student.UserId))
+                throw new BusinessValidationException(
+                    $"{student.FullName} không thuộc lớp nào của môn {session.Course.CourseCode}.");
+
+            await EnsureBankCoversAsync(
+                session.Course.CourseId, SeatsToDeal(session) + 1, session.MainQuestionCount, cancellationToken);
+
             return MapDetail(await examSessionRepository.AddStudentAsync(
                 examId, normalizedEmail, scheduledTime, cancellationToken));
         }, "Không thể thêm sinh viên vào phiên thi.");
@@ -217,6 +240,11 @@ public class ExamSessionService(
                     throw new BusinessValidationException("Vui lòng chọn giờ bắt đầu mới.");
                 }
 
+                if (request.ScheduledTime < DateTime.Now)
+                {
+                    throw new BusinessValidationException("Giờ bắt đầu mới không được nằm trong quá khứ.");
+                }
+
                 var updated = await examSessionRepository.RescheduleAsync(
                     candidateId,
                     request.ScheduledTime,
@@ -303,6 +331,28 @@ public class ExamSessionService(
             throw new BusinessValidationException(
                 $"Không thể đổi sang môn học này: {string.Join(", ", outsiders)} không thuộc lớp nào của môn.");
         }
+    }
+
+    /// <summary>
+    /// Students of the session who will still draw a paper. A cancelled slot or a no-show
+    /// never draws one, so they do not count against the bank.
+    /// </summary>
+    private static int SeatsToDeal(ExamSessionDetail session) =>
+        session.Candidates.Count(candidate =>
+            candidate.Status is not (CandidateStatus.Cancelled or CandidateStatus.Absent));
+
+    /// <summary>
+    /// Refuses a session the course's question bank could not serve to the last student,
+    /// instead of letting that student find out when they open their slot.
+    /// </summary>
+    private async Task EnsureBankCoversAsync(
+        int courseId,
+        int candidateCount,
+        int questionsPerCandidate,
+        CancellationToken cancellationToken)
+    {
+        var available = await questionRepository.CountMainPoolAsync(courseId, cancellationToken);
+        QuestionSupplyRules.EnsureEnough(candidateCount, questionsPerCandidate, available);
     }
 
     /// <summary>
@@ -400,6 +450,8 @@ public class ExamSessionService(
         {
             throw new BusinessValidationException("Tài khoản được chọn không phải là giảng viên.");
         }
+
+        await EnsureBankCoversAsync(courseId, studentIds.Count, mainQuestionCount, cancellationToken);
 
         return new ExamSessionAggregateInput
         {

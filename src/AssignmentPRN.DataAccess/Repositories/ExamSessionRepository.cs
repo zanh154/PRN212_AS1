@@ -58,6 +58,15 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
             throw new ArgumentException("Chưa thể hoàn thành: còn sinh viên chờ thi hoặc đang thi.");
         if (status == ExamSessionStatus.InProgress && DateTime.Now < session.StartTime)
             throw new ArgumentException("Chưa đến giờ bắt đầu phiên thi.");
+        if (status == ExamSessionStatus.Cancelled)
+        {
+            var sitting = session.Candidates.Count(x => ExamSessionRules.BlocksCancellation(x.Status));
+            if (sitting > 0)
+                throw new ArgumentException(
+                    $"Còn {sitting} sinh viên đang thi, chưa thể huỷ phiên. Hãy đợi họ nộp bài hoặc chốt ca khi hết giờ.");
+            foreach (var candidate in session.Candidates)
+                candidate.Status = ExamSessionRules.StatusAfterCancellation(candidate.Status);
+        }
         session.Status = status;
         session.UpdatedAt = DateTime.Now;
         await context.SaveChangesAsync(cancellationToken);

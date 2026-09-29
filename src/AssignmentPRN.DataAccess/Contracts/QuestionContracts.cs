@@ -392,7 +392,18 @@ public sealed class ExamPaperItem
 
     public DateTime? ScheduledTime { get; init; }
 
+    /// <summary>The student has opened their slot, so their paper is part of the exam record.</summary>
+    public bool HasStarted { get; init; }
+
     public IReadOnlyList<ExamPaperQuestion> Questions { get; init; } = Array.Empty<ExamPaperQuestion>();
+}
+
+/// <summary>What an exam has dealt so far, read while the exam is locked for dealing.</summary>
+public sealed class ExamDealState
+{
+    public IReadOnlySet<int> TakenQuestionIds { get; init; } = new HashSet<int>();
+
+    public IReadOnlySet<int> CandidatesWithPaper { get; init; } = new HashSet<int>();
 }
 
 public sealed class ExamPaperQuestion

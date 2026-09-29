@@ -369,75 +369,55 @@ public class QuestionService(
                         "Lịch thi này chưa có sinh viên nào để phân câu hỏi.");
                 }
 
-                // The exam may already hold rows if the scheduler retried. Candidates that
-                // already have a paper are skipped and their questions seed `taken`, so a
-                // rerun tops up the missing students instead of doubling anyone's paper.
-                var candidateIds = papers
-                    .Where(paper => paper.Questions.Count == 0)
-                    .Select(paper => paper.CandidateId)
-                    .ToList();
-                if (candidateIds.Count == 0)
-                {
-                    throw new BusinessValidationException(
-                        "Mọi sinh viên của lịch thi này đã có đề. Hãy huỷ đề hiện tại trước khi phát lại.");
-                }
-
-                var taken = (await questionRepository.ListAssignedQuestionIdsAsync(examId, cancellationToken))
-                    .ToHashSet();
-
-                var needed = candidateIds.Count * countPerCandidate;
-                var wholePool = await questionRepository.ListPoolIdsAsync(
-                    BuildPoolRequest(courseId, countPerCandidate, request),
-                    cancellationToken);
-                if (QuestionPicker.CountAvailable(wholePool, taken) < needed)
-                {
-                    throw new BusinessValidationException(
-                        $"Ngân hàng câu hỏi của môn này không đủ {needed} câu khác nhau cho "
-                        + $"{candidateIds.Count} sinh viên. Hãy bổ sung câu hỏi trước khi phát đề.");
-                }
-
-                // Walking the candidates one by one and growing `taken` as we go is what
-                // stops the same question reaching two students of this exam.
+                var filter = BuildPoolRequest(courseId, countPerCandidate, request);
+                var candidateCount = 0;
                 var rows = new List<ExamQuestionInput>();
-                foreach (var candidateId in candidateIds)
-                {
-                    var pool = await questionRepository.ListPoolIdsAsync(
-                        new QuestionPickRequest
-                        {
-                            CourseId = courseId,
-                            Count = countPerCandidate,
-                            MaterialIds = request.MaterialIds,
-                            Difficulties = request.Difficulties,
-                            TakenQuestionIds = taken
-                        },
-                        cancellationToken);
+                var taken = new HashSet<int>();
 
-                    var picked = QuestionPicker.Pick(pool, countPerCandidate, taken);
-                    if (picked.Count < countPerCandidate)
+                // Decided under the exam lock: a student who entered a moment ago already
+                // holds a paper and is skipped, so nobody is dealt twice.
+                await questionRepository.DealAsync(
+                    examId,
+                    async dealt =>
                     {
-                        throw new BusinessValidationException(
-                            $"Ngân hàng câu hỏi đã cạn: sinh viên thứ {rows.Count / countPerCandidate + 1} "
-                            + "không đủ câu chưa dùng. Hãy bổ sung câu hỏi trước khi phát đề.");
-                    }
-
-                    for (var index = 0; index < picked.Count; index++)
-                    {
-                        taken.Add(picked[index]);
-                        rows.Add(new ExamQuestionInput
+                        var candidateIds = papers
+                            .Select(paper => paper.CandidateId)
+                            .Where(candidateId => !dealt.CandidatesWithPaper.Contains(candidateId))
+                            .ToList();
+                        if (candidateIds.Count == 0)
                         {
-                            CandidateId = candidateId,
-                            QuestionId = picked[index],
-                            OrderNo = index + 1
-                        });
-                    }
-                }
+                            throw new BusinessValidationException(
+                                "Mọi sinh viên của lịch thi này đã có đề. Hãy huỷ đề hiện tại trước khi phát lại.");
+                        }
 
-                await questionRepository.AddExamQuestionsAsync(examId, rows, cancellationToken);
+                        taken.UnionWith(dealt.TakenQuestionIds);
+                        var needed = candidateIds.Count * countPerCandidate;
+                        var wholePool = await questionRepository.ListPoolIdsAsync(filter, cancellationToken);
+                        if (QuestionPicker.CountAvailable(wholePool, taken) < needed)
+                        {
+                            throw new BusinessValidationException(
+                                $"Ngân hàng câu hỏi của môn này không đủ {needed} câu khác nhau cho "
+                                + $"{candidateIds.Count} sinh viên. Hãy bổ sung câu hỏi trước khi phát đề.");
+                        }
+
+                        foreach (var candidateId in candidateIds)
+                        {
+                            var paper = await PickPaperAsync(filter, candidateId, taken, cancellationToken)
+                                ?? throw new BusinessValidationException(
+                                    $"Ngân hàng câu hỏi đã cạn: sinh viên thứ {rows.Count / countPerCandidate + 1} "
+                                    + "không đủ câu chưa dùng. Hãy bổ sung câu hỏi trước khi phát đề.");
+                            rows.AddRange(paper);
+                        }
+
+                        candidateCount = candidateIds.Count;
+                        return rows;
+                    },
+                    cancellationToken);
 
                 return new ExamQuestionAssignmentResult
                 {
                     ExamId = examId,
-                    CandidateCount = candidateIds.Count,
+                    CandidateCount = candidateCount,
                     AssignedCount = rows.Count,
                     TakenQuestionIds = taken.OrderBy(id => id).ToList()
                 };
@@ -455,11 +435,7 @@ public class QuestionService(
             {
                 var candidate = await LoadSittableCandidateAsync(candidateId, studentUserId, cancellationToken);
 
-                var existing = await questionRepository.ListCandidateQuestionsAsync(candidateId, cancellationToken);
-                if (existing.Count == 0)
-                {
-                    await DealToCandidateAsync(candidate, cancellationToken);
-                }
+                await DealToCandidateAsync(candidate, cancellationToken);
 
                 await questionRepository.StartCandidateAsync(candidateId, DateTime.Now, cancellationToken);
 
@@ -753,8 +729,9 @@ public class QuestionService(
     }
 
     /// <summary>
-    /// Deals one student's paper. Everything already handed out inside this session is
-    /// excluded, which is what keeps two students of one session off the same question.
+    /// Deals one student's paper, unless they already hold one (a refresh, a double click or
+    /// a paper the lecturer dealt ahead). It runs under the exam lock, so everything already
+    /// handed out in this session is excluded even when two students enter at once.
     /// </summary>
     private async Task DealToCandidateAsync(
         ExamRoomCandidate candidate,
@@ -762,38 +739,67 @@ public class QuestionService(
     {
         var count = BusinessValidation.InRange(
             candidate.MainQuestionCount, 1, 50, "Số câu hỏi mỗi sinh viên");
+        var filter = new QuestionPickRequest { CourseId = candidate.CourseId, Count = count };
 
-        var taken = (await questionRepository.ListAssignedQuestionIdsAsync(candidate.ExamId, cancellationToken))
-            .ToHashSet();
+        await questionRepository.DealAsync(
+            candidate.ExamId,
+            async dealt =>
+            {
+                if (dealt.CandidatesWithPaper.Contains(candidate.CandidateId))
+                {
+                    return Array.Empty<ExamQuestionInput>();
+                }
 
+                return await PickPaperAsync(
+                        filter,
+                        candidate.CandidateId,
+                        dealt.TakenQuestionIds.ToHashSet(),
+                        cancellationToken)
+                    ?? throw new BusinessValidationException(
+                        $"Ngân hàng câu hỏi của môn {candidate.CourseCode} không còn đủ {count} câu chưa dùng "
+                        + "cho lượt thi này. Hãy báo giảng viên bổ sung câu hỏi.");
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Draws one student's paper from the pool <paramref name="filter"/> describes, leaving
+    /// out <paramref name="taken"/> and adding the drawn questions to it, so calling this for
+    /// each student in turn never gives two of them the same question. Returns null when
+    /// the pool can no longer fill a whole paper.
+    /// </summary>
+    private async Task<IReadOnlyList<ExamQuestionInput>?> PickPaperAsync(
+        QuestionPickRequest filter,
+        int candidateId,
+        HashSet<int> taken,
+        CancellationToken cancellationToken)
+    {
         var pool = await questionRepository.ListPoolIdsAsync(
             new QuestionPickRequest
             {
-                CourseId = candidate.CourseId,
-                Count = count,
+                CourseId = filter.CourseId,
+                Count = filter.Count,
+                MaterialIds = filter.MaterialIds,
+                Difficulties = filter.Difficulties,
                 TakenQuestionIds = taken
             },
             cancellationToken);
 
-        var picked = QuestionPicker.Pick(pool, count, taken);
-        if (picked.Count < count)
+        var picked = QuestionPicker.Pick(pool, filter.Count, taken);
+        if (picked.Count < filter.Count)
         {
-            throw new BusinessValidationException(
-                $"Ngân hàng câu hỏi của môn {candidate.CourseCode} không còn đủ {count} câu chưa dùng "
-                + "cho lượt thi này. Hãy báo giảng viên bổ sung câu hỏi.");
+            return null;
         }
 
-        await questionRepository.AddExamQuestionsAsync(
-            candidate.ExamId,
-            picked
-                .Select((questionId, index) => new ExamQuestionInput
-                {
-                    CandidateId = candidate.CandidateId,
-                    QuestionId = questionId,
-                    OrderNo = index + 1
-                })
-                .ToList(),
-            cancellationToken);
+        taken.UnionWith(picked);
+        return picked
+            .Select((questionId, index) => new ExamQuestionInput
+            {
+                CandidateId = candidateId,
+                QuestionId = questionId,
+                OrderNo = index + 1
+            })
+            .ToList();
     }
 
     private static ExamRoomResponse MapRoom(
@@ -852,12 +858,12 @@ public class QuestionService(
             {
                 var id = BusinessValidation.PositiveId(examId, "lịch thi");
 
-                // Once a question has been put to a student the paper is part of the exam
-                // record, so it is frozen rather than reshuffled underneath them.
-                if (await questionRepository.HasStartedExamQuestionsAsync(id, cancellationToken))
+                // Once a student has opened their slot the papers are part of the exam
+                // record, so they are frozen rather than reshuffled underneath them.
+                if (await questionRepository.HasExamStartedAsync(id, cancellationToken))
                 {
                     throw new BusinessValidationException(
-                        "Đã có sinh viên bắt đầu trả lời, không thể huỷ đề của lịch thi này.");
+                        "Đã có sinh viên vào thi, không thể huỷ đề của lịch thi này.");
                 }
 
                 await questionRepository.ClearExamQuestionsAsync(id, cancellationToken);
