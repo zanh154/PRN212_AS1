@@ -139,6 +139,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                 QuestionText = question.QuestionText,
                 Difficulty = question.Difficulty,
                 BloomLevel = question.BloomLevel,
+                QuestionType = question.QuestionType,
                 Status = question.Status,
                 AuthorName = question.CreatedByUser.FullName,
                 CreatedAt = question.CreatedAt
@@ -186,7 +187,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
                 ExpectedAnswer = input.ExpectedAnswer,
                 BloomLevel = input.BloomLevel,
                 Difficulty = input.Difficulty,
-                QuestionType = QuestionType.Main,
+                QuestionType = input.QuestionType,
                 Status = QuestionStatus.Approved,
                 CreatedAt = DateTime.Now,
                 Options = options
@@ -211,6 +212,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         existing.ExpectedAnswer = input.ExpectedAnswer;
         existing.BloomLevel = input.BloomLevel;
         existing.Difficulty = input.Difficulty;
+        existing.QuestionType = input.QuestionType;
         existing.UpdatedAt = DateTime.Now;
         existing.Options = options;
 
@@ -580,6 +582,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         ExpectedAnswer = question.ExpectedAnswer,
         BloomLevel = question.BloomLevel,
         Difficulty = question.Difficulty,
+        QuestionType = question.QuestionType,
         Status = question.Status,
         Options = question.Options
             .OrderBy(option => option.DisplayOrder)

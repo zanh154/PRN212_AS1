@@ -345,6 +345,8 @@ public sealed class QuestionResponse
 
     public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
 
+    public DataAccess.Enums.QuestionType QuestionType { get; init; }
+
     public DataAccess.Enums.QuestionStatus Status { get; init; }
 
     public IReadOnlyList<QuestionOptionResponse> Options { get; init; } = Array.Empty<QuestionOptionResponse>();
@@ -402,6 +404,8 @@ public sealed class QuestionSaveRequest
 
     public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
 
+    public DataAccess.Enums.QuestionType QuestionType { get; init; } = DataAccess.Enums.QuestionType.Main;
+
     public IReadOnlyList<DataAccess.Contracts.QuestionOptionInput> Options { get; init; } =
         Array.Empty<DataAccess.Contracts.QuestionOptionInput>();
 }
@@ -424,6 +428,8 @@ public sealed class QuestionListItemResponse
     public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
 
     public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+
+    public DataAccess.Enums.QuestionType QuestionType { get; init; }
 
     public DataAccess.Enums.QuestionStatus Status { get; init; }
 

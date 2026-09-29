@@ -125,7 +125,13 @@
                     @foreach (var question in Model.Questions)
                     {
                         <tr>
-                            <td><p class="question-cell">@question.QuestionText</p></td>
+                            <td>
+                                <p class="question-cell">@question.QuestionText</p>
+                                @if (question.QuestionType == QuestionType.FollowUp)
+                                {
+                                    <span class="status-chip">@QuestionText.Type(question.QuestionType)</span>
+                                }
+                            </td>
                             <td>
                                 <strong>@question.CourseCode</strong>
                                 <div class="text-muted">@(question.MaterialName ?? "Chưa gán chủ đề")</div>

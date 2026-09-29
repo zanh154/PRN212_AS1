@@ -76,6 +76,7 @@ public class QuestionService(
                         QuestionText = item.QuestionText,
                         Difficulty = item.Difficulty,
                         BloomLevel = item.BloomLevel,
+                        QuestionType = item.QuestionType,
                         Status = item.Status,
                         AuthorName = item.AuthorName,
                         CreatedAt = item.CreatedAt
@@ -126,11 +127,25 @@ public class QuestionService(
                     MaxExpectedAnswerLength);
                 var options = NormaliseOptions(request.Options);
 
+                // A follow-up is picked by topic, so without one it could never be asked.
+                if (request.QuestionType == QuestionType.FollowUp && request.MaterialId is null)
+                {
+                    throw new BusinessValidationException("Câu hỏi đào sâu phải gắn với một chủ đề (tài liệu).");
+                }
+
                 if (request.QuestionId != 0)
                 {
                     var existing = await questionRepository.GetDetailAsync(request.QuestionId, cancellationToken)
                         ?? throw new BusinessValidationException("Không tìm thấy câu hỏi.");
                     await EnsureCourseVisibleAsync(existing.CourseId, ownerLecturerId, cancellationToken);
+
+                    // Past papers were dealt by round; flipping the type would rewrite that history.
+                    if (existing.QuestionType != request.QuestionType
+                        && await questionRepository.IsAssignedToExamAsync(existing.QuestionId, cancellationToken))
+                    {
+                        throw new BusinessValidationException(
+                            "Câu hỏi đã được phát cho lượt thi, không thể đổi loại câu.");
+                    }
                 }
 
                 if (request.MaterialId is int materialId)
@@ -148,6 +163,7 @@ public class QuestionService(
                         ExpectedAnswer = expectedAnswer,
                         BloomLevel = request.BloomLevel,
                         Difficulty = request.Difficulty,
+                        QuestionType = request.QuestionType,
                         Options = options
                     },
                     lecturerId,
@@ -876,6 +892,7 @@ public class QuestionService(
         ExpectedAnswer = detail.ExpectedAnswer,
         BloomLevel = detail.BloomLevel,
         Difficulty = detail.Difficulty,
+        QuestionType = detail.QuestionType,
         Status = detail.Status,
         Options = detail.Options
             .Select(option => new QuestionOptionResponse

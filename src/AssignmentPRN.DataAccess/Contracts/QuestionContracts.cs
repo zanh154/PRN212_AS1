@@ -41,6 +41,9 @@ public sealed class QuestionUpsertInput
 
     public QuestionDifficulty Difficulty { get; init; }
 
+    /// <summary>Main questions go out in the first round; follow-ups only after it.</summary>
+    public QuestionType QuestionType { get; init; } = QuestionType.Main;
+
     public IReadOnlyList<QuestionOptionInput> Options { get; init; } = Array.Empty<QuestionOptionInput>();
 }
 
@@ -159,6 +162,8 @@ public sealed class QuestionListItem
 
     public BloomLevel BloomLevel { get; init; }
 
+    public QuestionType QuestionType { get; init; }
+
     public QuestionStatus Status { get; init; }
 
     public string AuthorName { get; init; } = string.Empty;
@@ -182,6 +187,8 @@ public sealed class QuestionDetail
     public BloomLevel BloomLevel { get; init; }
 
     public QuestionDifficulty Difficulty { get; init; }
+
+    public QuestionType QuestionType { get; init; }
 
     public QuestionStatus Status { get; init; }
 
