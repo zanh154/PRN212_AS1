@@ -68,9 +68,41 @@ public class ExamQuestionAssignViewModel
 public class ExamRoomViewModel
 {
     public ExamRoomResponse Room { get; init; } = new();
+
+    /// <summary>Position of a main slot in the paper, so a follow-up can say which question it digs into.</summary>
+    public int? OrderOf(int? examQuestionId) => Room.Questions
+        .FirstOrDefault(question => question.ExamQuestionId == examQuestionId)?.OrderNo;
+}
+
+/// <summary>One question of the exam room, answerable or shown as handed in.</summary>
+public class ExamRoomQuestionViewModel
+{
+    public AssignmentPRN.DataAccess.Contracts.ExamRoomQuestion Question { get; init; } = new();
+
+    /// <summary>True renders the radio group; false shows the pick read-only.</summary>
+    public bool Editable { get; init; }
+
+    /// <summary>For a follow-up, the number of the main question it digs into.</summary>
+    public int? ParentOrderNo { get; init; }
 }
 
 public class ExamResultViewModel
 {
     public ExamResultResponse Result { get; init; } = new();
+
+    /// <summary>Position of a main slot in the paper, so a follow-up can say which question it digs into.</summary>
+    public int? OrderOf(int? examQuestionId) => Result.Questions
+        .FirstOrDefault(question => question.ExamQuestionId == examQuestionId)?.OrderNo;
+}
+
+/// <summary>One graded question, as the student or the examiner reviews it.</summary>
+public class ExamResultQuestionViewModel
+{
+    public AssignmentPRN.DataAccess.Contracts.ExamResultQuestion Question { get; init; } = new();
+
+    /// <summary>For a follow-up, the number of the main question it digs into.</summary>
+    public int? ParentOrderNo { get; init; }
+
+    /// <summary>Note beside the ticked choice; the examiner reads it about someone else.</summary>
+    public string PickedLabel { get; init; } = "Bạn chọn";
 }

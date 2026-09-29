@@ -478,6 +478,21 @@ public sealed class ExamRoomResponse
     /// </summary>
     public int SecondsRemaining { get; init; }
 
+    /// <summary>
+    /// True once the main round is handed in and follow-ups were dealt. Only the follow-ups
+    /// can then be answered; the main round is shown as it was submitted.
+    /// </summary>
+    public bool IsFollowUpRound => Questions.Any(question => question.IsFollowUp);
+
+    /// <summary>The questions the student is working on right now.</summary>
+    public IReadOnlyList<DataAccess.Contracts.ExamRoomQuestion> OpenRound =>
+        Questions.Where(question => question.IsFollowUp == IsFollowUpRound).ToList();
+
+    /// <summary>The main round, already handed in, while the follow-ups are being answered.</summary>
+    public IReadOnlyList<DataAccess.Contracts.ExamRoomQuestion> SubmittedRound => IsFollowUpRound
+        ? Questions.Where(question => !question.IsFollowUp).ToList()
+        : Array.Empty<DataAccess.Contracts.ExamRoomQuestion>();
+
     public int AnsweredCount => Questions.Count(question => question.SelectedOptionId.HasValue);
 }
 
@@ -505,9 +520,17 @@ public sealed class ExamResultResponse
 
     public int IncorrectCount => TotalQuestions - CorrectCount - UnansweredCount;
 
-    public decimal Score => TotalQuestions == 0
-        ? 0
-        : Math.Round(CorrectCount * 10m / TotalQuestions, 1, MidpointRounding.AwayFromZero);
+    public IReadOnlyList<DataAccess.Contracts.ExamResultQuestion> MainQuestions =>
+        Questions.Where(question => !question.IsFollowUp).ToList();
+
+    public IReadOnlyList<DataAccess.Contracts.ExamResultQuestion> FollowUpQuestions =>
+        Questions.Where(question => question.IsFollowUp).ToList();
+
+    public int FollowUpCorrectCount => Questions.Count(question => question.IsFollowUp && question.IsCorrect);
+
+    /// <summary>Out of 10; a follow-up weighs half a main question, see <see cref="ExamScoring"/>.</summary>
+    public decimal Score => ExamScoring.Score(
+        Questions.Select(question => (question.IsFollowUp, question.IsCorrect)));
 }
 
 /// <summary>How many questions the bank can still hand out for one exam.</summary>

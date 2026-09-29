@@ -519,36 +519,26 @@ public class QuestionService(
             {
                 ArgumentNullException.ThrowIfNull(selectedOptionByExamQuestion);
 
-                await LoadSubmittableCandidateAsync(candidateId, studentUserId, cancellationToken);
+                var candidate = await LoadSubmittableCandidateAsync(candidateId, studentUserId, cancellationToken);
 
-                var allowed = await questionRepository.ListAllowedOptionsAsync(candidateId, cancellationToken);
-                if (allowed.Count == 0)
+                var paper = await questionRepository.ListCandidateQuestionsAsync(candidateId, cancellationToken);
+                if (paper.Count == 0)
                 {
                     throw new BusinessValidationException("Bạn chưa vào ca thi này.");
                 }
 
-                // Each pick has to be a choice of the very question it was posted for, so a
-                // tampered form cannot attach someone else's option to a slot.
-                var cleaned = new Dictionary<int, int?>(allowed.Count);
-                foreach (var (examQuestionId, optionIds) in allowed)
-                {
-                    if (!selectedOptionByExamQuestion.TryGetValue(examQuestionId, out var optionId))
-                    {
-                        cleaned[examQuestionId] = null;
-                        continue;
-                    }
+                // Only the round being sat is taken; a handed-in round cannot be changed.
+                var inFollowUpRound = paper.Any(question => question.IsFollowUp);
+                var openRound = paper.Where(question => question.IsFollowUp == inFollowUpRound).ToList();
+                var cleaned = CleanAnswers(openRound, selectedOptionByExamQuestion);
 
-                    if (optionId is int picked && !optionIds.Contains(picked))
-                    {
-                        throw new BusinessValidationException(
-                            "Đáp án gửi lên không thuộc câu hỏi tương ứng.");
-                    }
-
-                    cleaned[examQuestionId] = optionId;
-                }
+                var now = DateTime.Now;
+                IReadOnlyList<ExamQuestionInput> followUps = inFollowUpRound
+                    ? Array.Empty<ExamQuestionInput>()
+                    : await PlanFollowUpsAsync(candidate, cleaned, paper.Count, now, cancellationToken);
 
                 await questionRepository.SubmitAnswersAsync(
-                    candidateId, cleaned, DateTime.Now, cancellationToken);
+                    candidateId, cleaned, now, followUps, cancellationToken);
 
                 var submitted = await questionRepository.GetExamRoomCandidateAsync(candidateId, cancellationToken)
                     ?? throw new BusinessValidationException("Không tìm thấy lượt thi.");
@@ -559,6 +549,92 @@ public class QuestionService(
             },
             "Không thể nộp bài.");
     }
+
+    /// <summary>
+    /// Keeps one answer per question of the round, blank when nothing was posted. Each pick
+    /// has to be a choice of the very question it was posted for, so a tampered form cannot
+    /// attach someone else's option to a slot.
+    /// </summary>
+    private static Dictionary<int, int?> CleanAnswers(
+        IReadOnlyList<ExamRoomQuestion> round,
+        IReadOnlyDictionary<int, int?> posted)
+    {
+        var cleaned = new Dictionary<int, int?>(round.Count);
+        foreach (var question in round)
+        {
+            if (!posted.TryGetValue(question.ExamQuestionId, out var optionId))
+            {
+                cleaned[question.ExamQuestionId] = null;
+                continue;
+            }
+
+            if (optionId is int picked && question.Options.All(option => option.OptionId != picked))
+            {
+                throw new BusinessValidationException("Đáp án gửi lên không thuộc câu hỏi tương ứng.");
+            }
+
+            cleaned[question.ExamQuestionId] = optionId;
+        }
+
+        return cleaned;
+    }
+
+    /// <summary>
+    /// Works out the follow-up round from the main answers just handed in. Returns nothing
+    /// when the session asks for no follow-ups, too little time is left, or the bank has no
+    /// fitting question; the paper then simply closes.
+    /// </summary>
+    private async Task<IReadOnlyList<ExamQuestionInput>> PlanFollowUpsAsync(
+        ExamRoomCandidate candidate,
+        IReadOnlyDictionary<int, int?> mainAnswers,
+        int paperLength,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (candidate.MaxFollowUpCount <= 0
+            || candidate.ScheduledTime is not DateTime scheduled
+            || !FollowUpPlanner.CanOpenRound(now, scheduled.AddMinutes(candidate.TimePerStudent)))
+        {
+            return Array.Empty<ExamQuestionInput>();
+        }
+
+        // The key is read here, server side; the answers themselves are not saved yet.
+        var answered = (await questionRepository.ListCandidateResultsAsync(candidate.CandidateId, cancellationToken))
+            .Where(question => !question.IsFollowUp)
+            .Select(question => new FollowUpSource(
+                question.ExamQuestionId,
+                question.OrderNo,
+                question.MaterialId,
+                question.Difficulty,
+                IsCorrectChoice(question, mainAnswers)))
+            .ToList();
+
+        var topics = answered
+            .Where(question => question.MaterialId.HasValue)
+            .Select(question => question.MaterialId!.Value)
+            .ToHashSet();
+
+        var pool = (await questionRepository.ListFollowUpPoolAsync(candidate.CourseId, topics, cancellationToken))
+            .Select(item => new FollowUpCandidate(item.QuestionId, item.MaterialId, item.Difficulty))
+            .ToList();
+
+        var usedInSession = await questionRepository.ListAssignedQuestionIdsAsync(candidate.ExamId, cancellationToken);
+
+        return FollowUpPlanner.Plan(answered, pool, candidate.MaxFollowUpCount, usedInSession)
+            .Select((pick, index) => new ExamQuestionInput
+            {
+                CandidateId = candidate.CandidateId,
+                QuestionId = pick.QuestionId,
+                ParentExamQuestionId = pick.ParentExamQuestionId,
+                OrderNo = paperLength + index + 1
+            })
+            .ToList();
+    }
+
+    private static bool IsCorrectChoice(ExamResultQuestion question, IReadOnlyDictionary<int, int?> answers) =>
+        answers.TryGetValue(question.ExamQuestionId, out var picked)
+        && picked is int optionId
+        && question.Options.Any(option => option.OptionId == optionId && option.IsCorrect);
 
     /// <summary>
     /// The gate in front of handing a paper in. Deliberately not the same as the gate in

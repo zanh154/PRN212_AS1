@@ -165,8 +165,10 @@ public interface IQuestionService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Saves the student's choices and closes the slot. Submitting is final: the slot
-    /// moves to Completed and the room becomes read-only.
+    /// Saves the student's choices for the round being sat. Handing in the main round may
+    /// deal a follow-up round (the slot stays In progress); otherwise, and after the
+    /// follow-up round, the slot moves to Completed and the room becomes read-only.
+    /// A handed-in round is final either way.
     /// </summary>
     Task<ServiceResponse<ExamRoomResponse>> SubmitExamAsync(
         int candidateId,
