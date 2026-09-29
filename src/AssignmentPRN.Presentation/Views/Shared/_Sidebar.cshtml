@@ -34,6 +34,18 @@
                 <span>Lớp học</span>
             </a>
 
+            <span class="sidebar-nav__label">Ngân hàng câu hỏi</span>
+            <a class="sidebar-link @(current == "Questions" ? "is-active" : null)"
+               asp-controller="Questions" asp-action="Index">
+                <partial name="_Icon" model="@("question")" />
+                <span>Câu hỏi</span>
+            </a>
+            <a class="sidebar-link @(current == "CourseMaterials" ? "is-active" : null)"
+               asp-controller="CourseMaterials" asp-action="Index">
+                <partial name="_Icon" model="@("file-text")" />
+                <span>Tài liệu môn</span>
+            </a>
+
             <span class="sidebar-nav__label">Phiên thi</span>
             <a class="sidebar-link @(current == "ExamSessions" ? "is-active" : null)"
                asp-controller="ExamSessions" asp-action="Index">

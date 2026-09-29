@@ -1,4 +1,5 @@
 using AssignmentPRN.DataAccess.Entities;
+using AssignmentPRN.DataAccess.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace AssignmentPRN.DataAccess;
@@ -18,6 +19,14 @@ public class AivesDbContext(DbContextOptions<AivesDbContext> options) : DbContex
     public DbSet<ExamSession> ExamSessions => Set<ExamSession>();
 
     public DbSet<ExamCandidate> ExamCandidates => Set<ExamCandidate>();
+
+    public DbSet<CourseMaterial> CourseMaterials => Set<CourseMaterial>();
+
+    public DbSet<Question> Questions => Set<Question>();
+
+    public DbSet<QuestionOption> QuestionOptions => Set<QuestionOption>();
+
+    public DbSet<ExamQuestion> ExamQuestions => Set<ExamQuestion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -74,6 +83,7 @@ public class AivesDbContext(DbContextOptions<AivesDbContext> options) : DbContex
         });
 
         ConfigureExamSchedule(modelBuilder);
+        ConfigureQuestionBank(modelBuilder);
     }
 
     private static void ConfigureExamSchedule(ModelBuilder modelBuilder)
@@ -255,6 +265,176 @@ public class AivesDbContext(DbContextOptions<AivesDbContext> options) : DbContex
             entity.HasOne(candidate => candidate.Student)
                 .WithMany()
                 .HasForeignKey(candidate => candidate.StudentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureQuestionBank(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CourseMaterial>(entity =>
+        {
+            entity.ToTable("course_materials");
+            entity.HasKey(material => material.MaterialId);
+
+            entity.Property(material => material.MaterialId)
+                .HasColumnName("material_id")
+                .ValueGeneratedOnAdd();
+            entity.Property(material => material.CourseId)
+                .HasColumnName("course_id");
+            entity.Property(material => material.FileName)
+                .HasColumnName("file_name")
+                .HasMaxLength(255)
+                .IsRequired();
+            entity.Property(material => material.FilePath)
+                .HasColumnName("file_path")
+                .HasMaxLength(1000)
+                .IsRequired();
+            // The column is a MySQL ENUM, so the value is stored as its name.
+            entity.Property(material => material.FileType)
+                .HasColumnName("file_type")
+                .HasConversion<string>()
+                .IsRequired();
+            entity.Property(material => material.FileSize)
+                .HasColumnName("file_size");
+            entity.Property(material => material.UploadedBy)
+                .HasColumnName("uploaded_by");
+            // Also a MySQL ENUM. Module 5 never queues anything, so this is always
+            // Completed; the column is kept for the future AI-ingestion feature.
+            entity.Property(material => material.ProcessingStatus)
+                .HasColumnName("processing_status")
+                .HasConversion<string>()
+                .HasDefaultValue(MaterialProcessingStatus.Completed);
+            entity.Property(material => material.UploadedAt)
+                .HasColumnName("uploaded_at");
+
+            entity.HasIndex(material => material.CourseId);
+            entity.HasOne(material => material.Course)
+                .WithMany()
+                .HasForeignKey(material => material.CourseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(material => material.Uploader)
+                .WithMany()
+                .HasForeignKey(material => material.UploadedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Question>(entity =>
+        {
+            entity.ToTable("questions");
+            entity.HasKey(question => question.QuestionId);
+
+            entity.Property(question => question.QuestionId)
+                .HasColumnName("question_id")
+                .ValueGeneratedOnAdd();
+            entity.Property(question => question.CourseId)
+                .HasColumnName("course_id");
+            entity.Property(question => question.SourceMaterialId)
+                .HasColumnName("source_material_id");
+            entity.Property(question => question.CreatedBy)
+                .HasColumnName("created_by");
+            entity.Property(question => question.QuestionText)
+                .HasColumnName("question_text")
+                .IsRequired();
+            entity.Property(question => question.ExpectedAnswer)
+                .HasColumnName("expected_answer");
+            entity.Property(question => question.BloomLevel)
+                .HasColumnName("bloom_level")
+                .HasConversion<string>()
+                .IsRequired();
+            entity.Property(question => question.Difficulty)
+                .HasColumnName("difficulty")
+                .HasConversion<string>()
+                .IsRequired();
+            entity.Property(question => question.QuestionType)
+                .HasColumnName("question_type")
+                .HasConversion<string>()
+                .IsRequired();
+            entity.Property(question => question.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .IsRequired();
+            entity.Property(question => question.CreatedAt)
+                .HasColumnName("created_at");
+            entity.Property(question => question.UpdatedAt)
+                .HasColumnName("updated_at");
+
+            // The pick query filters on course + status and must not repeat a question
+            // inside one exam, so the two columns are indexed together.
+            entity.HasIndex(question => new { question.CourseId, question.Status });
+            entity.HasIndex(question => question.SourceMaterialId);
+            entity.HasOne(question => question.Course)
+                .WithMany()
+                .HasForeignKey(question => question.CourseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(question => question.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(question => question.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(question => question.SourceMaterial)
+                .WithMany(material => material.Questions)
+                .HasForeignKey(question => question.SourceMaterialId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<QuestionOption>(entity =>
+        {
+            entity.ToTable("question_options");
+            entity.HasKey(option => option.OptionId);
+
+            entity.Property(option => option.OptionId)
+                .HasColumnName("option_id")
+                .ValueGeneratedOnAdd();
+            entity.Property(option => option.QuestionId)
+                .HasColumnName("question_id");
+            entity.Property(option => option.OptionText)
+                .HasColumnName("option_text")
+                .IsRequired();
+            entity.Property(option => option.IsCorrect)
+                .HasColumnName("is_correct");
+            entity.Property(option => option.DisplayOrder)
+                .HasColumnName("display_order");
+
+            entity.HasIndex(option => option.QuestionId);
+            entity.HasOne(option => option.Question)
+                .WithMany(question => question.Options)
+                .HasForeignKey(option => option.QuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExamQuestion>(entity =>
+        {
+            entity.ToTable("exam_questions");
+            entity.HasKey(item => item.ExamQuestionId);
+
+            entity.Property(item => item.ExamQuestionId)
+                .HasColumnName("exam_question_id")
+                .ValueGeneratedOnAdd();
+            entity.Property(item => item.ExamId)
+                .HasColumnName("exam_id");
+            entity.Property(item => item.CandidateId)
+                .HasColumnName("candidate_id");
+            entity.Property(item => item.QuestionId)
+                .HasColumnName("question_id");
+            entity.Property(item => item.OrderNo)
+                .HasColumnName("order_no");
+            entity.Property(item => item.AskedAt)
+                .HasColumnName("asked_at");
+            entity.Property(item => item.IsCompleted)
+                .HasColumnName("is_completed");
+
+            entity.HasIndex(item => new { item.CandidateId, item.OrderNo });
+            entity.HasIndex(item => item.QuestionId);
+            entity.HasOne(item => item.Session)
+                .WithMany()
+                .HasForeignKey(item => item.ExamId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(item => item.Candidate)
+                .WithMany()
+                .HasForeignKey(item => item.CandidateId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(item => item.Question)
+                .WithMany()
+                .HasForeignKey(item => item.QuestionId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

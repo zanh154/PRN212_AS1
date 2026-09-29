@@ -52,3 +52,100 @@ public interface IExamSessionService
         int studentUserId,
         CancellationToken cancellationToken = default);
 }
+
+public interface IQuestionService
+{
+    /// <summary>Lists questions the lecturer is allowed to see; pass a null lecturer id for an admin.</summary>
+    Task<ServiceResponse<IReadOnlyList<QuestionListItemResponse>>> ListAsync(
+        int? lecturerId,
+        int? courseId = null,
+        int? materialId = null,
+        AssignmentPRN.DataAccess.Enums.QuestionDifficulty? difficulty = null,
+        AssignmentPRN.DataAccess.Enums.BloomLevel? bloomLevel = null,
+        string? term = null,
+        bool includeArchived = false,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<QuestionResponse>> GetAsync(
+        int questionId,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<QuestionResponse>> SaveAsync(
+        QuestionSaveRequest request,
+        int lecturerId,
+        int? ownerLecturerId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retires a question. Once an exam holds it, the question is only archived so the
+    /// exam history stays readable.
+    /// </summary>
+    Task<ServiceResponse> ArchiveAsync(int questionId, int? lecturerId, CancellationToken cancellationToken = default);
+
+    /// <summary>Bulk-creates questions from rows produced by the CSV import.</summary>
+    Task<ServiceResponse<QuestionImportResult>> ImportAsync(
+        int courseId,
+        IReadOnlyList<QuestionImportRow> rows,
+        int lecturerId,
+        int? ownerLecturerId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deals a paper to every candidate of a freshly created exam in one call, so a
+    /// question is never repeated between two students of the same session. This is what
+    /// the exam scheduler calls once the session and its roster exist.
+    /// </summary>
+    Task<ServiceResponse<AssignmentPRN.DataAccess.Contracts.ExamQuestionAssignmentResult>> AssignToExamAsync(
+        AssignmentPRN.DataAccess.Contracts.ExamQuestionAssignmentRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reports whether the bank can supply <paramref name="count"/> distinct questions per
+    /// student, so an exam is warned about a thin bank before it is created.
+    /// </summary>
+    Task<ServiceResponse<QuestionAvailabilityResponse>> CheckAvailabilityAsync(
+        AssignmentPRN.DataAccess.Contracts.QuestionPickRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Picks one student's paper. Questions already passed in
+    /// <see cref="AssignmentPRN.DataAccess.Contracts.QuestionPickRequest.TakenQuestionIds"/>
+    /// are never handed out again, so two students of the same exam never share a question.
+    /// </summary>
+    Task<ServiceResponse<IReadOnlyList<int>>> PickAsync(
+        AssignmentPRN.DataAccess.Contracts.QuestionPickRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ICourseMaterialService
+{
+    Task<ServiceResponse<IReadOnlyList<CourseMaterialResponse>>> ListAsync(
+        int? lecturerId,
+        int? courseId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Creates a material row for a file that has already been written to disk.</summary>
+    Task<ServiceResponse<CourseMaterialResponse>> CreateAsync(
+        CourseMaterialCreateRequest request,
+        int uploaderId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>One material by id, or null when the caller may not see it.</summary>
+    Task<CourseMaterialResponse?> GetAsync(int materialId, CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse> DeleteAsync(int materialId, int? lecturerId, CancellationToken cancellationToken = default);
+}
+
+public sealed class CourseMaterialCreateRequest
+{
+    public int CourseId { get; init; }
+
+    public string FileName { get; init; } = string.Empty;
+
+    public string FilePath { get; init; } = string.Empty;
+
+    public AssignmentPRN.DataAccess.Enums.MaterialFileType FileType { get; init; }
+
+    public long? FileSize { get; init; }
+}

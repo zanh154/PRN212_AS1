@@ -265,3 +265,149 @@ public sealed class BusinessValidationException : Exception
 
     public IReadOnlyList<string> Errors { get; }
 }
+
+public sealed class QuestionResponse
+{
+    public int QuestionId { get; init; }
+
+    public int CourseId { get; init; }
+
+    public int? MaterialId { get; init; }
+
+    public string? MaterialName { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public string? ExpectedAnswer { get; init; }
+
+    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+
+    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+
+    public DataAccess.Enums.QuestionStatus Status { get; init; }
+
+    public IReadOnlyList<QuestionOptionResponse> Options { get; init; } = Array.Empty<QuestionOptionResponse>();
+}
+
+public sealed class QuestionOptionResponse
+{
+    public string Text { get; init; } = string.Empty;
+
+    public bool IsCorrect { get; init; }
+}
+
+public sealed class CourseMaterialResponse
+{
+    public int MaterialId { get; init; }
+
+    public int CourseId { get; init; }
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public string CourseName { get; init; } = string.Empty;
+
+    public string FileName { get; init; } = string.Empty;
+
+    public string FilePath { get; init; } = string.Empty;
+
+    public DataAccess.Enums.MaterialFileType FileType { get; init; }
+
+    public long? FileSize { get; init; }
+
+    public string UploaderName { get; init; } = string.Empty;
+
+    public DateTime UploadedAt { get; init; }
+
+    public int QuestionCount { get; init; }
+}
+
+/// <summary>
+/// How a question should be saved from the editor: <c>Options</c> holds the answer
+/// choices in display order and exactly one of them must be marked correct.
+/// </summary>
+public sealed class QuestionSaveRequest
+{
+    public int QuestionId { get; init; }
+
+    public int CourseId { get; init; }
+
+    public int? MaterialId { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public string? ExpectedAnswer { get; init; }
+
+    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+
+    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+
+    public IReadOnlyList<DataAccess.Contracts.QuestionOptionInput> Options { get; init; } =
+        Array.Empty<DataAccess.Contracts.QuestionOptionInput>();
+}
+
+/// <summary>One row of the question bank list.</summary>
+public sealed class QuestionListItemResponse
+{
+    public int QuestionId { get; init; }
+
+    public int CourseId { get; init; }
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public int? MaterialId { get; init; }
+
+    public string? MaterialName { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+
+    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+
+    public DataAccess.Enums.QuestionStatus Status { get; init; }
+
+    public string AuthorName { get; init; } = string.Empty;
+
+    public DateTime CreatedAt { get; init; }
+}
+
+/// <summary>How many questions the bank can still hand out for one exam.</summary>
+public sealed class QuestionAvailabilityResponse
+{
+    public int Requested { get; init; }
+
+    public int Available { get; init; }
+
+    public int Missing => Math.Max(0, Requested - Available);
+
+    public bool IsEnough => Missing == 0;
+}
+
+/// <summary>A row of the CSV import, already trimmed and free of empty lines.</summary>
+public sealed class QuestionImportRow
+{
+    /// <summary>Line in the source file, so a later failure can point back at it.</summary>
+    public int SourceLine { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public string? ExpectedAnswer { get; init; }
+
+    public int? MaterialId { get; init; }
+
+    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+
+    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+
+    public IReadOnlyList<DataAccess.Contracts.QuestionOptionInput> Options { get; init; } =
+        Array.Empty<DataAccess.Contracts.QuestionOptionInput>();
+}
+
+public sealed class QuestionImportResult
+{
+    public int Imported { get; init; }
+
+    public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
+
+    public bool Success => Errors.Count == 0;
+}
