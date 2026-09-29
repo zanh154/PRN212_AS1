@@ -15,14 +15,14 @@
         Rows = Model.Students.Select(item => new List<TableCell>
         {
             new CountCell(++index),
-            new StackCell(item.Student.FullName, item.Student.Email),
+            new StackCell(item.FullName, item.Email),
             new TextCell(item.JoinedAt.ToString("dd/MM/yyyy HH:mm"), Muted: true, Nowrap: true),
             new ActionsCell(
             [
                 new("Xoá khỏi lớp", "trash", "RemoveStudent",
                     new { id = Model.Class.ClassId, studentId = item.StudentId },
                     Tone: "danger", IsPost: true,
-                    Confirm: $"Xoá {item.Student.FullName} khỏi lớp này?")
+                    Confirm: $"Xoá {item.FullName} khỏi lớp này?")
             ])
         } as IReadOnlyList<TableCell>).ToList()
     };
@@ -30,9 +30,9 @@
 <div class="page-header">
     <div>
         <a class="back-link" asp-action="Index">← Lớp học</a>
-        <span class="eyebrow">@Model.Class.Course.CourseCode · @Model.Class.Course.CourseName</span>
+        <span class="eyebrow">@Model.Class.CourseCode · @Model.Class.CourseName</span>
         <h1>@Model.Class.ClassCode — @Model.Class.ClassName</h1>
-        <p>Giảng viên @Model.Class.Lecturer.FullName · @Model.Students.Count sinh viên · @(Model.Class.IsActive ? "Đang hoạt động" : "Ngừng hoạt động")</p>
+        <p>Giảng viên @Model.Class.LecturerName · @Model.Students.Count sinh viên · @(Model.Class.IsActive ? "Đang hoạt động" : "Ngừng hoạt động")</p>
     </div>
     <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Class.ClassId">Sửa lớp</a>
 </div>
@@ -74,4 +74,3 @@
         <partial name="_DataTable" model="table" />
     }
 </div>
-

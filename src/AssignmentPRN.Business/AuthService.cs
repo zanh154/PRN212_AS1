@@ -9,7 +9,7 @@ public class AuthService(IUserRepository userRepository) : IAuthService
     private const string StudentRoleName = "Student";
     private static readonly EmailAddressAttribute EmailValidator = new();
 
-    public async Task<User?> LoginAsync(string email, string password)
+    public async Task<AuthenticatedUserResponse?> LoginAsync(string email, string password)
     {
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         {
@@ -29,15 +29,16 @@ public class AuthService(IUserRepository userRepository) : IAuthService
             return null;
         }
 
-        return BCrypt.Net.BCrypt.Verify(password, user.PasswordHash) ? user : null;
+        return BCrypt.Net.BCrypt.Verify(password, user.PasswordHash) ? ToResponse(user) : null;
     }
 
-    public Task<User?> GetUserByIdAsync(int userId)
+    public async Task<AuthenticatedUserResponse?> GetUserByIdAsync(int userId)
     {
-        return userRepository.GetByIdAsync(userId);
+        var user = await userRepository.GetByIdAsync(userId);
+        return user is null ? null : ToResponse(user);
     }
 
-    public async Task<(bool Success, string? Error, User? User)> RegisterAsync(
+    public async Task<(bool Success, string? Error, AuthenticatedUserResponse? User)> RegisterAsync(
         string fullName,
         string email,
         string password)
@@ -100,7 +101,7 @@ public class AuthService(IUserRepository userRepository) : IAuthService
         };
 
         var createdUser = await userRepository.CreateAsync(user);
-        return (true, null, createdUser);
+        return (true, null, ToResponse(createdUser));
     }
 
     private static bool MeetsPasswordRequirements(string? password)
@@ -125,4 +126,12 @@ public class AuthService(IUserRepository userRepository) : IAuthService
 
         return hasUppercase && hasLowercase && hasDigit && hasSpecialCharacter;
     }
+
+    private static AuthenticatedUserResponse ToResponse(User user) => new()
+    {
+        UserId = user.UserId,
+        FullName = user.FullName,
+        Email = user.Email,
+        RoleName = user.Role?.RoleName ?? string.Empty
+    };
 }

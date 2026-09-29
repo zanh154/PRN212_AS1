@@ -1,5 +1,4 @@
 using AssignmentPRN.Business;
-using AssignmentPRN.DataAccess.Repositories;
 using AssignmentPRN.Presentation.Constants;
 using AssignmentPRN.Presentation.Filters;
 using AssignmentPRN.Presentation.Models;
@@ -9,7 +8,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 namespace AssignmentPRN.Presentation.Controllers;
 
 [SessionAuthorize(RoleNames.Admin, RoleNames.Lecturer)]
-public class CoursesController(CourseService service, ICatalogRepository catalog) : Controller
+public class CoursesController(CourseService service, ICatalogService catalog) : Controller
 {
     private int? LecturerId => HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
         ? HttpContext.Session.GetInt32(SessionKeys.UserId) ?? 0 : null;
@@ -64,8 +63,12 @@ public class CoursesController(CourseService service, ICatalogRepository catalog
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task Options(CourseViewModel model, CancellationToken ct) => model.Lecturers =
-        (await catalog.ListUsersInRoleAsync(RoleNames.Lecturer, ct))
-        .Where(x => !LecturerId.HasValue || x.UserId == LecturerId)
-        .Select(x => new SelectListItem(x.FullName, x.UserId.ToString())).ToList();
+    private async Task Options(CourseViewModel model, CancellationToken ct)
+    {
+        var result = await catalog.ListActiveUsersInRoleAsync(RoleNames.Lecturer, ct);
+        model.Lecturers = (result.Data ?? [])
+            .Where(x => !LecturerId.HasValue || x.UserId == LecturerId)
+            .Select(x => new SelectListItem(x.FullName, x.UserId.ToString()))
+            .ToList();
+    }
 }

@@ -1,5 +1,4 @@
 using AssignmentPRN.Business;
-using AssignmentPRN.DataAccess.Repositories;
 using AssignmentPRN.Presentation.Constants;
 using AssignmentPRN.Presentation.Filters;
 using AssignmentPRN.Presentation.Models;
@@ -11,8 +10,7 @@ namespace AssignmentPRN.Presentation.Controllers;
 [SessionAuthorize(RoleNames.Admin, RoleNames.Lecturer)]
 public class ClassesController(
     AcademicClassService service,
-    ICourseRepository courses,
-    ICatalogRepository catalog) : Controller
+    ICatalogService catalog) : Controller
 {
     private int? LecturerId => HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
         ? HttpContext.Session.GetInt32(SessionKeys.UserId) ?? 0 : null;
@@ -86,11 +84,12 @@ public class ClassesController(
         if (!result.Success || result.Data is null) { TempData["Error"] = result.Error; return RedirectToAction(nameof(Index)); }
 
         var enrolled = result.Data.Students.Select(x => x.StudentId).ToHashSet();
-        var students = await catalog.ListUsersInRoleAsync(RoleNames.Student, ct);
+        var studentResult = await catalog.ListActiveUsersInRoleAsync(RoleNames.Student, ct);
+        var students = studentResult.Data ?? [];
         return View(new ClassRosterViewModel
         {
-            Class = result.Data,
-            Students = result.Data.Students.OrderBy(x => x.Student.FullName).ThenBy(x => x.Student.Email).ToList(),
+            Class = result.Data.Class,
+            Students = result.Data.Students,
             AvailableStudents = students
                 .Where(x => !enrolled.Contains(x.UserId))
                 .Select(x => new SelectListItem($"{x.FullName} · {x.Email}", x.UserId.ToString()))
@@ -118,11 +117,13 @@ public class ClassesController(
     {
         model.IsLecturerFixed = LecturerId.HasValue;
         // A class inherits its course's lecturer, so only that lecturer's active courses can be picked.
-        model.Courses = (await courses.ListAsync(ct))
-            .Where(x => x.IsActive && (!LecturerId.HasValue || x.LecturerId == LecturerId))
+        var courseResult = await catalog.ListActiveCoursesAsync(ct);
+        model.Courses = (courseResult.Data ?? [])
+            .Where(x => !LecturerId.HasValue || x.LecturerId == LecturerId)
             .Select(x => new SelectListItem($"{x.CourseCode} · {x.CourseName}", x.CourseId.ToString()))
             .ToList();
-        model.Lecturers = (await catalog.ListUsersInRoleAsync(RoleNames.Lecturer, ct))
+        var lecturerResult = await catalog.ListActiveUsersInRoleAsync(RoleNames.Lecturer, ct);
+        model.Lecturers = (lecturerResult.Data ?? [])
             .Where(x => !LecturerId.HasValue || x.UserId == LecturerId)
             .Select(x => new SelectListItem(x.FullName, x.UserId.ToString()))
             .ToList();

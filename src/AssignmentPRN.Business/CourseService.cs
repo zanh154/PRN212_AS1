@@ -8,14 +8,16 @@ public record CourseSaveRequest(int CourseId, string CourseCode, string CourseNa
 
 public class CourseService(ICourseRepository repository, ICatalogRepository catalog)
 {
-    public Task<ServiceResponse<List<Course>>> ListAsync(int? lecturerId, CancellationToken ct = default) =>
-        ServiceExecutor.RunAsync(async () => (await repository.ListAsync(ct))
-            .Where(x => lecturerId == null || x.LecturerId == lecturerId).ToList(), "Không tải được môn học.");
+    public Task<ServiceResponse<IReadOnlyList<CourseResponse>>> ListAsync(int? lecturerId, CancellationToken ct = default) =>
+        ServiceExecutor.RunAsync<IReadOnlyList<CourseResponse>>(async () => (await repository.ListAsync(ct))
+            .Where(x => lecturerId == null || x.LecturerId == lecturerId)
+            .Select(ToResponse)
+            .ToList(), "Không tải được môn học.");
 
-    public Task<ServiceResponse<Course>> GetAsync(int id, int? lecturerId, CancellationToken ct = default) =>
-        ServiceExecutor.RunAsync(async () => await OwnedAsync(id, lecturerId, ct), "Không tải được môn học.");
+    public Task<ServiceResponse<CourseResponse>> GetAsync(int id, int? lecturerId, CancellationToken ct = default) =>
+        ServiceExecutor.RunAsync(async () => ToResponse(await OwnedAsync(id, lecturerId, ct)), "Không tải được môn học.");
 
-    public Task<ServiceResponse<Course>> SaveAsync(CourseSaveRequest request, int? lecturerId, CancellationToken ct = default) =>
+    public Task<ServiceResponse<CourseResponse>> SaveAsync(CourseSaveRequest request, int? lecturerId, CancellationToken ct = default) =>
         ServiceExecutor.RunAsync(async () =>
         {
             var course = request.CourseId == 0 ? new Course { CreatedAt = DateTime.Now }
@@ -33,7 +35,7 @@ public class CourseService(ICourseRepository repository, ICatalogRepository cata
             course.IsActive = request.IsActive;
             course.UpdatedAt = request.CourseId == 0 ? null : DateTime.Now;
             await repository.SaveAsync(course, ct);
-            return course;
+            return ToResponse(course);
         }, "Không thể lưu môn học.");
 
     public Task<ServiceResponse> DeleteAsync(int id, int? lecturerId, CancellationToken ct = default) =>
@@ -51,4 +53,15 @@ public class CourseService(ICourseRepository repository, ICatalogRepository cata
             throw new BusinessValidationException("Bạn không có quyền quản lý môn học này.");
         return course;
     }
+
+    private static CourseResponse ToResponse(Course course) => new()
+    {
+        CourseId = course.CourseId,
+        CourseCode = course.CourseCode,
+        CourseName = course.CourseName,
+        Description = course.Description,
+        LecturerId = course.LecturerId,
+        LecturerName = course.Lecturer?.FullName ?? string.Empty,
+        IsActive = course.IsActive
+    };
 }

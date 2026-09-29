@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using AssignmentPRN.DataAccess.Entities;
+using AssignmentPRN.Business;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace AssignmentPRN.Presentation.Models;
@@ -33,9 +33,9 @@ public class AcademicClassViewModel
 /// <summary>The roster screen: the class plus the students that can still be added to it.</summary>
 public class ClassRosterViewModel
 {
-    public AcademicClass Class { get; set; } = null!;
+    public AcademicClassResponse Class { get; set; } = new();
 
-    public List<ClassStudent> Students { get; set; } = [];
+    public IReadOnlyList<ClassStudentResponse> Students { get; set; } = [];
 
     public List<SelectListItem> AvailableStudents { get; set; } = [];
 }

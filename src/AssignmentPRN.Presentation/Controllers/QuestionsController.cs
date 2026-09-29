@@ -1,8 +1,6 @@
 using AssignmentPRN.Business;
 using AssignmentPRN.DataAccess.Contracts;
-using AssignmentPRN.DataAccess.Entities;
 using AssignmentPRN.DataAccess.Enums;
-using AssignmentPRN.DataAccess.Repositories;
 using AssignmentPRN.Presentation.Constants;
 using AssignmentPRN.Presentation.Filters;
 using AssignmentPRN.Presentation.Models;
@@ -20,7 +18,7 @@ namespace AssignmentPRN.Presentation.Controllers;
 public class QuestionsController(
     IQuestionService questionService,
     ICourseMaterialService materialService,
-    ICatalogRepository catalog) : Controller
+    ICatalogService catalog) : Controller
 {
     private int? LecturerId => HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
         ? HttpContext.Session.GetInt32(SessionKeys.UserId) ?? 0 : null;
@@ -37,7 +35,7 @@ public class QuestionsController(
         bool includeArchived,
         CancellationToken ct)
     {
-        var courses = await catalog.ListActiveCoursesAsync(ct);
+        var courses = await ActiveCoursesAsync(ct);
         var allowed = CoursesFor(courses, LecturerId);
         var selectedCourseId = NormaliseCourse(courseId, allowed);
 
@@ -66,7 +64,7 @@ public class QuestionsController(
     [HttpGet]
     public async Task<IActionResult> Create(int? courseId, CancellationToken ct)
     {
-        var courses = await catalog.ListActiveCoursesAsync(ct);
+        var courses = await ActiveCoursesAsync(ct);
         var allowed = CoursesFor(courses, LecturerId);
         var model = new QuestionEditViewModel
         {
@@ -178,7 +176,7 @@ public class QuestionsController(
     [HttpGet]
     public async Task<IActionResult> Import(int? courseId, CancellationToken ct)
     {
-        var courses = await catalog.ListActiveCoursesAsync(ct);
+        var courses = await ActiveCoursesAsync(ct);
         var allowed = CoursesFor(courses, LecturerId);
         var model = new QuestionImportViewModel
         {
@@ -270,7 +268,7 @@ public class QuestionsController(
 
     private async Task OptionsAsync(QuestionEditViewModel model, CancellationToken ct)
     {
-        var courses = await catalog.ListActiveCoursesAsync(ct);
+        var courses = await ActiveCoursesAsync(ct);
         model.CourseOptions = ToCourseOptions(courses);
         model.MaterialOptions = await MaterialOptionsAsync(
             model.CourseId > 0 ? model.CourseId : null, ct);
@@ -280,7 +278,7 @@ public class QuestionsController(
 
     private async Task ImportOptionsAsync(QuestionImportViewModel model, CancellationToken ct)
     {
-        var courses = await catalog.ListActiveCoursesAsync(ct);
+        var courses = await ActiveCoursesAsync(ct);
         model.CourseOptions = ToCourseOptions(courses);
     }
 
@@ -301,17 +299,23 @@ public class QuestionsController(
             .ToList();
     }
 
-    private IReadOnlyList<SelectListItem> ToCourseOptions(IReadOnlyList<Course> courses) => CoursesFor(courses, LecturerId)
+    private async Task<IReadOnlyList<CourseResponse>> ActiveCoursesAsync(CancellationToken ct)
+    {
+        var result = await catalog.ListActiveCoursesAsync(ct);
+        return result.Data ?? [];
+    }
+
+    private IReadOnlyList<SelectListItem> ToCourseOptions(IReadOnlyList<CourseResponse> courses) => CoursesFor(courses, LecturerId)
         .Select(course => new SelectListItem($"{course.CourseCode} · {course.CourseName}", course.CourseId.ToString()))
         .ToList();
 
-    private IReadOnlyList<Course> CoursesFor(IReadOnlyList<Course> courses, int? lecturerId) => courses
+    private IReadOnlyList<CourseResponse> CoursesFor(IReadOnlyList<CourseResponse> courses, int? lecturerId) => courses
         .Where(course => !lecturerId.HasValue || course.LecturerId == lecturerId)
         .OrderBy(course => course.CourseCode)
         .ToList();
 
     /// <summary>Keeps a course filter the caller is not allowed to see from falling through.</summary>
-    private static int? NormaliseCourse(int? courseId, IReadOnlyList<Course> allowed) =>
+    private static int? NormaliseCourse(int? courseId, IReadOnlyList<CourseResponse> allowed) =>
         courseId is int requested && allowed.Any(course => course.CourseId == requested)
             ? requested
             : null;
