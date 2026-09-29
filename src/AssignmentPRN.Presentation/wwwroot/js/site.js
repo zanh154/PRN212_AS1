@@ -63,14 +63,32 @@ document.addEventListener("DOMContentLoaded", () => {
     const hourInput = root.querySelector("[data-date-time-hour]");
     const minuteInput = root.querySelector("[data-date-time-minute]");
     const previousButton = root.querySelector("[data-date-time-previous]");
+    const nextButton = root.querySelector("[data-date-time-next]");
     const valueInput = root.querySelector("[data-date-time-value]");
+    const hint = root.querySelector("[data-date-time-hint]");
 
+    const parseBound = (value) => {
+      const parts = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      return parts
+        ? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]),
+                   Number(parts[4]), Number(parts[5]))
+        : null;
+    };
+
+    const earliest = parseBound(root.dataset.earliest);
+    const latest = parseBound(root.dataset.latest);
+
+    // Never earlier than now, and never earlier than the window the server allows.
     const minimumDateTime = () => {
       const minimum = new Date();
       minimum.setSeconds(0, 0);
       minimum.setMinutes(minimum.getMinutes() + 1);
-      return minimum;
+      return earliest && earliest > minimum ? new Date(earliest) : minimum;
     };
+
+    const maximumDateTime = () => (latest ? new Date(latest) : null);
+
+    const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
     const parseValue = (value) => {
       const parts = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
@@ -97,10 +115,28 @@ document.addEventListener("DOMContentLoaded", () => {
     let selected = parseValue(valueInput.value);
     let visibleMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
 
+    // The server refuses a start time in the past, so the picker never hands
+    // one back: picking today snaps the clock forward instead of waiting for
+    // the form to be submitted to say no.
+    const clampToMinimum = () => {
+      const minimum = minimumDateTime();
+      const maximum = maximumDateTime();
+      if (selected < minimum) {
+        selected = minimum;
+        return true;
+      }
+      if (maximum && selected > maximum) {
+        selected = maximum;
+        return true;
+      }
+      return false;
+    };
+
     const readTime = () => {
       const hour = Math.min(23, Math.max(0, Number(hourInput.value) || 0));
       const minute = Math.min(59, Math.max(0, Number(minuteInput.value) || 0));
       selected.setHours(hour, minute, 0, 0);
+      clampToMinimum();
       hourInput.value = pad(selected.getHours());
       minuteInput.value = pad(selected.getMinutes());
     };
@@ -118,8 +154,35 @@ document.addEventListener("DOMContentLoaded", () => {
       const mondayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
       const firstDate = new Date(year, month, 1 - mondayOffset);
       const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      previousButton.disabled = visibleMonth <= new Date(today.getFullYear(), today.getMonth(), 1);
+      const minimum = minimumDateTime();
+      const maximum = maximumDateTime();
+      const firstAllowed = startOfDay(minimum);
+      const lastAllowed = maximum ? startOfDay(maximum) : null;
+      previousButton.disabled =
+        visibleMonth <= new Date(firstAllowed.getFullYear(), firstAllowed.getMonth(), 1);
+      nextButton.disabled = lastAllowed !== null
+        && visibleMonth >= new Date(lastAllowed.getFullYear(), lastAllowed.getMonth(), 1);
+
+      if (hint) {
+        const clock = (date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        const atLowerBound = isSameDay(selected, minimum);
+        const atUpperBound = maximum !== null && isSameDay(selected, maximum);
+        let message = "";
+
+        if (atLowerBound && atUpperBound) {
+          message = `Chỉ chọn được từ ${clock(minimum)} đến ${clock(maximum)}.`;
+        } else if (atLowerBound) {
+          message = isSameDay(minimum, today)
+            ? `Hôm nay chỉ chọn được từ ${clock(minimum)}.`
+            : `Chỉ chọn được từ ${clock(minimum)}.`;
+        } else if (atUpperBound) {
+          message = `Ca phải kết thúc trong ngày, muộn nhất ${clock(maximum)}.`;
+        }
+
+        hint.hidden = message === "";
+        hint.textContent = message;
+      }
+
 
       for (let i = 0; i < 42; i++) {
         const date = new Date(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate() + i);
@@ -128,7 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.className = "date-time-picker__day";
         btn.textContent = date.getDate();
         btn.setAttribute("aria-label", date.toLocaleDateString("vi-VN"));
-        const isPast = date < todayStart;
+        const isPast = date < firstAllowed || (lastAllowed !== null && date > lastAllowed);
         btn.disabled = isPast;
         btn.classList.toggle("is-outside", date.getMonth() !== month);
         btn.classList.toggle("is-today", isSameDay(date, today));
@@ -137,7 +200,8 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.addEventListener("click", () => {
           readTime();
           selected.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-          visibleMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+          clampToMinimum();
+          visibleMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
           render();
         });
         days.appendChild(btn);
@@ -164,6 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const commit = () => {
       readTime();
+      clampToMinimum();
       valueInput.value = toInputValue(selected);
       label.textContent = toLabel(selected);
       valueInput.dispatchEvent(new Event("input", { bubbles: true }));
@@ -178,7 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
       visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);
       render();
     });
-    root.querySelector("[data-date-time-next]").addEventListener("click", () => {
+    nextButton.addEventListener("click", () => {
       visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
       render();
     });
@@ -215,8 +280,44 @@ document.addEventListener("DOMContentLoaded", () => {
   const empty = document.getElementById("participant-empty");
   const startInput = scheduleForm.querySelector("[data-schedule-start]");
   const durationInput = scheduleForm.querySelector("[data-schedule-duration]");
+  const overflowWarning = scheduleForm.querySelector("[data-schedule-overflow]");
   const classPicker = scheduleForm.querySelector("[data-class-picker]");
   const classInput = scheduleForm.querySelector('[name="ClassId"]');
+  const courseInput = scheduleForm.querySelector('[name="CourseId"]');
+  const classRoot = classPicker?.querySelector("[data-select-picker]");
+
+  // A class belongs to exactly one course, so the class picker only ever offers
+  // the classes of the selected course. Returns true when the class that was
+  // already picked no longer belongs to that course and had to be dropped.
+  const applyClassFilter = () => {
+    if (!classRoot) return false;
+
+    const courseId = courseInput?.value ?? "";
+    let dropped = false;
+
+    classRoot.querySelectorAll("[data-select-option]").forEach((option) => {
+      const allowed = !courseId || option.dataset.group === courseId;
+      option.dataset.excluded = allowed ? "false" : "true";
+      option.hidden = !allowed;
+      option.classList.toggle("is-selected", allowed && option.classList.contains("is-selected"));
+      if (!allowed && option.dataset.value === classInput?.value) dropped = true;
+    });
+
+    if (!dropped) return false;
+
+    const label = classRoot.querySelector("[data-select-label]");
+    const placeholder = classRoot.querySelector('[data-select-value] option[value=""]');
+    classInput.value = "";
+    if (label && placeholder) {
+      label.textContent = placeholder.textContent;
+      label.classList.add("is-placeholder");
+    }
+    classRoot.querySelectorAll("[data-select-option]").forEach((option) => {
+      option.classList.remove("is-selected");
+      option.setAttribute("aria-selected", "false");
+    });
+    return true;
+  };
 
   // Mirrors the server-side planner: every slot lasts the same TimePerStudent
   // and starts exactly where the previous one ended.
@@ -226,6 +327,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const valid = start && !Number.isNaN(start.getTime()) && Number.isFinite(duration) && duration >= 1;
 
     let cursor = valid ? start.getTime() : Number.NaN;
+    let overflowing = 0;
+    let lastEnd = null;
 
     rows.querySelectorAll("[data-participant-row]").forEach((row) => {
       const preview = row.querySelector("[data-slot-preview]");
@@ -238,13 +341,28 @@ document.addEventListener("DOMContentLoaded", () => {
       const to = new Date(cursor + duration * 60000);
       const sameDay = from.toDateString() === start.toDateString()
         && to.toDateString() === start.toDateString();
+      if (!sameDay) overflowing += 1;
 
       preview.textContent =
         `${pad(from.getHours())}:${pad(from.getMinutes())} – ${pad(to.getHours())}:${pad(to.getMinutes())}` +
         (sameDay ? "" : " (sang ngày khác)");
 
       cursor = to.getTime();
+      lastEnd = to;
     });
+
+    // The server refuses a session that runs past midnight, so say so while the
+    // numbers are still being typed rather than after the form is submitted.
+    if (overflowWarning) {
+      const spills = valid && overflowing > 0;
+      overflowWarning.hidden = !spills;
+      overflowWarning.textContent = spills
+        ? `Tổng thời lượng vượt quá ngày thi: ${overflowing} ca tràn sang ngày hôm sau `
+          + `(ca cuối kết thúc ${pad(lastEnd.getHours())}:${pad(lastEnd.getMinutes())} `
+          + `ngày ${pad(lastEnd.getDate())}/${pad(lastEnd.getMonth() + 1)}). `
+          + "Hãy bắt đầu sớm hơn, giảm thời lượng mỗi sinh viên hoặc bớt sinh viên."
+        : "";
+    }
   };
 
   const syncSelectPicker = (name, value) => {
@@ -337,8 +455,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       if (ticket !== rosterRequest) return;
 
+      // The class is the source of truth: it pins its own course and lecturer.
       syncSelectPicker("CourseId", data.courseId);
       syncSelectPicker("LecturerId", data.lecturerId);
+      applyClassFilter();
       renderRoster(Array.isArray(data.students) ? data.students : []);
     } catch {
       if (ticket === rosterRequest) {
@@ -349,7 +469,12 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   classInput?.addEventListener("change", loadRoster);
+  courseInput?.addEventListener("change", () => {
+    // Dropping a class that belongs to another course also clears its roster.
+    if (applyClassFilter()) loadRoster();
+  });
   startInput.addEventListener("input", updatePreviews);
   durationInput.addEventListener("input", updatePreviews);
+  applyClassFilter();
   loadRoster();
 });

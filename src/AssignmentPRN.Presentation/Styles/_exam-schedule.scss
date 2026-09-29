@@ -503,6 +503,14 @@
   }
 }
 
+.date-time-picker__hint {
+  display: block;
+  margin-top: $space-1;
+  color: $color-warning;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
 .date-time-picker__time-fields {
   display: flex;
   align-items: center;

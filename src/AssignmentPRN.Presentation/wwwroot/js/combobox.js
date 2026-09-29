@@ -206,9 +206,10 @@
     const filter = () => {
       const term = search.value.trim().toLocaleLowerCase("vi");
       options.forEach((option) => {
-        option.hidden = !option.dataset.searchText
-          .toLocaleLowerCase("vi")
-          .includes(term);
+        // An option ruled out by an owning filter (e.g. class-by-course) stays
+        // hidden no matter what the search box says.
+        option.hidden = option.dataset.excluded === "true"
+          || !option.dataset.searchText.toLocaleLowerCase("vi").includes(term);
       });
       empty.hidden = visibleOptions().length !== 0;
     };

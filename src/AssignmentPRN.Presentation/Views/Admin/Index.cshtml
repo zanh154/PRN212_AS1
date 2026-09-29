@@ -27,6 +27,11 @@
         <div class="dashboard-tile__body"><h3>Môn học</h3><p>Thêm, chỉnh sửa và quản lý trạng thái môn học.</p></div>
         <span class="dashboard-tile__arrow"><partial name="_Icon" model="@("arrow-right")" /></span>
     </a>
+    <a class="dashboard-tile" asp-controller="Classes" asp-action="Index">
+        <span class="icon-chip"><partial name="_Icon" model="@("users")" /></span>
+        <div class="dashboard-tile__body"><h3>Lớp học</h3><p>Quản lý lớp và danh sách sinh viên của từng lớp.</p></div>
+        <span class="dashboard-tile__arrow"><partial name="_Icon" model="@("arrow-right")" /></span>
+    </a>
     <a class="dashboard-tile" asp-controller="ExamSessions" asp-action="Index">
         <span class="icon-chip"><partial name="_Icon" model="@("calendar")" /></span>
         <div class="dashboard-tile__body">

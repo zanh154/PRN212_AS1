@@ -26,6 +26,9 @@ public interface ICatalogRepository
         IReadOnlyCollection<string> emails,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Ids of the students enrolled in any active class of the course.</summary>
+    Task<IReadOnlyList<int>> ListStudentIdsInCourseAsync(int courseId, CancellationToken cancellationToken = default);
+
     Task<bool> CourseExistsAsync(int courseId, CancellationToken cancellationToken = default);
 
     Task<bool> UserIsInRoleAsync(int userId, string roleName, CancellationToken cancellationToken = default);

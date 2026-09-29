@@ -1,5 +1,12 @@
 @model CourseViewModel
-@{ ViewData["Title"] = Model.CourseId == 0 ? "Thêm môn học" : "Sửa môn học"; }
+@{
+    ViewData["Title"] = Model.CourseId == 0 ? "Thêm môn học" : "Sửa môn học";
+    ViewData["Breadcrumb"] = new List<BreadcrumbItem>
+    {
+        new("Môn học", "Courses", "Index"),
+        new((string)ViewData["Title"]!)
+    };
+}
 <div class="page-header"><div><a class="back-link" asp-action="Index">← Môn học</a><h1>@ViewData["Title"]</h1></div></div>
 <form asp-action="Save" method="post" class="content-card">
     <input asp-for="CourseId" type="hidden" />

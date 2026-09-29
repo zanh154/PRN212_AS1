@@ -15,6 +15,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IExamSessionService, ExamSessionService>();
         services.AddScoped<CourseService>();
+        services.AddScoped<AcademicClassService>();
 
         return services;
     }

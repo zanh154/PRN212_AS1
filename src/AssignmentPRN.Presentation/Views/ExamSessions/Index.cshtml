@@ -1,6 +1,7 @@
 @model ExamSessionListViewModel
 @{
     ViewData["Title"] = "Lịch thi";
+    ViewData["Breadcrumb"] = new List<BreadcrumbItem> { new("Lịch thi") };
     var vietnamese = new System.Globalization.CultureInfo("vi-VN");
     var groupedSessions = Model.Sessions
         .OrderBy(session => session.StartTime)

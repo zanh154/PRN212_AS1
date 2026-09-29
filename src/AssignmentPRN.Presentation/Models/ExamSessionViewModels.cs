@@ -111,6 +111,19 @@ public sealed class DateTimePickerViewModel
     public string Placeholder { get; init; } = "Chọn ngày và giờ";
 
     /// <summary>
+    /// Earliest selectable moment. Defaults to "now" when null. Days before it are
+    /// disabled and the clock snaps forward, so the picker cannot return a value
+    /// the server would reject.
+    /// </summary>
+    public DateTime? Earliest { get; init; }
+
+    /// <summary>
+    /// Latest selectable moment, e.g. the last start that still ends inside the
+    /// exam day. Null leaves the upper end open.
+    /// </summary>
+    public DateTime? Latest { get; init; }
+
+    /// <summary>
     /// Extra data-* attributes to add to the hidden input (e.g. data-schedule-start).
     /// Each key should be a valid HTML attribute name.
     /// </summary>
