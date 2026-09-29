@@ -10,6 +10,29 @@ namespace AssignmentPRN.Presentation.Controllers;
 [SessionAuthorize(RoleNames.Admin, RoleNames.Lecturer)]
 public class ExamSessionsController(IExamSessionService examSessionService) : Controller
 {
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddStudent(ExamSessionAddStudentViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var session = await examSessionService.GetAsync(model.ExamId, cancellationToken);
+        if (!session.Success || session.Data is null) return NotFound();
+        if (HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
+            && session.Data.Lecturer.UserId != HttpContext.Session.GetInt32(SessionKeys.UserId))
+            return Forbid();
+
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = "Vui lòng nhập email sinh viên và khung giờ hợp lệ.";
+            return RedirectToAction(nameof(Details), new { id = model.ExamId });
+        }
+        var response = await examSessionService.AddStudentAsync(model.ExamId,
+            model.Email, model.ScheduledTime!.Value, cancellationToken);
+        TempData[response.Success ? "Success" : "Error"] = response.Success
+            ? "Đã thêm sinh viên vào phiên thi." : response.Error;
+        return RedirectToAction(nameof(Details), new { id = model.ExamId });
+    }
+
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {

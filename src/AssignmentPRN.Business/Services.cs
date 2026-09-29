@@ -16,6 +16,9 @@ public interface IAuthService
 
 public interface IExamSessionService
 {
+    Task<ServiceResponse<ExamSessionDetailResponse>> AddStudentAsync(int examId, string email,
+        DateTime scheduledTime, CancellationToken cancellationToken = default);
+
     Task<ServiceResponse<IReadOnlyList<ExamSessionListItemResponse>>> ListAsync(
         CancellationToken cancellationToken = default);
 

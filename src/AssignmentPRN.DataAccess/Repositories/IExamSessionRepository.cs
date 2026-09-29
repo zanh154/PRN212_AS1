@@ -4,6 +4,9 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public interface IExamSessionRepository
 {
+    Task<ExamSessionDetail> AddStudentAsync(int examId, string email, DateTime scheduledTime,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ExamSessionListItem>> ListAsync(CancellationToken cancellationToken = default);
 
     Task<ExamSessionDetail?> GetDetailAsync(int examId, CancellationToken cancellationToken = default);
