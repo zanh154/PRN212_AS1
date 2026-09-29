@@ -208,10 +208,25 @@ public sealed class QuestionDetail
     public IReadOnlyList<QuestionOptionDetail> Options { get; init; } = Array.Empty<QuestionOptionDetail>();
 }
 
+/// <summary>
+/// Lightweight row used only to spot a question that repeats one already in the course.
+/// Archived questions are left out, because retiring a question and re-adding an
+/// improved version of it is a legitimate thing to do.
+/// </summary>
+public sealed class QuestionTextMatch
+{
+    public int QuestionId { get; init; }
+
+    public string QuestionText { get; init; } = string.Empty;
+
+    public QuestionStatus Status { get; init; }
+
+    public int? MaterialId { get; init; }
+}
+
 public sealed class QuestionOptionDetail
 {
     public int OptionId { get; init; }
-
     public string Text { get; init; } = string.Empty;
 
     public bool IsCorrect { get; init; }
