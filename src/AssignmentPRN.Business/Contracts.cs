@@ -147,6 +147,17 @@ public sealed class PersonResponse
     public string Email { get; init; } = string.Empty;
 }
 
+public sealed class AuthenticatedUserResponse
+{
+    public int UserId { get; init; }
+
+    public string FullName { get; init; } = string.Empty;
+
+    public string Email { get; init; } = string.Empty;
+
+    public string RoleName { get; init; } = string.Empty;
+}
+
 public sealed class CourseResponse
 {
     public int CourseId { get; init; }
@@ -156,6 +167,53 @@ public sealed class CourseResponse
     public string CourseName { get; init; } = string.Empty;
 
     public string? Description { get; init; }
+
+    public int LecturerId { get; init; }
+
+    public string LecturerName { get; init; } = string.Empty;
+
+    public bool IsActive { get; init; }
+}
+
+public sealed class AcademicClassResponse
+{
+    public int ClassId { get; init; }
+
+    public string ClassCode { get; init; } = string.Empty;
+
+    public string ClassName { get; init; } = string.Empty;
+
+    public int CourseId { get; init; }
+
+    public string CourseCode { get; init; } = string.Empty;
+
+    public string CourseName { get; init; } = string.Empty;
+
+    public int LecturerId { get; init; }
+
+    public string LecturerName { get; init; } = string.Empty;
+
+    public bool IsActive { get; init; }
+
+    public int StudentCount { get; init; }
+}
+
+public sealed class AcademicClassRosterResponse
+{
+    public AcademicClassResponse Class { get; init; } = new();
+
+    public IReadOnlyList<ClassStudentResponse> Students { get; init; } = Array.Empty<ClassStudentResponse>();
+}
+
+public sealed class ClassStudentResponse
+{
+    public int StudentId { get; init; }
+
+    public string FullName { get; init; } = string.Empty;
+
+    public string Email { get; init; } = string.Empty;
+
+    public DateTime JoinedAt { get; init; }
 }
 
 public sealed class ExamCandidateResponse

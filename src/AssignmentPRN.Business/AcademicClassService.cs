@@ -18,14 +18,16 @@ public class AcademicClassService(
     private const string LecturerRole = "Lecturer";
     private const string StudentRole = "Student";
 
-    public Task<ServiceResponse<List<AcademicClass>>> ListAsync(int? lecturerId, CancellationToken ct = default) =>
-        ServiceExecutor.RunAsync(async () => (await repository.ListAsync(ct))
-            .Where(x => lecturerId == null || x.LecturerId == lecturerId).ToList(), "Không tải được lớp học.");
+    public Task<ServiceResponse<IReadOnlyList<AcademicClassResponse>>> ListAsync(int? lecturerId, CancellationToken ct = default) =>
+        ServiceExecutor.RunAsync<IReadOnlyList<AcademicClassResponse>>(async () => (await repository.ListAsync(ct))
+            .Where(x => lecturerId == null || x.LecturerId == lecturerId)
+            .Select(ToResponse)
+            .ToList(), "Không tải được lớp học.");
 
-    public Task<ServiceResponse<AcademicClass>> GetAsync(int id, int? lecturerId, CancellationToken ct = default) =>
-        ServiceExecutor.RunAsync(async () => await OwnedAsync(id, lecturerId, ct), "Không tải được lớp học.");
+    public Task<ServiceResponse<AcademicClassResponse>> GetAsync(int id, int? lecturerId, CancellationToken ct = default) =>
+        ServiceExecutor.RunAsync(async () => ToResponse(await OwnedAsync(id, lecturerId, ct)), "Không tải được lớp học.");
 
-    public Task<ServiceResponse<AcademicClass>> SaveAsync(AcademicClassSaveRequest request, int? lecturerId, CancellationToken ct = default) =>
+    public Task<ServiceResponse<AcademicClassResponse>> SaveAsync(AcademicClassSaveRequest request, int? lecturerId, CancellationToken ct = default) =>
         ServiceExecutor.RunAsync(async () =>
         {
             var academicClass = request.ClassId == 0 ? new AcademicClass { CreatedAt = DateTime.Now }
@@ -54,7 +56,7 @@ public class AcademicClassService(
             academicClass.IsActive = request.IsActive;
             academicClass.UpdatedAt = request.ClassId == 0 ? null : DateTime.Now;
             await repository.SaveAsync(academicClass, ct);
-            return academicClass;
+            return ToResponse(academicClass);
         }, "Không thể lưu lớp học.");
 
     public Task<ServiceResponse> DeleteAsync(int id, int? lecturerId, CancellationToken ct = default) =>
@@ -64,8 +66,26 @@ public class AcademicClassService(
             await repository.DeleteAsync(id, ct);
         }, "Không thể xoá lớp học.");
 
-    public Task<ServiceResponse<AcademicClass>> GetRosterAsync(int id, int? lecturerId, CancellationToken ct = default) =>
-        ServiceExecutor.RunAsync(async () => await OwnedRosterAsync(id, lecturerId, ct), "Không tải được danh sách sinh viên.");
+    public Task<ServiceResponse<AcademicClassRosterResponse>> GetRosterAsync(int id, int? lecturerId, CancellationToken ct = default) =>
+        ServiceExecutor.RunAsync(async () =>
+        {
+            var academicClass = await OwnedRosterAsync(id, lecturerId, ct);
+            return new AcademicClassRosterResponse
+            {
+                Class = ToResponse(academicClass),
+                Students = academicClass.Students
+                    .OrderBy(item => item.Student.FullName)
+                    .ThenBy(item => item.Student.Email)
+                    .Select(item => new ClassStudentResponse
+                    {
+                        StudentId = item.StudentId,
+                        FullName = item.Student.FullName,
+                        Email = item.Student.Email,
+                        JoinedAt = item.JoinedAt
+                    })
+                    .ToList()
+            };
+        }, "Không tải được danh sách sinh viên.");
 
     public Task<ServiceResponse> AddStudentAsync(int classId, int studentId, int? lecturerId, CancellationToken ct = default) =>
         ServiceExecutor.RunAsync(async () =>
@@ -98,4 +118,18 @@ public class AcademicClassService(
             throw new BusinessValidationException("Bạn không có quyền quản lý lớp học này.");
         return academicClass;
     }
+
+    private static AcademicClassResponse ToResponse(AcademicClass academicClass) => new()
+    {
+        ClassId = academicClass.ClassId,
+        ClassCode = academicClass.ClassCode,
+        ClassName = academicClass.ClassName,
+        CourseId = academicClass.CourseId,
+        CourseCode = academicClass.Course?.CourseCode ?? string.Empty,
+        CourseName = academicClass.Course?.CourseName ?? string.Empty,
+        LecturerId = academicClass.LecturerId,
+        LecturerName = academicClass.Lecturer?.FullName ?? string.Empty,
+        IsActive = academicClass.IsActive,
+        StudentCount = academicClass.Students.Count
+    };
 }

@@ -1,14 +1,12 @@
-using AssignmentPRN.DataAccess.Entities;
-
 namespace AssignmentPRN.Business;
 
 public interface IAuthService
 {
-    Task<User?> LoginAsync(string email, string password);
+    Task<AuthenticatedUserResponse?> LoginAsync(string email, string password);
 
-    Task<User?> GetUserByIdAsync(int userId);
+    Task<AuthenticatedUserResponse?> GetUserByIdAsync(int userId);
 
-    Task<(bool Success, string? Error, User? User)> RegisterAsync(
+    Task<(bool Success, string? Error, AuthenticatedUserResponse? User)> RegisterAsync(
         string fullName,
         string email,
         string password);
@@ -204,6 +202,16 @@ public interface ICourseMaterialService
         CancellationToken cancellationToken = default);
 
     Task<ServiceResponse> DeleteAsync(int materialId, int? lecturerId, CancellationToken cancellationToken = default);
+}
+
+public interface ICatalogService
+{
+    Task<ServiceResponse<IReadOnlyList<CourseResponse>>> ListActiveCoursesAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<IReadOnlyList<PersonResponse>>> ListActiveUsersInRoleAsync(
+        string roleName,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class CourseMaterialUpdateRequest

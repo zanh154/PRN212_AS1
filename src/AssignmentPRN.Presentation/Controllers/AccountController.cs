@@ -49,7 +49,7 @@ public class AccountController(IAuthService authService) : Controller
         }
 
         var user = await authService.LoginAsync(model.Email, model.Password);
-        if (user is null || user.Role is null)
+        if (user is null || string.IsNullOrEmpty(user.RoleName))
         {
             ModelState.AddModelError(string.Empty, "Invalid email or password.");
             return View(model);
@@ -58,14 +58,14 @@ public class AccountController(IAuthService authService) : Controller
         HttpContext.Session.SetInt32(SessionKeys.UserId, user.UserId);
         HttpContext.Session.SetString(SessionKeys.FullName, user.FullName);
         HttpContext.Session.SetString(SessionKeys.Email, user.Email);
-        HttpContext.Session.SetString(SessionKeys.Role, user.Role.RoleName);
+        HttpContext.Session.SetString(SessionKeys.Role, user.RoleName);
 
         if (!string.IsNullOrWhiteSpace(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
         {
             return LocalRedirect(model.ReturnUrl);
         }
 
-        return user.Role.RoleName switch
+        return user.RoleName switch
         {
             RoleNames.Admin => RedirectToAction("Index", "Admin"),
             RoleNames.Lecturer => RedirectToAction("Index", "Lecturer"),

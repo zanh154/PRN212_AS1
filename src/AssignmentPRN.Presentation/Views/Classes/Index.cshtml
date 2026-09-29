@@ -1,4 +1,4 @@
-@model List<AssignmentPRN.DataAccess.Entities.AcademicClass>
+@model IReadOnlyList<AcademicClassResponse>
 @{
     ViewData["Title"] = "Lớp học";
     ViewData["Breadcrumb"] = new List<BreadcrumbItem> { new("Lớp học") };
@@ -17,9 +17,9 @@
         Rows = Model.Select(item => new List<TableCell>
         {
             new StackCell(item.ClassName, item.ClassCode),
-            new StackCell(item.Course.CourseCode, item.Course.CourseName),
-            new TextCell(item.Lecturer.FullName, Nowrap: true),
-            new CountCell(item.Students.Count, "sinh viên"),
+            new StackCell(item.CourseCode, item.CourseName),
+            new TextCell(item.LecturerName, Nowrap: true),
+            new CountCell(item.StudentCount, "sinh viên"),
             new ChipCell(item.IsActive ? "Đang hoạt động" : "Ngừng hoạt động",
                 item.IsActive ? "status-chip--success" : "status-chip--muted"),
             new ActionsCell(
@@ -42,7 +42,7 @@
     <section class="metric-row" aria-label="Tổng quan lớp học">
         <div class="metric-card"><span>Lớp học</span><strong>@Model.Count</strong></div>
         <div class="metric-card"><span>Đang hoạt động</span><strong>@Model.Count(x => x.IsActive)</strong></div>
-        <div class="metric-card"><span>Tổng sinh viên</span><strong>@Model.Sum(x => x.Students.Count)</strong></div>
+        <div class="metric-card"><span>Tổng sinh viên</span><strong>@Model.Sum(x => x.StudentCount)</strong></div>
     </section>
 }
 

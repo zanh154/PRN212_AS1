@@ -1,7 +1,5 @@
 using AssignmentPRN.Business;
-using AssignmentPRN.DataAccess.Entities;
 using AssignmentPRN.DataAccess.Enums;
-using AssignmentPRN.DataAccess.Repositories;
 using AssignmentPRN.Presentation.Constants;
 using AssignmentPRN.Presentation.Filters;
 using AssignmentPRN.Presentation.Models;
@@ -18,7 +16,7 @@ namespace AssignmentPRN.Presentation.Controllers;
 [SessionAuthorize(RoleNames.Admin, RoleNames.Lecturer)]
 public class CourseMaterialsController(
     ICourseMaterialService materialService,
-    ICatalogRepository catalog,
+    ICatalogService catalog,
     IWebHostEnvironment environment) : Controller
 {
     private int? LecturerId => HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
@@ -29,7 +27,7 @@ public class CourseMaterialsController(
     [HttpGet]
     public async Task<IActionResult> Index(int? courseId, CancellationToken ct)
     {
-        var courses = await catalog.ListActiveCoursesAsync(ct);
+        var courses = await ActiveCoursesAsync(ct);
         var allowed = CoursesFor(courses, LecturerId);
         var selected = courseId is int requested && allowed.Any(course => course.CourseId == requested)
             ? requested
@@ -50,7 +48,7 @@ public class CourseMaterialsController(
     [HttpGet]
     public async Task<IActionResult> Upload(int? courseId, CancellationToken ct)
     {
-        var courses = await catalog.ListActiveCoursesAsync(ct);
+        var courses = await ActiveCoursesAsync(ct);
         var allowed = CoursesFor(courses, LecturerId);
         var model = new CourseMaterialUploadViewModel
         {
@@ -136,7 +134,7 @@ public class CourseMaterialsController(
 
         // GetAsync is a plain lookup, so ownership is checked here as well as in the
         // service; otherwise a lecturer could open the editor for somebody else's course.
-        var courses = await catalog.ListActiveCoursesAsync(ct);
+        var courses = await ActiveCoursesAsync(ct);
         if (!CoursesFor(courses, LecturerId).Any(course => course.CourseId == material.CourseId))
         {
             return StatusCode(403);
@@ -196,7 +194,7 @@ public class CourseMaterialsController(
 
     private async Task EditOptionsAsync(CourseMaterialEditViewModel model, CancellationToken ct)
     {
-        model.CourseOptions = ToCourseOptions(await catalog.ListActiveCoursesAsync(ct));
+        model.CourseOptions = ToCourseOptions(await ActiveCoursesAsync(ct));
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -279,15 +277,21 @@ public class CourseMaterialsController(
 
     private async Task OptionsAsync(CourseMaterialUploadViewModel model, CancellationToken ct)
     {
-        var courses = await catalog.ListActiveCoursesAsync(ct);
+        var courses = await ActiveCoursesAsync(ct);
         model.CourseOptions = ToCourseOptions(courses);
     }
 
-    private IReadOnlyList<SelectListItem> ToCourseOptions(IReadOnlyList<Course> courses) => CoursesFor(courses, LecturerId)
+    private async Task<IReadOnlyList<CourseResponse>> ActiveCoursesAsync(CancellationToken ct)
+    {
+        var result = await catalog.ListActiveCoursesAsync(ct);
+        return result.Data ?? [];
+    }
+
+    private IReadOnlyList<SelectListItem> ToCourseOptions(IReadOnlyList<CourseResponse> courses) => CoursesFor(courses, LecturerId)
         .Select(course => new SelectListItem($"{course.CourseCode} · {course.CourseName}", course.CourseId.ToString()))
         .ToList();
 
-    private IReadOnlyList<Course> CoursesFor(IReadOnlyList<Course> courses, int? lecturerId) => courses
+    private IReadOnlyList<CourseResponse> CoursesFor(IReadOnlyList<CourseResponse> courses, int? lecturerId) => courses
         .Where(course => !lecturerId.HasValue || course.LecturerId == lecturerId)
         .OrderBy(course => course.CourseCode)
         .ToList();

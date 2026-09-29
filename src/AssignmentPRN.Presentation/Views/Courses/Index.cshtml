@@ -1,4 +1,4 @@
-@model List<AssignmentPRN.DataAccess.Entities.Course>
+@model IReadOnlyList<CourseResponse>
 @{
     ViewData["Title"] = "Môn học";
     ViewData["Breadcrumb"] = new List<BreadcrumbItem> { new("Môn học") };
@@ -17,7 +17,7 @@
         {
             new StackCell(course.CourseName, course.CourseCode),
             new TextCell(course.Description, Muted: true),
-            new TextCell(course.Lecturer.FullName, Nowrap: true),
+            new TextCell(course.LecturerName, Nowrap: true),
             new ChipCell(course.IsActive ? "Đang hoạt động" : "Ngừng hoạt động",
                 course.IsActive ? "status-chip--success" : "status-chip--muted"),
             new ActionsCell(
