@@ -8,6 +8,32 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public class ExamSessionRepository(AivesDbContext context) : IExamSessionRepository
 {
+    public async Task RemoveStudentAsync(int examId, int candidateId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
+        var session = await context.ExamSessions.FirstOrDefaultAsync(
+            item => item.ExamId == examId, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên thi.");
+        if (session.Status is not (ExamSessionStatus.Draft or ExamSessionStatus.Scheduled)
+            || session.StartTime <= DateTime.Now)
+            throw new ArgumentException("Chỉ được xóa sinh viên khi phiên thi chưa bắt đầu.");
+
+        var candidate = await context.ExamCandidates.FirstOrDefaultAsync(
+            item => item.ExamId == examId && item.CandidateId == candidateId, cancellationToken)
+            ?? throw new KeyNotFoundException("Sinh viên không còn trong phiên thi này.");
+        if (candidate.Status != CandidateStatus.Waiting || candidate.StartedAt.HasValue
+            || candidate.FinishedAt.HasValue)
+            throw new ArgumentException("Chỉ được xóa sinh viên đang chờ thi và chưa có dữ liệu bài thi.");
+
+        // Remove enrollment only; keep the account, other sessions and reserved exam window.
+        context.ExamCandidates.Remove(candidate);
+        session.UpdatedAt = DateTime.Now;
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     public async Task<ExamSessionDetail> AddStudentAsync(int examId, string email,
         DateTime scheduledTime, CancellationToken cancellationToken = default)
     {

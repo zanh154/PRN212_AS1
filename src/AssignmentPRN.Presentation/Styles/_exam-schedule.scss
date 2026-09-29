@@ -1,6 +1,14 @@
 @use "tokens" as *;
 @use "mixins" as *;
 
+.student-remove-form {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: $space-3;
+  padding-top: $space-3;
+  border-top: 1px solid $color-border;
+}
+
 .student-add-card {
   border-top: 3px solid $color-primary;
 

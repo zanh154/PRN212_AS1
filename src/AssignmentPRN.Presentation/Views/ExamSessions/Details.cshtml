@@ -3,6 +3,10 @@
     var session = Model.Session;
     var candidates = session.Candidates;
     ViewData["Title"] = session.ExamName;
+    var canManageStudents = (session.Status is AssignmentPRN.DataAccess.Enums.ExamSessionStatus.Draft
+        or AssignmentPRN.DataAccess.Enums.ExamSessionStatus.Scheduled) && session.StartTime > DateTime.Now
+        && (Context.Session.GetString(AssignmentPRN.Presentation.Constants.SessionKeys.Role) == AssignmentPRN.Presentation.Constants.RoleNames.Admin
+            || Context.Session.GetInt32(AssignmentPRN.Presentation.Constants.SessionKeys.UserId) == session.Lecturer.UserId);
 }
 
 <div class="page-header">
@@ -37,15 +41,12 @@
     </div>
 }
 
-@if ((session.Status is AssignmentPRN.DataAccess.Enums.ExamSessionStatus.Draft
-    or AssignmentPRN.DataAccess.Enums.ExamSessionStatus.Scheduled) && session.StartTime > DateTime.Now
-    && (Context.Session.GetString(AssignmentPRN.Presentation.Constants.SessionKeys.Role) == AssignmentPRN.Presentation.Constants.RoleNames.Admin
-        || Context.Session.GetInt32(AssignmentPRN.Presentation.Constants.SessionKeys.UserId) == session.Lecturer.UserId))
+@if (canManageStudents)
 {
     <section class="content-card student-add-card mb-3" aria-labelledby="add-student-heading">
         <span class="eyebrow">Quản lý sinh viên</span>
         <h2 id="add-student-heading">Thêm sinh viên vào phiên thi</h2>
-        <p>Tìm sinh viên có sẵn, chọn khung giờ và thêm vào danh sách thi.</p>
+        <p>Bấm vào ô Sinh viên để xem tài khoản hiện có, hoặc gõ tên/email để tìm nhanh.</p>
         <form method="post" asp-action="AddStudent" class="student-add-form">
             <input type="hidden" name="ExamId" value="@session.ExamId" />
             <div>
@@ -139,6 +140,16 @@
                                 <button class="btn btn-primary" type="submit">Kiểm tra và lưu</button>
                             </form>
                         </details>
+                        @if (canManageStudents && candidate.Status == AssignmentPRN.DataAccess.Enums.CandidateStatus.Waiting)
+                        {
+                            <form method="post" asp-action="RemoveStudent" class="student-remove-form"
+                                  data-confirm="Xóa @candidate.StudentName (@candidate.StudentEmail) khỏi phiên thi này? Tài khoản sinh viên vẫn được giữ nguyên.">
+                                <input type="hidden" name="examId" value="@session.ExamId" />
+                                <input type="hidden" name="candidateId" value="@candidate.CandidateId" />
+                                <button type="submit" class="btn btn-outline-danger btn-sm"
+                                        aria-label="Xóa @candidate.StudentName khỏi phiên thi">Xóa khỏi phiên thi</button>
+                            </form>
+                        }
                     </div>
                 </article>
             }
