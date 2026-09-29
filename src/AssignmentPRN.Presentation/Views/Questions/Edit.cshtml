@@ -85,17 +85,19 @@
         <p class="text-muted">Bỏ trống phương án không dùng, tick vào ô của phương án đúng.</p>
         @for (var index = 0; index < Model.Options.Count; index++)
         {
-            var option = Model.Options[index];
             <div class="option-row">
                 <span class="option-row__label" aria-hidden="true">@optionLetters[index % optionLetters.Length]</span>
                 <input asp-for="Options[@index].Text" class="form-control" placeholder="Nội dung phương án" />
                 <div class="form-check option-row__correct">
-                    <input asp-for="Options[@index].IsCorrect" class="form-check-input" type="radio" name="correctIndex" value="@index" />
-                    <label class="form-check-label">Đúng</label>
+                    <input class="form-check-input" type="radio" id="correct-@index"
+                           name="@nameof(Model.CorrectIndex)" value="@index"
+                           checked="@(Model.CorrectIndex == index)" />
+                    <label class="form-check-label" for="correct-@index">Đúng</label>
                 </div>
             </div>
         }
         <span asp-validation-for="Options" class="text-danger"></span>
+        <span asp-validation-for="CorrectIndex" class="text-danger"></span>
     </fieldset>
 
     <div class="form-actions">
@@ -105,14 +107,4 @@
 </form>
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-    <script>
-        // One answer only: clicking a radio clears the others the model binder shares.
-        document.querySelectorAll('input[name="correctIndex"]').forEach(function (input) {
-            input.addEventListener('change', function () {
-                document.querySelectorAll('input[name="correctIndex"]').forEach(function (other) {
-                    other.checked = other === input;
-                });
-            });
-        });
-    </script>
 }

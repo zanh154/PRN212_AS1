@@ -33,16 +33,17 @@ public class QuestionListViewModel
     public string? LoadError { get; init; }
 }
 
-/// <summary>One answer choice row on the question editor.</summary>
+/// <summary>
+/// One answer choice row on the question editor. Which row is the right answer is not
+/// stored here but in <see cref="QuestionEditViewModel.CorrectIndex"/>, because the
+/// radio group posts a single value rather than one flag per row.
+/// </summary>
 public sealed class QuestionOptionViewModel
 {
     [Display(Name = "Phương án")]
     [Required(ErrorMessage = "Vui lòng nhập phương án.")]
     [StringLength(500, ErrorMessage = "Phương án không được vượt quá 500 ký tự.")]
     public string Text { get; set; } = string.Empty;
-
-    [Display(Name = "Đáp án đúng")]
-    public bool IsCorrect { get; set; }
 }
 
 public class QuestionEditViewModel : IValidatableObject
@@ -76,6 +77,13 @@ public class QuestionEditViewModel : IValidatableObject
 
     public List<QuestionOptionViewModel> Options { get; set; } = [];
 
+    /// <summary>
+    /// Row number of the correct answer, as posted by the radio group. -1 means the
+    /// lecturer has not picked one yet.
+    /// </summary>
+    [Display(Name = "Phương án đúng")]
+    public int CorrectIndex { get; set; } = -1;
+
     public IReadOnlyList<SelectListItem> CourseOptions { get; set; } = Array.Empty<SelectListItem>();
 
     public IReadOnlyList<SelectListItem> MaterialOptions { get; set; } = Array.Empty<SelectListItem>();
@@ -97,10 +105,14 @@ public class QuestionEditViewModel : IValidatableObject
             yield return new ValidationResult("Câu hỏi cần ít nhất 2 phương án trả lời.", [nameof(Options)]);
         }
 
-        var correct = Options.Count(option => option.IsCorrect && !string.IsNullOrWhiteSpace(option.Text));
-        if (filled >= 2 && correct != 1)
+        // The pick must land on a row that actually has text, so ticking an answer and
+        // then clearing its box cannot slip through.
+        var picked = CorrectIndex >= 0 && CorrectIndex < Options.Count
+            && !string.IsNullOrWhiteSpace(Options[CorrectIndex].Text);
+        if (filled >= 2 && !picked)
         {
-            yield return new ValidationResult("Câu hỏi phải có đúng một phương án đúng.", [nameof(Options)]);
+            yield return new ValidationResult(
+                "Vui lòng tick vào ô Đúng của phương án đúng.", [nameof(CorrectIndex)]);
         }
     }
 

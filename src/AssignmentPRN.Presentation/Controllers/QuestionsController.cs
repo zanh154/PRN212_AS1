@@ -99,13 +99,12 @@ public class QuestionsController(
             BloomLevel = detail.BloomLevel,
             Options = detail.Options.Count > 0
                 ? detail.Options
-                    .Select(option => new QuestionOptionViewModel
-                    {
-                        Text = option.Text,
-                        IsCorrect = option.IsCorrect
-                    })
+                    .Select(option => new QuestionOptionViewModel { Text = option.Text })
                     .ToList()
-                : QuestionEditViewModel.BuildOptions()
+                : QuestionEditViewModel.BuildOptions(),
+            CorrectIndex = detail.Options
+                .Select((option, index) => option.IsCorrect ? index : -1)
+                .FirstOrDefault(index => index >= 0, -1)
         };
 
         await OptionsAsync(model, ct);
@@ -135,12 +134,12 @@ public class QuestionsController(
                     Difficulty = model.Difficulty,
                     BloomLevel = model.BloomLevel,
                     Options = model.Options
-                        .Where(option => !string.IsNullOrWhiteSpace(option.Text))
-                        .Select(option => new QuestionOptionInput
+                        .Select((option, index) => new QuestionOptionInput
                         {
                             Text = option.Text,
-                            IsCorrect = option.IsCorrect
+                            IsCorrect = index == model.CorrectIndex
                         })
+                        .Where(option => !string.IsNullOrWhiteSpace(option.Text))
                         .ToList()
                 },
                 CurrentUserId,
