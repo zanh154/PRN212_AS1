@@ -131,6 +131,18 @@ public sealed class DateTimePickerViewModel
         = new Dictionary<string, string>();
 }
 
+public class ExamSessionAddStudentViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int ExamId { get; set; }
+
+    [Required, EmailAddress, StringLength(255)]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public DateTime? ScheduledTime { get; set; }
+}
+
 public class ExamSessionRescheduleViewModel
 {
     [Range(1, int.MaxValue)]

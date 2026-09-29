@@ -18,6 +18,16 @@ public interface IExamSessionService
 {
     Task<ServiceResponse<ExamSessionDetailResponse>> UpdateAsync(AssignmentPRN.DataAccess.Contracts.ExamSessionUpdateInput request, int? lecturerId, CancellationToken cancellationToken = default);
     Task<ServiceResponse> ChangeStatusAsync(int examId, AssignmentPRN.DataAccess.Enums.ExamSessionStatus status, int? lecturerId, CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<AssignmentPRN.DataAccess.Contracts.ExamStudentSearchResult>> SearchExamStudentsAsync(
+        AssignmentPRN.DataAccess.Contracts.ExamStudentSearch filter, int? lecturerId,
+        CancellationToken cancellationToken = default);
+    Task<ServiceResponse> RemoveStudentAsync(int examId, int candidateId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<ExamSessionDetailResponse>> AddStudentAsync(int examId, string email,
+        DateTime scheduledTime, CancellationToken cancellationToken = default);
+
     Task<ServiceResponse<IReadOnlyList<ExamSessionListItemResponse>>> ListAsync(
         CancellationToken cancellationToken = default);
 

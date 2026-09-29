@@ -79,6 +79,47 @@ public class ExamSessionsController(IExamSessionService examSessionService) : Co
             model.Courses.Add(new SelectListItem($"{current.Data.Course.CourseCode} · {current.Data.Course.CourseName} (ngừng hoạt động)", current.Data.Course.CourseId.ToString()));
         if (!options.Success) ModelState.AddModelError(string.Empty, options.Error!);
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveStudent(int examId, int candidateId,
+        CancellationToken cancellationToken)
+    {
+        var session = await examSessionService.GetAsync(examId, cancellationToken);
+        if (!session.Success || session.Data is null) return NotFound();
+        if (HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
+            && session.Data.Lecturer.UserId != HttpContext.Session.GetInt32(SessionKeys.UserId))
+            return Forbid();
+
+        var response = await examSessionService.RemoveStudentAsync(examId, candidateId, cancellationToken);
+        TempData[response.Success ? "Success" : "Error"] = response.Success
+            ? "Đã xóa sinh viên khỏi phiên thi. Tài khoản sinh viên vẫn được giữ nguyên." : response.Error;
+        return RedirectToAction(nameof(Details), new { id = examId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddStudent(ExamSessionAddStudentViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var session = await examSessionService.GetAsync(model.ExamId, cancellationToken);
+        if (!session.Success || session.Data is null) return NotFound();
+        if (HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
+            && session.Data.Lecturer.UserId != HttpContext.Session.GetInt32(SessionKeys.UserId))
+            return Forbid();
+
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = "Vui lòng nhập email sinh viên và khung giờ hợp lệ.";
+            return RedirectToAction(nameof(Details), new { id = model.ExamId });
+        }
+        var response = await examSessionService.AddStudentAsync(model.ExamId,
+            model.Email, model.ScheduledTime!.Value, cancellationToken);
+        TempData[response.Success ? "Success" : "Error"] = response.Success
+            ? "Đã thêm sinh viên vào phiên thi." : response.Error;
+        return RedirectToAction(nameof(Details), new { id = model.ExamId });
+    }
+
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {

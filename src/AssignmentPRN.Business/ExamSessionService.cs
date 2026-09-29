@@ -44,6 +44,49 @@ public class ExamSessionService(
             await examSessionRepository.ChangeStatusAsync(examId, status, cancellationToken);
         }, "Không thể cập nhật trạng thái.");
 
+    public Task<ServiceResponse<ExamStudentSearchResult>> SearchExamStudentsAsync(
+        ExamStudentSearch filter, int? lecturerId, CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(async () =>
+        {
+            if (lecturerId.HasValue) BusinessValidation.PositiveId(lecturerId.Value, "giảng viên");
+            if (filter.ExamId.HasValue) BusinessValidation.PositiveId(filter.ExamId.Value, "phiên thi");
+            filter.Query = BusinessValidation.OptionalText(filter.Query, "tên hoặc email", 255);
+            if (filter.From?.Date > filter.To?.Date)
+                throw new BusinessValidationException("Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
+            if (filter.To?.Date == DateTime.MaxValue.Date)
+                throw new BusinessValidationException("Ngày kết thúc không hợp lệ.");
+            if (filter.Status.HasValue && !Enum.IsDefined(filter.Status.Value))
+                throw new BusinessValidationException("Trạng thái không hợp lệ.");
+            return await examSessionRepository.SearchExamStudentsAsync(filter, lecturerId, cancellationToken);
+        }, "Không thể tra cứu sinh viên trong phiên thi.");
+    }
+
+    public Task<ServiceResponse> RemoveStudentAsync(int examId, int candidateId,
+        CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(async () =>
+        {
+            BusinessValidation.PositiveId(examId, "phiên thi");
+            BusinessValidation.PositiveId(candidateId, "sinh viên cần xóa");
+            await examSessionRepository.RemoveStudentAsync(examId, candidateId, cancellationToken);
+        }, "Không thể xóa sinh viên khỏi phiên thi.");
+    }
+
+    public Task<ServiceResponse<ExamSessionDetailResponse>> AddStudentAsync(
+        int examId, string email, DateTime scheduledTime, CancellationToken cancellationToken = default)
+    {
+        return ServiceExecutor.RunAsync(async () =>
+        {
+            BusinessValidation.PositiveId(examId, "phiên thi");
+            var normalizedEmail = BusinessValidation.RequiredText(email, "email sinh viên", 255);
+            if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(normalizedEmail))
+                throw new BusinessValidationException("Email sinh viên không hợp lệ.");
+            return MapDetail(await examSessionRepository.AddStudentAsync(
+                examId, normalizedEmail, scheduledTime, cancellationToken));
+        }, "Không thể thêm sinh viên vào phiên thi.");
+    }
+
     public Task<ServiceResponse<IReadOnlyList<ExamSessionListItemResponse>>> ListAsync(
         CancellationToken cancellationToken = default)
     {

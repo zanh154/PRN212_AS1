@@ -68,6 +68,110 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
         if (!ExamSessionRules.CanEdit(session.Status) || session.Candidates.Any(x => x.Status != CandidateStatus.Waiting))
             throw new ArgumentException("Chỉ được sửa hoặc xoá phiên nháp/đã xếp lịch khi tất cả sinh viên còn chờ thi.");
     }
+
+    public async Task<ExamStudentSearchResult> SearchExamStudentsAsync(ExamStudentSearch filter,
+        int? lecturerId, CancellationToken cancellationToken = default)
+    {
+        var sessions = context.ExamSessions.AsNoTracking()
+            .Where(s => !lecturerId.HasValue || s.LecturerId == lecturerId.Value);
+        var query = context.ExamCandidates.AsNoTracking()
+            .Where(c => !lecturerId.HasValue || c.Session.LecturerId == lecturerId.Value);
+        var term = filter.Query?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrEmpty(term))
+            query = query.Where(c => c.Student.FullName.ToLower().Contains(term) || c.Student.Email.ToLower().Contains(term));
+        if (filter.ExamId.HasValue) query = query.Where(c => c.ExamId == filter.ExamId.Value);
+        if (filter.Status.HasValue) query = query.Where(c => c.Status == filter.Status.Value);
+        if (filter.From.HasValue) query = query.Where(c => c.ScheduledTime >= filter.From.Value.Date);
+        if (filter.To.HasValue)
+        {
+            var until = filter.To.Value.Date.AddDays(1);
+            query = query.Where(c => c.ScheduledTime < until);
+        }
+        var total = await query.CountAsync(cancellationToken);
+        var page = Math.Clamp(filter.Page, 1, Math.Max(1, (int)Math.Ceiling(total / 20d)));
+        return new ExamStudentSearchResult
+        {
+            Total = total, Page = page,
+            Sessions = await sessions.OrderBy(s => s.StartTime).ThenBy(s => s.ExamId)
+                .Select(s => new ExamStudentSessionOption(s.ExamId, s.ExamName)).ToListAsync(cancellationToken),
+            Items = await query.OrderBy(c => c.ScheduledTime).ThenBy(c => c.CandidateId)
+                .Skip((page - 1) * 20).Take(20)
+                .Select(c => new ExamStudentRow(c.CandidateId, c.ExamId, c.Student.FullName,
+                    c.Student.Email, c.Session.ExamName, c.Session.Course.CourseName,
+                    c.ScheduledTime, c.Status)).ToListAsync(cancellationToken)
+        };
+    }
+
+    public async Task RemoveStudentAsync(int examId, int candidateId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
+        var session = await context.ExamSessions.FirstOrDefaultAsync(
+            item => item.ExamId == examId, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên thi.");
+        if (session.Status is not (ExamSessionStatus.Draft or ExamSessionStatus.Scheduled)
+            || session.StartTime <= DateTime.Now)
+            throw new ArgumentException("Chỉ được xóa sinh viên khi phiên thi chưa bắt đầu.");
+
+        var candidate = await context.ExamCandidates.FirstOrDefaultAsync(
+            item => item.ExamId == examId && item.CandidateId == candidateId, cancellationToken)
+            ?? throw new KeyNotFoundException("Sinh viên không còn trong phiên thi này.");
+        if (candidate.Status != CandidateStatus.Waiting || candidate.StartedAt.HasValue
+            || candidate.FinishedAt.HasValue)
+            throw new ArgumentException("Chỉ được xóa sinh viên đang chờ thi và chưa có dữ liệu bài thi.");
+
+        // Remove enrollment only; keep the account, other sessions and reserved exam window.
+        context.ExamCandidates.Remove(candidate);
+        session.UpdatedAt = DateTime.Now;
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<ExamSessionDetail> AddStudentAsync(int examId, string email,
+        DateTime scheduledTime, CancellationToken cancellationToken = default)
+    {
+        // Serialize roster checks and insertion so concurrent requests cannot add duplicates.
+        await using var transaction = await context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
+        var session = await context.ExamSessions.FirstOrDefaultAsync(
+            item => item.ExamId == examId, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy phiên thi.");
+        if (session.Status is not (ExamSessionStatus.Draft or ExamSessionStatus.Scheduled))
+            throw new ArgumentException("Chỉ được thêm sinh viên khi phiên thi chưa bắt đầu.");
+        if (session.StartTime <= DateTime.Now || scheduledTime <= DateTime.Now)
+            throw new ArgumentException("Không thể thêm sinh viên vào lịch thi trong quá khứ.");
+        if (session.TimePerStudent <= 0 || scheduledTime.Date != session.StartTime.Date
+            || scheduledTime.AddMinutes(session.TimePerStudent).Date != session.StartTime.Date)
+            throw new ArgumentException("Khung giờ phải nằm trọn trong ngày thi.");
+
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var student = await context.Users.SingleOrDefaultAsync(user =>
+            user.Email.ToLower() == normalizedEmail && user.Status == "Active"
+            && user.Role.RoleName == "Student", cancellationToken)
+            ?? throw new ArgumentException("Không tìm thấy sinh viên đang hoạt động với email này.");
+        if (await context.ExamCandidates.AnyAsync(item =>
+            item.ExamId == examId && item.StudentId == student.UserId, cancellationToken))
+            throw new ArgumentException("Sinh viên đã có trong phiên thi này.");
+
+        var endTime = scheduledTime.AddMinutes(session.TimePerStudent);
+        await EnsureNoConflictAsync(student.UserId, session.LecturerId, scheduledTime,
+            endTime, null, cancellationToken);
+        context.ExamCandidates.Add(new ExamCandidate
+        {
+            ExamId = examId, StudentId = student.UserId,
+            ScheduledTime = scheduledTime, Status = CandidateStatus.Waiting
+        });
+        if (scheduledTime < session.StartTime) session.StartTime = scheduledTime;
+        if (endTime > session.EndTime) session.EndTime = endTime;
+        session.UpdatedAt = DateTime.Now;
+        await context.SaveChangesAsync(cancellationToken);
+        var detail = await LoadDetailAsync(examId, cancellationToken)
+            ?? throw new InvalidOperationException("Không thể đọc phiên thi vừa cập nhật.");
+        await transaction.CommitAsync(cancellationToken);
+        return detail;
+    }
+
     public async Task<IReadOnlyList<ExamSessionListItem>> ListAsync(CancellationToken cancellationToken = default)
     {
         return await context.ExamSessions

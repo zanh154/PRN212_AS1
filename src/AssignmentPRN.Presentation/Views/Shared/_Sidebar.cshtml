@@ -45,6 +45,11 @@
                 <partial name="_Icon" model="@("search")" />
                 <span>Tra cứu sinh viên</span>
             </a>
+            <a class="sidebar-link @(current == "ExamStudents" ? "is-active" : null)"
+               asp-controller="ExamStudents" asp-action="Index">
+                <partial name="_Icon" model="@("users")" />
+                <span>Sinh viên trong phiên thi</span>
+            </a>
         }
         else if (role == RoleNames.Student)
         {
