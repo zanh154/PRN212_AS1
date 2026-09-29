@@ -39,7 +39,15 @@
             }
             else
             {
-                <select asp-for="LecturerId" asp-items="Model.Lecturers" class="form-select"><option value="">Chọn giảng viên</option></select>
+                <partial name="_SearchableSelect" model="@(new SearchableSelectViewModel
+            {
+                Name = nameof(AcademicClassViewModel.LecturerId),
+                SelectedValue = Model.LecturerId,
+                Placeholder = "Chọn giảng viên",
+                SearchPlaceholder = "Tìm tên hoặc email giảng viên",
+                EmptyText = "Không tìm thấy giảng viên phù hợp",
+                Options = Model.Lecturers
+            })" />
             }
             <p class="text-muted">Giảng viên phải trùng với người phụ trách môn học đã chọn.</p>
         </div>

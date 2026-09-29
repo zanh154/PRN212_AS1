@@ -365,6 +365,10 @@
 
 // -- Forms ---------------------------------------------------------------
 .form-label {
+  // Bootstrap's reboot only makes <label> inline-block, so margin-bottom was
+  // dropped whenever the class sat on a <span> — the caption of a picker whose
+  // control is a button, not a labellable input.
+  display: block;
   margin-bottom: $space-2;
   color: $color-heading;
   font-size: $font-size-sm;
@@ -443,6 +447,15 @@ textarea.form-control {
   border-radius: $radius-md;
   background: $color-info-soft;
   color: $color-info;
+  font-size: $font-size-sm;
+}
+
+// A one-line aside under a field: small and muted, never a coloured banner.
+// Use .info-note only when the message really needs to stop the eye.
+.field-hint {
+  display: block;
+  margin-top: $space-2;
+  color: $color-muted;
   font-size: $font-size-sm;
 }
 

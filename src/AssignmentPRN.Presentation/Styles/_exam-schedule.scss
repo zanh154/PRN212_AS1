@@ -1,6 +1,57 @@
 @use "tokens" as *;
 @use "mixins" as *;
 
+.exam-student-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $space-4;
+  padding: $space-4;
+  margin-bottom: $space-4;
+  background: $color-surface-alt;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  @include respond-below($breakpoint-md) { grid-template-columns: 1fr; }
+}
+[data-roster-row][hidden] { display: none !important; }
+[data-search-results][aria-busy="true"] { opacity: .6; }
+
+.student-add-card {
+  border-top: 3px solid $color-primary;
+
+  .combobox__option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $space-1;
+    white-space: normal;
+    overflow-wrap: anywhere;
+
+    .combobox__separator { display: none; }
+  }
+}
+
+.student-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: $space-4;
+
+  > .btn { margin-top: 2rem; }
+
+  @include respond-below($breakpoint-md) {
+    grid-template-columns: 1fr;
+    > .btn { margin-top: 0; }
+  }
+}
+
+.student-add-note {
+  margin-top: $space-4;
+  padding: $space-3;
+  border-radius: $radius-lg;
+  background: $color-primary-soft;
+  color: $color-text;
+}
+
 // Styles specific to the exam-schedule module. Everything here builds on the
 // shared tokens — no raw colour values.
 
@@ -374,6 +425,22 @@
 
 .date-time-picker__calendar {
   min-width: 0;
+}
+
+// Date-only: no clock column, so the panel narrows to the calendar and the
+// footer moves underneath it.
+.date-time-picker--date-only {
+  .date-time-picker__panel {
+    width: min(320px, calc(100vw - 24px));
+  }
+
+  .date-time-picker__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .date-time-picker__footer {
+    margin-top: 0;
+  }
 }
 
 .date-time-picker__header {
@@ -896,14 +963,21 @@
   align-items: center;
   gap: $space-3;
 
-  // The status chip sits at the far right of the row.
+  // The status chip sits at the far right of the row, at its natural width.
   > .status-chip {
+    flex: 0 0 auto;
     margin-left: auto;
   }
 
+  // Row actions keep their size and follow the chip.
+  > form {
+    flex: 0 0 auto;
+  }
+
   // Text wrapper (div or span) — must shrink to prevent overflow.
+  // The chip is a span too, hence the exclusion.
   > div:not(.avatar),
-  > span:not(.avatar) {
+  > span:not(.avatar):not(.status-chip) {
     min-width: 0;
     flex: 1;
   }

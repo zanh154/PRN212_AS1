@@ -99,7 +99,6 @@ public sealed class SearchableSelectViewModel
     /// courses; a short fixed list such as a difficulty is cleaner without it.
     /// </summary>
     public bool ShowAvatar { get; init; } = true;
-
     public required string Placeholder { get; init; }
 
     public required string SearchPlaceholder { get; init; }
@@ -107,6 +106,13 @@ public sealed class SearchableSelectViewModel
     public required string EmptyText { get; init; }
 
     public IReadOnlyList<SelectListItem> Options { get; init; } = Array.Empty<SelectListItem>();
+
+    /// <summary>
+    /// Extra data-* attributes for the underlying select (e.g. data-roster-status),
+    /// so existing scripts keep finding it. Keys must be valid attribute names.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Attributes { get; init; }
+        = new Dictionary<string, string>();
 }
 
 public sealed class DateTimePickerViewModel
@@ -137,11 +143,38 @@ public sealed class DateTimePickerViewModel
     public DateTime? Latest { get; init; }
 
     /// <summary>
+    /// Drops the clock and posts <c>yyyy-MM-dd</c>. For date filters, where a
+    /// time of day would be noise the server only throws away.
+    /// </summary>
+    public bool DateOnly { get; init; }
+
+    /// <summary>
+    /// Lifts the "not before now" floor. Scheduling pickers must keep it; a
+    /// filter over past exams cannot work with it.
+    /// </summary>
+    public bool AllowPast { get; init; }
+
+    /// <summary>Adds a "Xoá" button, so an optional filter can be emptied again.</summary>
+    public bool Clearable { get; init; }
+
+    /// <summary>
     /// Extra data-* attributes to add to the hidden input (e.g. data-schedule-start).
     /// Each key should be a valid HTML attribute name.
     /// </summary>
     public IReadOnlyDictionary<string, string> InputAttributes { get; init; }
         = new Dictionary<string, string>();
+}
+
+public class ExamSessionAddStudentViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int ExamId { get; set; }
+
+    [Required, EmailAddress, StringLength(255)]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public DateTime? ScheduledTime { get; set; }
 }
 
 public class ExamSessionRescheduleViewModel

@@ -6,6 +6,14 @@ public interface IExamSessionRepository
 {
     Task<ExamSessionDetail> UpdateAsync(ExamSessionUpdateInput input, CancellationToken cancellationToken = default);
     Task ChangeStatusAsync(int examId, AssignmentPRN.DataAccess.Enums.ExamSessionStatus status, CancellationToken cancellationToken = default);
+
+    Task<ExamStudentSearchResult> SearchExamStudentsAsync(ExamStudentSearch filter,
+        int? lecturerId, CancellationToken cancellationToken = default);
+    Task RemoveStudentAsync(int examId, int candidateId, CancellationToken cancellationToken = default);
+
+    Task<ExamSessionDetail> AddStudentAsync(int examId, string email, DateTime scheduledTime,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ExamSessionListItem>> ListAsync(CancellationToken cancellationToken = default);
 
     Task<ExamSessionDetail?> GetDetailAsync(int examId, CancellationToken cancellationToken = default);
