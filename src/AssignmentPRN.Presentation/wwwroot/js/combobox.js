@@ -189,6 +189,13 @@
     (scope || document).querySelectorAll("[data-combobox]").forEach(setup);
 
   const setupSelectPicker = (root) => {
+    // Wiring twice would give the trigger two click handlers, so the panel would
+    // open and close again on the same click.
+    if (root.dataset.selectPickerReady === "1") {
+      return;
+    }
+    root.dataset.selectPickerReady = "1";
+
     const trigger = root.querySelector("[data-select-trigger]");
     const label = root.querySelector("[data-select-label]");
     const value = root.querySelector("[data-select-value]");
