@@ -765,6 +765,12 @@
   }
 }
 
+// Without the avatar the label would sit in the 34px column meant for it, so the
+// grid drops to the two columns that are actually rendered.
+.select-picker--plain .select-picker__option {
+  grid-template-columns: minmax(0, 1fr) 18px;
+}
+
 .select-picker__avatar {
   width: 34px;
   height: 34px;

@@ -9,7 +9,7 @@
         : selectedOption?.Text;
 }
 
-<div class="select-picker" data-select-picker>
+<div class="select-picker @(Model.ShowAvatar ? null : "select-picker--plain")" data-select-picker>
     <button class="select-picker__trigger" type="button"
             aria-haspopup="listbox" aria-expanded="false"
             data-select-trigger>
