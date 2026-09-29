@@ -16,4 +16,10 @@
     <Content Remove="Styles\**" />
     <None Include="Styles\**" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Remove="appsettings.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="appsettings.json" />
+  </ItemGroup>
 </Project>
