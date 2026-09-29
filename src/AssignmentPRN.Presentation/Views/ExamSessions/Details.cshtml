@@ -73,7 +73,7 @@
     </section>
 }
 
-<div class="content-card">
+<div class="content-card" data-roster-filter>
     <div class="section-heading">
         <div>
             <h2>Lịch từng sinh viên</h2>
@@ -81,6 +81,18 @@
         </div>
     </div>
 
+    <div class="exam-student-filters">
+        <div><label class="form-label" for="roster-query">Tên hoặc email</label><input id="roster-query" type="search" class="form-control" placeholder="Tìm trong phiên thi này" data-roster-query /></div>
+        <div><label class="form-label" for="roster-status">Trạng thái</label><select id="roster-status" class="form-select" data-roster-status>
+            <option value="">Tất cả trạng thái</option>
+            @foreach (var status in Enum.GetValues<AssignmentPRN.DataAccess.Enums.CandidateStatus>()) {
+                <option value="@status">@ExamSessionText.Status(status)</option>
+            }
+        </select></div>
+        <button type="button" class="btn btn-outline-secondary align-self-end" data-roster-reset>Xóa bộ lọc</button>
+    </div>
+    <p class="info-note" data-roster-count aria-live="polite">@candidates.Count/@candidates.Count sinh viên</p>
+    <div class="empty-state" data-roster-empty hidden>Không tìm thấy sinh viên phù hợp. Hãy thử đổi bộ lọc.</div>
     @if (candidates.Count == 0)
     {
         <div class="empty-state">
@@ -97,7 +109,7 @@
                     ? "?"
                     : candidate.StudentName[..1].ToUpperInvariant();
 
-                <article class="timeline-item">
+                <article class="timeline-item" data-roster-row data-search="@candidate.StudentName @candidate.StudentEmail" data-status="@candidate.Status">
                     <div class="timeline-axis">
                         <span class="timeline-dot"></span>
                         @if (index < candidates.Count - 1)
@@ -159,4 +171,5 @@
 
 @section Scripts {
     <script src="~/js/combobox.js" asp-append-version="true"></script>
+    <script src="~/js/exam-student-search.js" asp-append-version="true"></script>
 }

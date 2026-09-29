@@ -4,6 +4,8 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public interface IExamSessionRepository
 {
+    Task<ExamStudentSearchResult> SearchExamStudentsAsync(ExamStudentSearch filter,
+        int? lecturerId, CancellationToken cancellationToken = default);
     Task RemoveStudentAsync(int examId, int candidateId, CancellationToken cancellationToken = default);
 
     Task<ExamSessionDetail> AddStudentAsync(int examId, string email, DateTime scheduledTime,
