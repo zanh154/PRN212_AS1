@@ -19,7 +19,12 @@
     query.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(filter, 300); });
     status.addEventListener('change', filter);
     roster.querySelector('[data-roster-reset]').addEventListener('click', () => {
-      clearTimeout(timer); query.value = ''; status.value = ''; filter(); query.focus();
+      clearTimeout(timer);
+      query.value = '';
+      status.value = '';
+      status.dispatchEvent(new Event('sync'));
+      filter();
+      query.focus();
     });
   }
   const root = document.querySelector('[data-exam-student-search]');
@@ -27,8 +32,10 @@
   const form = root.querySelector('[data-search-form]');
   const results = root.querySelector('[data-search-results]');
   const message = root.querySelector('[data-search-message]');
-  let timer, pending, version = 0;
-  const invalidate = () => { clearTimeout(timer); pending?.abort(); version++; };
+  let pending, version = 0;
+  // Drops whatever is still in flight, so a slow earlier reply cannot land
+  // on top of a newer one.
+  const invalidate = () => { pending?.abort(); version++; };
   const load = async url => {
     invalidate();
     const ticket = version;
@@ -55,8 +62,6 @@
     load(`${form.action}?${new URLSearchParams(new FormData(form))}`);
   };
   form.addEventListener('submit', event => { event.preventDefault(); search(); });
-  form.addEventListener('input', () => { invalidate(); timer = setTimeout(search, 300); });
-  form.addEventListener('change', search);
   results.addEventListener('click', event => {
     const link = event.target.closest('[data-search-page]');
     if (link && !event.ctrlKey && !event.metaKey && !event.shiftKey) { event.preventDefault(); load(link.href); }

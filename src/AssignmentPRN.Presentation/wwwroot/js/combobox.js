@@ -260,16 +260,26 @@
       }
     };
 
-    const select = (option) => {
-      value.value = option.dataset.value;
-      value.dispatchEvent(new Event("change", { bubbles: true }));
-      label.textContent = option.dataset.label;
-      label.classList.remove("is-placeholder");
+    // Redraws the trigger and the ticks from whatever the hidden select holds.
+    // A script that sets .value itself (a reset button) calls this by
+    // dispatching a "sync" event on the select — plain assignment fires nothing.
+    const placeholderText = value.querySelector('option[value=""]')?.textContent ?? "";
+    const sync = () => {
+      const current = options.find((item) => item.dataset.value === value.value);
+      label.textContent = current ? current.dataset.label : placeholderText;
+      label.classList.toggle("is-placeholder", !current);
       options.forEach((item) => {
-        const selected = item === option;
+        const selected = item === current;
         item.classList.toggle("is-selected", selected);
         item.setAttribute("aria-selected", selected ? "true" : "false");
       });
+    };
+    value.addEventListener("sync", sync);
+
+    const select = (option) => {
+      value.value = option.dataset.value;
+      sync();
+      value.dispatchEvent(new Event("change", { bubbles: true }));
       close(true);
     };
 

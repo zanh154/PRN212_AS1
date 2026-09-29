@@ -66,6 +66,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const nextButton = root.querySelector("[data-date-time-next]");
     const valueInput = root.querySelector("[data-date-time-value]");
     const hint = root.querySelector("[data-date-time-hint]");
+    const clearButton = root.querySelector("[data-date-time-clear]");
+    // Date-only pickers drop the clock column; every read of it must tolerate null.
+    const dateOnly = root.dataset.dateOnly === "true";
+    const allowPast = root.dataset.allowPast === "true";
+    const placeholder = root.dataset.placeholder || "";
 
     const parseBound = (value) => {
       const parts = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
@@ -79,7 +84,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const latest = parseBound(root.dataset.latest);
 
     // Never earlier than now, and never earlier than the window the server allows.
+    // Filters opt out entirely: they look backwards by definition.
     const minimumDateTime = () => {
+      if (allowPast) return earliest ? new Date(earliest) : new Date(1900, 0, 1);
       const minimum = new Date();
       minimum.setSeconds(0, 0);
       minimum.setMinutes(minimum.getMinutes() + 1);
@@ -91,21 +98,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
     const parseValue = (value) => {
-      const parts = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      const parts = value?.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
       if (!parts) return new Date();
       return new Date(
         Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]),
-        Number(parts[4]), Number(parts[5])
+        Number(parts[4] ?? 0), Number(parts[5] ?? 0)
       );
     };
 
-    const toInputValue = (date) =>
-      `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
-      `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    const toInputValue = (date) => {
+      const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+      return dateOnly ? day : `${day}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    };
 
-    const toLabel = (date) =>
-      `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}` +
-      ` · ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    const toLabel = (date) => {
+      const day = `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+      return dateOnly ? day : `${day} · ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    };
 
     const isSameDay = (a, b) =>
       a.getFullYear() === b.getFullYear() &&
@@ -133,6 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const readTime = () => {
+      if (!hourInput || !minuteInput) return;
       const hour = Math.min(23, Math.max(0, Number(hourInput.value) || 0));
       const minute = Math.min(59, Math.max(0, Number(minuteInput.value) || 0));
       selected.setHours(hour, minute, 0, 0);
@@ -145,8 +155,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const formatter = new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" });
       const title = formatter.format(visibleMonth);
       monthLabel.textContent = title.charAt(0).toUpperCase() + title.slice(1);
-      hourInput.value = pad(selected.getHours());
-      minuteInput.value = pad(selected.getMinutes());
+      if (hourInput) hourInput.value = pad(selected.getHours());
+      if (minuteInput) minuteInput.value = pad(selected.getMinutes());
       days.innerHTML = "";
 
       const year = visibleMonth.getFullYear();
@@ -202,6 +212,7 @@ document.addEventListener("DOMContentLoaded", () => {
           selected.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
           clampToMinimum();
           visibleMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
+          if (dateOnly) { commit(); return; }
           render();
         });
         days.appendChild(btn);
@@ -254,7 +265,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     root.querySelector("[data-date-time-done]").addEventListener("click", commit);
 
-    [hourInput, minuteInput].forEach((input) => {
+    clearButton?.addEventListener("click", () => {
+      valueInput.value = "";
+      label.textContent = placeholder;
+      valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+      valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+      close(true);
+    });
+
+    [hourInput, minuteInput].filter(Boolean).forEach((input) => {
       input.addEventListener("change", readTime);
       input.addEventListener("keydown", (event) => {
         if (event.key === "Enter") { event.preventDefault(); commit(); }
