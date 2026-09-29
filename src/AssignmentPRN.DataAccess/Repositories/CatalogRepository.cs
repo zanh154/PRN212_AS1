@@ -103,13 +103,13 @@ public class CatalogRepository(AivesDbContext context) : ICatalogRepository
 
     public Task<bool> CourseExistsAsync(int courseId, CancellationToken cancellationToken = default)
     {
-        return context.Courses.AnyAsync(course => course.CourseId == courseId, cancellationToken);
+        return context.Courses.AnyAsync(course => course.CourseId == courseId && course.IsActive, cancellationToken);
     }
 
     public Task<bool> UserIsInRoleAsync(int userId, string roleName, CancellationToken cancellationToken = default)
     {
         return context.Users.AnyAsync(
-            user => user.UserId == userId && user.Role.RoleName == roleName,
+            user => user.UserId == userId && user.Role.RoleName == roleName && user.Status == ActiveStatus,
             cancellationToken);
     }
 }

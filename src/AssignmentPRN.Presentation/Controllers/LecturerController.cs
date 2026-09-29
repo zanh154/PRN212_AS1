@@ -10,6 +10,7 @@ public class LecturerController(IExamSessionService examSessionService) : Contro
 {
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        return View(await DashboardBuilder.BuildStaffAsync(examSessionService, cancellationToken));
+        return View(await DashboardBuilder.BuildStaffAsync(examSessionService, cancellationToken,
+            HttpContext.Session.GetInt32(SessionKeys.UserId) ?? 0));
     }
 }

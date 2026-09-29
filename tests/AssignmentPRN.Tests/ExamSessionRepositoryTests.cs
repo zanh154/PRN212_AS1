@@ -245,7 +245,7 @@ public sealed class ExamSessionRepositoryTests
     /// A throwaway database per test. SQLite runs in memory but still executes real SQL
     /// and supports the transactions the repository opens.
     /// </summary>
-    private sealed class RepositoryFixture : IAsyncDisposable
+    internal sealed class RepositoryFixture : IAsyncDisposable
     {
         private readonly SqliteConnection _connection;
         private readonly AivesDbContext _context;
@@ -261,6 +261,7 @@ public sealed class ExamSessionRepositoryTests
         public ExamSessionRepository Repository { get; }
 
         public ExamSessionService Service { get; }
+        public AivesDbContext Context => _context;
 
         public static async Task<RepositoryFixture> CreateAsync()
         {

@@ -12,6 +12,34 @@ public class ExamSessionService(
     private const string StudentRole = "Student";
     private const int SearchResultLimit = 25;
 
+    public Task<ServiceResponse<ExamSessionDetailResponse>> UpdateAsync(ExamSessionUpdateInput request, int? lecturerId, CancellationToken cancellationToken = default) =>
+        ServiceExecutor.RunAsync(async () =>
+        {
+            var current = await examSessionRepository.GetDetailAsync(request.ExamId, cancellationToken)
+                ?? throw new BusinessValidationException("Không tìm thấy phiên thi.");
+            if (lecturerId.HasValue && current.Lecturer.UserId != lecturerId)
+                throw new BusinessValidationException("Bạn không có quyền sửa phiên thi này.");
+            request.ExamName = BusinessValidation.RequiredText(request.ExamName, "tên phiên thi", 200);
+            request.Description = BusinessValidation.OptionalText(request.Description, "mô tả", 1000);
+            BusinessValidation.InRange(request.TimePerStudent, 1, 1440, "Thời lượng");
+            BusinessValidation.InRange(request.MainQuestionCount, 1, 50, "Số câu hỏi chính");
+            BusinessValidation.InRange(request.MaxFollowUpCount, 0, 50, "Số câu hỏi phụ");
+            if (request.StartTime == default) throw new BusinessValidationException("Vui lòng chọn ngày giờ thi.");
+            if (request.CourseId != current.Course.CourseId && !await catalogRepository.CourseExistsAsync(request.CourseId, cancellationToken))
+                throw new BusinessValidationException("Môn học không tồn tại hoặc đã ngừng hoạt động.");
+            return MapDetail(await examSessionRepository.UpdateAsync(request, cancellationToken));
+        }, "Không thể cập nhật phiên thi.");
+
+    public Task<ServiceResponse> ChangeStatusAsync(int examId, ExamSessionStatus status, int? lecturerId, CancellationToken cancellationToken = default) =>
+        ServiceExecutor.RunAsync(async () =>
+        {
+            var current = await examSessionRepository.GetDetailAsync(examId, cancellationToken)
+                ?? throw new BusinessValidationException("Không tìm thấy phiên thi.");
+            if (lecturerId.HasValue && current.Lecturer.UserId != lecturerId)
+                throw new BusinessValidationException("Bạn không có quyền sửa phiên thi này.");
+            await examSessionRepository.ChangeStatusAsync(examId, status, cancellationToken);
+        }, "Không thể cập nhật trạng thái.");
+
     public Task<ServiceResponse<IReadOnlyList<ExamSessionListItemResponse>>> ListAsync(
         CancellationToken cancellationToken = default)
     {
@@ -328,6 +356,7 @@ public class ExamSessionService(
 
     private static ExamSessionListItemResponse MapListItem(ExamSessionListItem item) => new()
     {
+        LecturerId = item.LecturerId,
         ExamId = item.ExamId,
         ExamName = item.ExamName,
         StartTime = item.StartTime,

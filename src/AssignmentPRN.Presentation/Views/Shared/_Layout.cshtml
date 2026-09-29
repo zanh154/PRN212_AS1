@@ -49,6 +49,7 @@
                         <ul class="navbar-nav ms-auto align-items-md-center gap-md-1">
                             @if (role is RoleNames.Admin or RoleNames.Lecturer)
                             {
+                                <li class="nav-item"><a class="nav-link" asp-controller="Courses" asp-action="Index">Môn học</a></li>
                                 <li class="nav-item">
                                     <a class="nav-link" asp-controller="ExamSessions" asp-action="Index">Lịch thi</a>
                                 </li>
