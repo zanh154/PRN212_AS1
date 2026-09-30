@@ -1,5 +1,4 @@
 @model ExamSessionDetailViewModel
-@using AssignmentPRN.DataAccess.Enums
 @{
     var session = Model.Session;
     var candidates = session.Candidates;
@@ -9,8 +8,8 @@
         new("Lịch thi", "ExamSessions", "Index"),
         new(session.ExamName)
     };
-    var canManageStudents = (session.Status is AssignmentPRN.DataAccess.Enums.ExamSessionStatus.Draft
-        or AssignmentPRN.DataAccess.Enums.ExamSessionStatus.Scheduled) && session.StartTime > DateTime.Now
+    var canManageStudents = (session.Status is ExamSessionStatus.Draft
+        or ExamSessionStatus.Scheduled) && session.StartTime > DateTime.Now
         && (Context.Session.GetString(AssignmentPRN.Presentation.Constants.SessionKeys.Role) == AssignmentPRN.Presentation.Constants.RoleNames.Admin
             || Context.Session.GetInt32(AssignmentPRN.Presentation.Constants.SessionKeys.UserId) == session.Lecturer.UserId);
 }
@@ -171,7 +170,7 @@
                 SearchPlaceholder = "Tìm trạng thái",
                 EmptyText = "Không có trạng thái phù hợp",
                 Attributes = new Dictionary<string, string> { ["data-roster-status"] = "" },
-                Options = Enum.GetValues<AssignmentPRN.DataAccess.Enums.CandidateStatus>()
+                Options = Enum.GetValues<CandidateStatus>()
                     .Select(status => new SelectListItem(ExamSessionText.Status(status), status.ToString()))
                     .ToList()
             })" />

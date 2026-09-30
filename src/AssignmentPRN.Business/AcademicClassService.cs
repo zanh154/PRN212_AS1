@@ -13,7 +13,7 @@ public record AcademicClassSaveRequest(int ClassId, string ClassCode, string Cla
 public class AcademicClassService(
     IAcademicClassRepository repository,
     ICourseRepository courses,
-    ICatalogRepository catalog)
+    ICatalogRepository catalog) : IAcademicClassService
 {
     private const string LecturerRole = "Lecturer";
     private const string StudentRole = "Student";

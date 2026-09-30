@@ -1,6 +1,5 @@
 using AssignmentPRN.DataAccess.Contracts;
 using AssignmentPRN.DataAccess.Entities;
-using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.DataAccess.Repositories;
 
 namespace AssignmentPRN.Business;
@@ -57,8 +56,8 @@ public class QuestionService(
                     {
                         CourseId = effectiveCourseId,
                         MaterialId = materialId,
-                        Difficulty = difficulty,
-                        BloomLevel = bloomLevel,
+                        Difficulty = difficulty?.ToDataAccess(),
+                        BloomLevel = bloomLevel?.ToDataAccess(),
                         Term = term,
                         IncludeArchived = includeArchived
                     },
@@ -74,10 +73,10 @@ public class QuestionService(
                         MaterialId = item.MaterialId,
                         MaterialName = item.MaterialName,
                         QuestionText = item.QuestionText,
-                        Difficulty = item.Difficulty,
-                        BloomLevel = item.BloomLevel,
-                        QuestionType = item.QuestionType,
-                        Status = item.Status,
+                        Difficulty = item.Difficulty.ToBusiness(),
+                        BloomLevel = item.BloomLevel.ToBusiness(),
+                        QuestionType = item.QuestionType.ToBusiness(),
+                        Status = item.Status.ToBusiness(),
                         AuthorName = item.AuthorName,
                         CreatedAt = item.CreatedAt
                     })
@@ -140,7 +139,7 @@ public class QuestionService(
                     await EnsureCourseVisibleAsync(existing.CourseId, ownerLecturerId, cancellationToken);
 
                     // Past papers were dealt by round; flipping the type would rewrite that history.
-                    if (existing.QuestionType != request.QuestionType
+                    if (existing.QuestionType.ToBusiness() != request.QuestionType
                         && await questionRepository.IsAssignedToExamAsync(existing.QuestionId, cancellationToken))
                     {
                         throw new BusinessValidationException(
@@ -169,10 +168,14 @@ public class QuestionService(
                         MaterialId = request.MaterialId,
                         QuestionText = body,
                         ExpectedAnswer = expectedAnswer,
-                        BloomLevel = request.BloomLevel,
-                        Difficulty = request.Difficulty,
-                        QuestionType = request.QuestionType,
-                        Options = options
+                        BloomLevel = request.BloomLevel.ToDataAccess(),
+                        Difficulty = request.Difficulty.ToDataAccess(),
+                        QuestionType = request.QuestionType.ToDataAccess(),
+                        Options = options.Select(item => new AssignmentPRN.DataAccess.Contracts.QuestionOptionInput
+                        {
+                            Text = item.Text,
+                            IsCorrect = item.IsCorrect
+                        }).ToList()
                     },
                     lecturerId,
                     cancellationToken);
@@ -261,9 +264,13 @@ public class QuestionService(
                                 MaterialId = row.MaterialId,
                                 QuestionText = body,
                                 ExpectedAnswer = expectedAnswer,
-                                BloomLevel = row.BloomLevel,
-                                Difficulty = row.Difficulty,
-                                Options = options
+                                BloomLevel = row.BloomLevel.ToDataAccess(),
+                                Difficulty = row.Difficulty.ToDataAccess(),
+                                Options = options.Select(item => new AssignmentPRN.DataAccess.Contracts.QuestionOptionInput
+                                {
+                                    Text = item.Text,
+                                    IsCorrect = item.IsCorrect
+                                }).ToList()
                             },
                             lecturerId,
                             cancellationToken);
@@ -489,7 +496,7 @@ public class QuestionService(
                     throw new BusinessValidationException("Đây không phải lượt thi của bạn.");
                 }
 
-                if (candidate.CandidateStatus != CandidateStatus.Completed)
+                if (candidate.CandidateStatus.ToBusiness() != CandidateStatus.Completed)
                 {
                     throw new BusinessValidationException("Kết quả chỉ hiển thị sau khi bạn đã nộp bài.");
                 }
@@ -501,7 +508,11 @@ public class QuestionService(
                     CourseCode = candidate.CourseCode,
                     CourseName = candidate.CourseName,
                     LecturerName = candidate.LecturerName,
-                    Questions = await questionRepository.ListCandidateResultsAsync(candidateId, cancellationToken: cancellationToken)
+                    Questions = (await questionRepository.ListCandidateResultsAsync(
+                        candidateId,
+                        cancellationToken: cancellationToken))
+                        .Select(item => item.ToBusiness())
+                        .ToList()
                 };
             },
             "Không thể tải kết quả bài thi.");
@@ -555,7 +566,7 @@ public class QuestionService(
     /// attach someone else's option to a slot.
     /// </summary>
     private static Dictionary<int, int?> CleanAnswers(
-        IReadOnlyList<ExamRoomQuestion> round,
+        IReadOnlyList<AssignmentPRN.DataAccess.Contracts.ExamRoomQuestion> round,
         IReadOnlyDictionary<int, int?> posted)
     {
         var cleaned = new Dictionary<int, int?>(round.Count);
@@ -604,7 +615,7 @@ public class QuestionService(
                 question.ExamQuestionId,
                 question.OrderNo,
                 question.MaterialId,
-                question.Difficulty,
+                question.Difficulty.ToBusiness(),
                 IsCorrectChoice(question, mainAnswers)))
             .ToList();
 
@@ -614,7 +625,10 @@ public class QuestionService(
             .ToHashSet();
 
         var pool = (await questionRepository.ListFollowUpPoolAsync(candidate.CourseId, topics, cancellationToken))
-            .Select(item => new FollowUpCandidate(item.QuestionId, item.MaterialId, item.Difficulty))
+            .Select(item => new FollowUpCandidate(
+                item.QuestionId,
+                item.MaterialId,
+                item.Difficulty.ToBusiness()))
             .ToList();
 
         var usedInSession = await questionRepository.ListAssignedQuestionIdsAsync(candidate.ExamId, cancellationToken);
@@ -630,7 +644,9 @@ public class QuestionService(
             .ToList();
     }
 
-    private static bool IsCorrectChoice(ExamResultQuestion question, IReadOnlyDictionary<int, int?> answers) =>
+    private static bool IsCorrectChoice(
+        AssignmentPRN.DataAccess.Contracts.ExamResultQuestion question,
+        IReadOnlyDictionary<int, int?> answers) =>
         answers.TryGetValue(question.ExamQuestionId, out var picked)
         && picked is int optionId
         && question.Options.Any(option => option.OptionId == optionId && option.IsCorrect);
@@ -653,12 +669,12 @@ public class QuestionService(
             throw new BusinessValidationException("Đây không phải lượt thi của bạn.");
         }
 
-        if (candidate.CandidateStatus == CandidateStatus.Completed)
+        if (candidate.CandidateStatus.ToBusiness() == CandidateStatus.Completed)
         {
             throw new BusinessValidationException("Bạn đã nộp bài cho lượt thi này.");
         }
 
-        if (candidate.CandidateStatus != CandidateStatus.InProgress)
+        if (candidate.CandidateStatus.ToBusiness() != CandidateStatus.InProgress)
         {
             throw new BusinessValidationException("Bạn chưa vào ca thi này.");
         }
@@ -695,17 +711,17 @@ public class QuestionService(
             throw new BusinessValidationException("Đây không phải lượt thi của bạn.");
         }
 
-        if (candidate.CandidateStatus is CandidateStatus.Cancelled or CandidateStatus.Absent)
+        if (candidate.CandidateStatus.ToBusiness() is CandidateStatus.Cancelled or CandidateStatus.Absent)
         {
             throw new BusinessValidationException("Lượt thi này đã bị huỷ hoặc bạn được ghi nhận vắng thi.");
         }
 
-        if (candidate.CandidateStatus == CandidateStatus.Completed)
+        if (candidate.CandidateStatus.ToBusiness() == CandidateStatus.Completed)
         {
             throw new BusinessValidationException("Bạn đã hoàn thành lượt thi này.");
         }
 
-        if (!ExamSessionRules.CanSit(candidate.SessionStatus))
+        if (!ExamSessionRules.CanSit(candidate.SessionStatus.ToBusiness()))
         {
             throw new BusinessValidationException(
                 "Phiên thi chưa mở hoặc đã kết thúc, chưa thể vào thi.");
@@ -739,7 +755,7 @@ public class QuestionService(
     {
         var count = BusinessValidation.InRange(
             candidate.MainQuestionCount, 1, 50, "Số câu hỏi mỗi sinh viên");
-        var filter = new QuestionPickRequest { CourseId = candidate.CourseId, Count = count };
+        var filter = new QuestionPickRequest { CourseId = candidate.CourseId, Count = count }.ToDataAccess();
 
         await questionRepository.DealAsync(
             candidate.ExamId,
@@ -769,13 +785,13 @@ public class QuestionService(
     /// the pool can no longer fill a whole paper.
     /// </summary>
     private async Task<IReadOnlyList<ExamQuestionInput>?> PickPaperAsync(
-        QuestionPickRequest filter,
+        AssignmentPRN.DataAccess.Contracts.QuestionPickRequest filter,
         int candidateId,
         HashSet<int> taken,
         CancellationToken cancellationToken)
     {
         var pool = await questionRepository.ListPoolIdsAsync(
-            new QuestionPickRequest
+            new AssignmentPRN.DataAccess.Contracts.QuestionPickRequest
             {
                 CourseId = filter.CourseId,
                 Count = filter.Count,
@@ -804,7 +820,7 @@ public class QuestionService(
 
     private static ExamRoomResponse MapRoom(
         ExamRoomCandidate candidate,
-        IReadOnlyList<ExamRoomQuestion> questions) => new()
+        IReadOnlyList<AssignmentPRN.DataAccess.Contracts.ExamRoomQuestion> questions) => new()
     {
         CandidateId = candidate.CandidateId,
         ExamId = candidate.ExamId,
@@ -815,10 +831,10 @@ public class QuestionService(
         ScheduledTime = candidate.ScheduledTime ?? default,
         EndTime = (candidate.ScheduledTime ?? default).AddMinutes(candidate.TimePerStudent),
         TimePerStudent = candidate.TimePerStudent,
-        CandidateStatus = candidate.CandidateStatus,
+        CandidateStatus = candidate.CandidateStatus.ToBusiness(),
         StartedAt = candidate.StartedAt,
-        Questions = questions,
-        CanAnswer = candidate.CandidateStatus == CandidateStatus.InProgress
+        Questions = questions.Select(item => item.ToBusiness()).ToList(),
+        CanAnswer = candidate.CandidateStatus.ToBusiness() == CandidateStatus.InProgress
             && candidate.ScheduledTime is DateTime slot
             && ExamSessionRules.IsSlotOpen(DateTime.Now, slot, candidate.TimePerStudent),
         SecondsRemaining = RemainingSeconds(candidate)
@@ -844,7 +860,9 @@ public class QuestionService(
             async () =>
             {
                 var id = BusinessValidation.PositiveId(examId, "lịch thi");
-                return await questionRepository.ListExamPaperAsync(id, cancellationToken);
+                return (await questionRepository.ListExamPaperAsync(id, cancellationToken))
+                    .Select(item => item.ToBusiness())
+                    .ToList();
             },
             "Không thể tải đề thi đã phát.");
     }
@@ -875,7 +893,7 @@ public class QuestionService(
     /// Copies the filter across and pins the count to the range a request may carry,
     /// so <see cref="QuestionPickRequest.Count"/> cannot smuggle in a negative value.
     /// </summary>
-    private static QuestionPickRequest BuildPoolRequest(
+    private static AssignmentPRN.DataAccess.Contracts.QuestionPickRequest BuildPoolRequest(
         int courseId,
         int count,
         QuestionPickRequest request) => new()
@@ -883,12 +901,12 @@ public class QuestionService(
         CourseId = courseId,
         Count = count,
         MaterialIds = request.MaterialIds,
-        Difficulties = request.Difficulties,
+        Difficulties = request.Difficulties.Select(item => item.ToDataAccess()).ToList(),
         TakenQuestionIds = request.TakenQuestionIds
     };
 
     /// <summary>Same filter, applied to the exam assignment request.</summary>
-    private static QuestionPickRequest BuildPoolRequest(
+    private static AssignmentPRN.DataAccess.Contracts.QuestionPickRequest BuildPoolRequest(
         int courseId,
         int count,
         ExamQuestionAssignmentRequest request) => new()
@@ -896,7 +914,7 @@ public class QuestionService(
         CourseId = courseId,
         Count = count,
         MaterialIds = request.MaterialIds,
-        Difficulties = request.Difficulties
+        Difficulties = request.Difficulties.Select(item => item.ToDataAccess()).ToList()
     };
 
     /// <summary>
@@ -967,7 +985,7 @@ public class QuestionService(
             // Retiring a question and re-adding a better one is allowed, so an archived
             // row never blocks. The repository already leaves those out; the check is
             // repeated here so the rule does not depend on the query.
-            && item.Status != QuestionStatus.Archived
+            && item.Status.ToBusiness() != QuestionStatus.Archived
             && string.Equals(FoldForDuplicateCheck(item.QuestionText), folded, StringComparison.Ordinal));
 
         if (clash is null)
@@ -990,6 +1008,9 @@ public class QuestionService(
         QuestionStatus.Archived => "đã lưu trữ",
         _ => status.ToString()
     };
+
+    private static string DescribeStatus(AssignmentPRN.DataAccess.Enums.QuestionStatus status) =>
+        DescribeStatus(status.ToBusiness());
 
     private static IReadOnlyList<QuestionOptionInput> NormaliseOptions(        IReadOnlyList<QuestionOptionInput> options)
     {
@@ -1082,10 +1103,10 @@ public class QuestionService(
         MaterialId = detail.MaterialId,
         QuestionText = detail.QuestionText,
         ExpectedAnswer = detail.ExpectedAnswer,
-        BloomLevel = detail.BloomLevel,
-        Difficulty = detail.Difficulty,
-        QuestionType = detail.QuestionType,
-        Status = detail.Status,
+        BloomLevel = detail.BloomLevel.ToBusiness(),
+        Difficulty = detail.Difficulty.ToBusiness(),
+        QuestionType = detail.QuestionType.ToBusiness(),
+        Status = detail.Status.ToBusiness(),
         Options = detail.Options
             .Select(option => new QuestionOptionResponse
             {

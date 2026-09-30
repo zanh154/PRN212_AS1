@@ -137,7 +137,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
         await transaction.CommitAsync(cancellationToken);
     }
 
-    public async Task<ExamSessionDetail> AddStudentAsync(int examId, string email,
+    public async Task<ExamSessionDetail> AddStudentAsync(int examId, int studentId,
         DateTime scheduledTime, CancellationToken cancellationToken = default)
     {
         // Serialize roster checks and insertion so concurrent requests cannot add duplicates.
@@ -154,21 +154,16 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
             || scheduledTime.AddMinutes(session.TimePerStudent).Date != session.StartTime.Date)
             throw new ArgumentException("Khung giờ phải nằm trọn trong ngày thi.");
 
-        var normalizedEmail = email.Trim().ToLowerInvariant();
-        var student = await context.Users.SingleOrDefaultAsync(user =>
-            user.Email.ToLower() == normalizedEmail && user.Status == "Active"
-            && user.Role.RoleName == "Student", cancellationToken)
-            ?? throw new ArgumentException("Không tìm thấy sinh viên đang hoạt động với email này.");
         if (await context.ExamCandidates.AnyAsync(item =>
-            item.ExamId == examId && item.StudentId == student.UserId, cancellationToken))
+            item.ExamId == examId && item.StudentId == studentId, cancellationToken))
             throw new ArgumentException("Sinh viên đã có trong phiên thi này.");
 
         var endTime = scheduledTime.AddMinutes(session.TimePerStudent);
-        await EnsureNoConflictAsync(student.UserId, session.LecturerId, scheduledTime,
+        await EnsureNoConflictAsync(studentId, session.LecturerId, scheduledTime,
             endTime, null, cancellationToken);
         context.ExamCandidates.Add(new ExamCandidate
         {
-            ExamId = examId, StudentId = student.UserId,
+            ExamId = examId, StudentId = studentId,
             ScheduledTime = scheduledTime, Status = CandidateStatus.Waiting
         });
         if (scheduledTime < session.StartTime) session.StartTime = scheduledTime;
@@ -209,6 +204,19 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
         return examId <= 0
             ? Task.FromResult<ExamSessionDetail?>(null)
             : LoadDetailAsync(examId, cancellationToken);
+    }
+
+    public async Task<ExamSessionDetail?> GetDetailByCandidateIdAsync(
+        int candidateId,
+        CancellationToken cancellationToken = default)
+    {
+        var examId = await context.ExamCandidates
+            .AsNoTracking()
+            .Where(item => item.CandidateId == candidateId)
+            .Select(item => item.ExamId)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return examId == 0 ? null : await LoadDetailAsync(examId, cancellationToken);
     }
 
     public async Task<StudentSchedule?> GetStudentScheduleAsync(

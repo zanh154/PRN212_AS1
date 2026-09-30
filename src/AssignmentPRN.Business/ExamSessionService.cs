@@ -1,5 +1,4 @@
 using AssignmentPRN.DataAccess.Contracts;
-using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.DataAccess.Repositories;
 
 namespace AssignmentPRN.Business;
@@ -20,12 +19,14 @@ public class ExamSessionService(
                 ?? throw new BusinessValidationException("Không tìm thấy phiên thi.");
             if (lecturerId.HasValue && current.Lecturer.UserId != lecturerId)
                 throw new BusinessValidationException("Bạn không có quyền sửa phiên thi này.");
+            EnsureSessionEditable(current);
             request.ExamName = BusinessValidation.RequiredText(request.ExamName, "tên phiên thi", 200);
             request.Description = BusinessValidation.OptionalText(request.Description, "mô tả", 1000);
             BusinessValidation.InRange(request.TimePerStudent, 1, 1440, "Thời lượng");
             BusinessValidation.InRange(request.MainQuestionCount, 1, 50, "Số câu hỏi chính");
             BusinessValidation.InRange(request.MaxFollowUpCount, 0, 50, "Số câu hỏi phụ");
             if (request.StartTime == default) throw new BusinessValidationException("Vui lòng chọn ngày giờ thi.");
+            EnsureUpdatedTimingIsValid(current, request);
             var courseChanged = request.CourseId != current.Course.CourseId;
             if (courseChanged)
             {
@@ -35,7 +36,7 @@ public class ExamSessionService(
             }
             if (courseChanged || request.MainQuestionCount != current.MainQuestionCount)
                 await EnsureBankCoversAsync(request.CourseId, SeatsToDeal(current), request.MainQuestionCount, cancellationToken);
-            return MapDetail(await examSessionRepository.UpdateAsync(request, cancellationToken));
+            return MapDetail(await examSessionRepository.UpdateAsync(request.ToDataAccess(), cancellationToken));
         }, "Không thể cập nhật phiên thi.");
 
     public Task<ServiceResponse> ChangeStatusAsync(int examId, ExamSessionStatus status, int? lecturerId, CancellationToken cancellationToken = default) =>
@@ -45,7 +46,8 @@ public class ExamSessionService(
                 ?? throw new BusinessValidationException("Không tìm thấy phiên thi.");
             if (lecturerId.HasValue && current.Lecturer.UserId != lecturerId)
                 throw new BusinessValidationException("Bạn không có quyền sửa phiên thi này.");
-            await examSessionRepository.ChangeStatusAsync(examId, status, cancellationToken);
+            EnsureStatusChangeAllowed(current, status);
+            await examSessionRepository.ChangeStatusAsync(examId, status.ToDataAccess(), cancellationToken);
         }, "Không thể cập nhật trạng thái.");
 
     public Task<ServiceResponse<ExamStudentSearchResult>> SearchExamStudentsAsync(
@@ -62,7 +64,8 @@ public class ExamSessionService(
                 throw new BusinessValidationException("Ngày kết thúc không hợp lệ.");
             if (filter.Status.HasValue && !Enum.IsDefined(filter.Status.Value))
                 throw new BusinessValidationException("Trạng thái không hợp lệ.");
-            return await examSessionRepository.SearchExamStudentsAsync(filter, lecturerId, cancellationToken);
+            return (await examSessionRepository.SearchExamStudentsAsync(
+                filter.ToDataAccess(), lecturerId, cancellationToken)).ToBusiness();
         }, "Không thể tra cứu sinh viên trong phiên thi.");
     }
 
@@ -73,6 +76,9 @@ public class ExamSessionService(
         {
             BusinessValidation.PositiveId(examId, "phiên thi");
             BusinessValidation.PositiveId(candidateId, "sinh viên cần xóa");
+            var session = await examSessionRepository.GetDetailAsync(examId, cancellationToken)
+                ?? throw new BusinessValidationException("Không tìm thấy phiên thi.");
+            EnsureStudentCanBeRemoved(session, candidateId);
             await examSessionRepository.RemoveStudentAsync(examId, candidateId, cancellationToken);
         }, "Không thể xóa sinh viên khỏi phiên thi.");
     }
@@ -89,6 +95,7 @@ public class ExamSessionService(
 
             var session = await examSessionRepository.GetDetailAsync(examId, cancellationToken)
                 ?? throw new BusinessValidationException("Không tìm thấy phiên thi.");
+            EnsureStudentCanBeAdded(session, scheduledTime);
             var student = (await catalogRepository.FindUsersByEmailsAsync(
                     StudentRole, [normalizedEmail.ToLowerInvariant()], cancellationToken))
                 .FirstOrDefault()
@@ -106,7 +113,7 @@ public class ExamSessionService(
                 session.Course.CourseId, SeatsToDeal(session) + 1, session.MainQuestionCount, cancellationToken);
 
             return MapDetail(await examSessionRepository.AddStudentAsync(
-                examId, normalizedEmail, scheduledTime, cancellationToken));
+                examId, student.UserId, scheduledTime, cancellationToken));
         }, "Không thể thêm sinh viên vào phiên thi.");
     }
 
@@ -245,6 +252,11 @@ public class ExamSessionService(
                     throw new BusinessValidationException("Giờ bắt đầu mới không được nằm trong quá khứ.");
                 }
 
+                var session = await examSessionRepository.GetDetailByCandidateIdAsync(
+                        candidateId, cancellationToken)
+                    ?? throw new BusinessValidationException($"Không tìm thấy lượt thi #{candidateId}.");
+                EnsureCandidateCanBeRescheduled(session, candidateId, request.ScheduledTime);
+
                 var updated = await examSessionRepository.RescheduleAsync(
                     candidateId,
                     request.ScheduledTime,
@@ -260,10 +272,9 @@ public class ExamSessionService(
         return ServiceExecutor.RunAsync(
             async () =>
             {
-                if (await examSessionRepository.GetDetailAsync(examId, cancellationToken) is null)
-                {
-                    throw new BusinessValidationException("Không tìm thấy lịch thi.");
-                }
+                var session = await examSessionRepository.GetDetailAsync(examId, cancellationToken)
+                    ?? throw new BusinessValidationException("Không tìm thấy lịch thi.");
+                EnsureSessionEditable(session);
 
                 await examSessionRepository.DeleteAsync(examId, cancellationToken);
             },
@@ -333,13 +344,153 @@ public class ExamSessionService(
         }
     }
 
+    private static void EnsureSessionEditable(ExamSessionDetail session)
+    {
+        if (!ExamSessionRules.CanEdit(session.Status.ToBusiness())
+            || session.Candidates.Any(candidate => candidate.Status.ToBusiness() != CandidateStatus.Waiting))
+        {
+            throw new BusinessValidationException(
+                "Chỉ được sửa hoặc xoá phiên nháp/đã xếp lịch khi tất cả sinh viên còn chờ thi.");
+        }
+    }
+
+    private static void EnsureUpdatedTimingIsValid(
+        ExamSessionDetail current,
+        ExamSessionUpdateInput request)
+    {
+        var timingChanged = current.StartTime != request.StartTime
+            || current.TimePerStudent != request.TimePerStudent;
+        if (!timingChanged)
+        {
+            return;
+        }
+
+        if (request.StartTime < DateTime.Now)
+        {
+            throw new BusinessValidationException("Giờ bắt đầu không được nằm trong quá khứ.");
+        }
+
+        if (current.Candidates.Count == 0)
+        {
+            throw new BusinessValidationException("Phiên thi phải có sinh viên để xếp lịch.");
+        }
+
+        var end = request.StartTime.AddMinutes(
+            (double)request.TimePerStudent * current.Candidates.Count);
+        if (end.Date != request.StartTime.Date)
+        {
+            throw new BusinessValidationException("Tổng thời lượng vượt quá ngày thi.");
+        }
+    }
+
+    private static void EnsureStatusChangeAllowed(
+        ExamSessionDetail session,
+        ExamSessionStatus target)
+    {
+        if (!Enum.IsDefined(target) || !ExamSessionRules.CanTransition(session.Status.ToBusiness(), target))
+        {
+            throw new BusinessValidationException("Không thể chuyển sang trạng thái đã chọn.");
+        }
+
+        if (target == ExamSessionStatus.Completed
+            && session.Candidates.Any(candidate =>
+                candidate.Status.ToBusiness() is CandidateStatus.Waiting or CandidateStatus.InProgress))
+        {
+            throw new BusinessValidationException(
+                "Chưa thể hoàn thành: còn sinh viên chờ thi hoặc đang thi.");
+        }
+
+        if (target == ExamSessionStatus.InProgress && DateTime.Now < session.StartTime)
+        {
+            throw new BusinessValidationException("Chưa đến giờ bắt đầu phiên thi.");
+        }
+
+        if (target == ExamSessionStatus.Cancelled)
+        {
+            var sitting = session.Candidates.Count(candidate =>
+                ExamSessionRules.BlocksCancellation(candidate.Status.ToBusiness()));
+            if (sitting > 0)
+            {
+                throw new BusinessValidationException(
+                    $"Còn {sitting} sinh viên đang thi, chưa thể huỷ phiên.");
+            }
+        }
+    }
+
+    private static void EnsureRosterCanChange(ExamSessionDetail session)
+    {
+        if (!ExamSessionRules.CanEdit(session.Status.ToBusiness()) || session.StartTime <= DateTime.Now)
+        {
+            throw new BusinessValidationException(
+                "Chỉ được thay đổi sinh viên khi phiên thi chưa bắt đầu.");
+        }
+    }
+
+    private static void EnsureStudentCanBeRemoved(ExamSessionDetail session, int candidateId)
+    {
+        EnsureRosterCanChange(session);
+        var candidate = session.Candidates.FirstOrDefault(item => item.CandidateId == candidateId)
+            ?? throw new BusinessValidationException("Sinh viên không còn trong phiên thi này.");
+        if (candidate.Status.ToBusiness() != CandidateStatus.Waiting)
+        {
+            throw new BusinessValidationException(
+                "Chỉ được xóa sinh viên đang chờ thi và chưa có dữ liệu bài thi.");
+        }
+    }
+
+    private static void EnsureStudentCanBeAdded(
+        ExamSessionDetail session,
+        DateTime scheduledTime)
+    {
+        EnsureRosterCanChange(session);
+        if (scheduledTime <= DateTime.Now)
+        {
+            throw new BusinessValidationException(
+                "Không thể thêm sinh viên vào lịch thi trong quá khứ.");
+        }
+
+        if (session.TimePerStudent <= 0
+            || scheduledTime.Date != session.StartTime.Date
+            || scheduledTime.AddMinutes(session.TimePerStudent).Date != session.StartTime.Date)
+        {
+            throw new BusinessValidationException("Khung giờ phải nằm trọn trong ngày thi.");
+        }
+    }
+
+    private static void EnsureCandidateCanBeRescheduled(
+        ExamSessionDetail session,
+        int candidateId,
+        DateTime scheduledTime)
+    {
+        var candidate = session.Candidates.FirstOrDefault(item => item.CandidateId == candidateId)
+            ?? throw new BusinessValidationException($"Không tìm thấy lượt thi #{candidateId}.");
+        if (!ExamSessionRules.CanEdit(session.Status.ToBusiness())
+            || candidate.Status.ToBusiness() != CandidateStatus.Waiting)
+        {
+            throw new BusinessValidationException(
+                "Phiên thi hoặc lượt thi không còn được phép đổi giờ.");
+        }
+
+        var endTime = scheduledTime.AddMinutes(session.TimePerStudent);
+        if (endTime.Date != scheduledTime.Date)
+        {
+            throw new BusinessValidationException("Khung giờ không được vượt quá ngày thi.");
+        }
+
+        if (scheduledTime.Date != session.StartTime.Date)
+        {
+            throw new BusinessValidationException(
+                $"Khung giờ mới phải nằm trong ngày thi {session.StartTime:dd/MM/yyyy}.");
+        }
+    }
+
     /// <summary>
     /// Students of the session who will still draw a paper. A cancelled slot or a no-show
     /// never draws one, so they do not count against the bank.
     /// </summary>
     private static int SeatsToDeal(ExamSessionDetail session) =>
         session.Candidates.Count(candidate =>
-            candidate.Status is not (CandidateStatus.Cancelled or CandidateStatus.Absent));
+            candidate.Status.ToBusiness() is not (CandidateStatus.Cancelled or CandidateStatus.Absent));
 
     /// <summary>
     /// Refuses a session the course's question bank could not serve to the last student,
@@ -464,12 +615,12 @@ public class ExamSessionService(
             TimePerStudent = request.TimePerStudent,
             MainQuestionCount = mainQuestionCount,
             MaxFollowUpCount = maxFollowUpCount,
-            Status = ExamSessionStatus.Scheduled,
+            Status = ExamSessionStatus.Scheduled.ToDataAccess(),
             Candidates = slots.Select(slot => new ExamCandidateInput
             {
                 StudentId = slot.StudentId,
                 ScheduledTime = slot.StartTime,
-                Status = CandidateStatus.Waiting
+                Status = CandidateStatus.Waiting.ToDataAccess()
             }).ToList()
         };
     }
@@ -482,7 +633,7 @@ public class ExamSessionService(
         StartTime = item.StartTime,
         EndTime = item.EndTime,
         TimePerStudent = item.TimePerStudent,
-        Status = item.Status,
+        Status = item.Status.ToBusiness(),
         LecturerName = item.LecturerName,
         CourseCode = item.CourseCode,
         CourseName = item.CourseName,
@@ -499,7 +650,7 @@ public class ExamSessionService(
         TimePerStudent = detail.TimePerStudent,
         MainQuestionCount = detail.MainQuestionCount,
         MaxFollowUpCount = detail.MaxFollowUpCount,
-        Status = detail.Status,
+        Status = detail.Status.ToBusiness(),
         CreatedAt = detail.CreatedAt,
         Lecturer = new PersonResponse
         {
@@ -522,7 +673,7 @@ public class ExamSessionService(
             StudentEmail = item.StudentEmail,
             ScheduledTime = item.ScheduledTime,
             EndTime = item.ScheduledTime?.AddMinutes(detail.TimePerStudent),
-            Status = item.Status
+            Status = item.Status.ToBusiness()
         }).ToList()
     };
 
@@ -541,8 +692,8 @@ public class ExamSessionService(
             LecturerName = item.LecturerName,
             ScheduledTime = item.ScheduledTime,
             EndTime = item.ScheduledTime.AddMinutes(item.TimePerStudent),
-            SessionStatus = item.SessionStatus,
-            CandidateStatus = item.CandidateStatus
+            SessionStatus = item.SessionStatus.ToBusiness(),
+            CandidateStatus = item.CandidateStatus.ToBusiness()
         }).ToList()
     };
 }

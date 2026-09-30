@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using AssignmentPRN.DataAccess.Enums;
+using AssignmentPRN.Business;
 using AssignmentPRN.Presentation.Models;
 
 namespace AssignmentPRN.Tests;

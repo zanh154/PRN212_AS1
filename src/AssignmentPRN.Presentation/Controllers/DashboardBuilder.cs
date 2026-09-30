@@ -23,7 +23,7 @@ internal static class DashboardBuilder
         var horizon = now.AddDays(UpcomingWindowDays);
         var sessions = response.Data.Where(x => !lecturerId.HasValue || x.LecturerId == lecturerId).ToList();
         var upcoming = sessions
-            .Where(session => session.Status == AssignmentPRN.DataAccess.Enums.ExamSessionStatus.Scheduled)
+            .Where(session => session.Status == ExamSessionStatus.Scheduled)
             .Where(session => session.StartTime >= now && session.StartTime <= horizon)
             .OrderBy(session => session.StartTime)
             .ToList();

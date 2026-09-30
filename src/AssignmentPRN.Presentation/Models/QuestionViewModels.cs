@@ -1,5 +1,4 @@
 using AssignmentPRN.Business;
-using AssignmentPRN.DataAccess.Enums;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
 
@@ -251,11 +250,11 @@ public static class QuestionText
         _ => "status-chip--warning"
     };
 
-    public static string FileType(AssignmentPRN.DataAccess.Enums.MaterialFileType type) => type switch
+    public static string FileType(MaterialFileType type) => type switch
     {
-        AssignmentPRN.DataAccess.Enums.MaterialFileType.PDF => "PDF",
-        AssignmentPRN.DataAccess.Enums.MaterialFileType.DOCX => "Word",
-        AssignmentPRN.DataAccess.Enums.MaterialFileType.PPTX => "PowerPoint",
+        MaterialFileType.PDF => "PDF",
+        MaterialFileType.DOCX => "Word",
+        MaterialFileType.PPTX => "PowerPoint",
         _ => type.ToString()
     };
 

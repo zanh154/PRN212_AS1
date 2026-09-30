@@ -9,7 +9,7 @@ namespace AssignmentPRN.Presentation.Controllers;
 
 [SessionAuthorize(RoleNames.Admin, RoleNames.Lecturer)]
 public class ClassesController(
-    AcademicClassService service,
+    IAcademicClassService service,
     ICatalogService catalog) : Controller
 {
     private int? LecturerId => HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer

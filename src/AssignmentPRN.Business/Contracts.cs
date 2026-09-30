@@ -1,4 +1,3 @@
-using AssignmentPRN.DataAccess.Enums;
 
 namespace AssignmentPRN.Business;
 
@@ -341,13 +340,13 @@ public sealed class QuestionResponse
 
     public string? ExpectedAnswer { get; init; }
 
-    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+    public BloomLevel BloomLevel { get; init; }
 
-    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+    public QuestionDifficulty Difficulty { get; init; }
 
-    public DataAccess.Enums.QuestionType QuestionType { get; init; }
+    public QuestionType QuestionType { get; init; }
 
-    public DataAccess.Enums.QuestionStatus Status { get; init; }
+    public QuestionStatus Status { get; init; }
 
     public IReadOnlyList<QuestionOptionResponse> Options { get; init; } = Array.Empty<QuestionOptionResponse>();
 }
@@ -373,7 +372,7 @@ public sealed class CourseMaterialResponse
 
     public string FilePath { get; init; } = string.Empty;
 
-    public DataAccess.Enums.MaterialFileType FileType { get; init; }
+    public MaterialFileType FileType { get; init; }
 
     public long? FileSize { get; init; }
 
@@ -400,14 +399,13 @@ public sealed class QuestionSaveRequest
 
     public string? ExpectedAnswer { get; init; }
 
-    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+    public BloomLevel BloomLevel { get; init; }
 
-    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+    public QuestionDifficulty Difficulty { get; init; }
 
-    public DataAccess.Enums.QuestionType QuestionType { get; init; } = DataAccess.Enums.QuestionType.Main;
+    public QuestionType QuestionType { get; init; } = QuestionType.Main;
 
-    public IReadOnlyList<DataAccess.Contracts.QuestionOptionInput> Options { get; init; } =
-        Array.Empty<DataAccess.Contracts.QuestionOptionInput>();
+    public IReadOnlyList<QuestionOptionInput> Options { get; init; } = [];
 }
 
 /// <summary>One row of the question bank list.</summary>
@@ -425,13 +423,13 @@ public sealed class QuestionListItemResponse
 
     public string QuestionText { get; init; } = string.Empty;
 
-    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+    public QuestionDifficulty Difficulty { get; init; }
 
-    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+    public BloomLevel BloomLevel { get; init; }
 
-    public DataAccess.Enums.QuestionType QuestionType { get; init; }
+    public QuestionType QuestionType { get; init; }
 
-    public DataAccess.Enums.QuestionStatus Status { get; init; }
+    public QuestionStatus Status { get; init; }
 
     public string AuthorName { get; init; } = string.Empty;
 
@@ -462,12 +460,11 @@ public sealed class ExamRoomResponse
 
     public int TimePerStudent { get; init; }
 
-    public DataAccess.Enums.CandidateStatus CandidateStatus { get; init; }
+    public CandidateStatus CandidateStatus { get; init; }
 
     public DateTime? StartedAt { get; init; }
 
-    public IReadOnlyList<DataAccess.Contracts.ExamRoomQuestion> Questions { get; init; } =
-        Array.Empty<DataAccess.Contracts.ExamRoomQuestion>();
+    public IReadOnlyList<ExamRoomQuestion> Questions { get; init; } = [];
 
     /// <summary>False once the paper has been handed in; the room then only shows it.</summary>
     public bool CanAnswer { get; init; }
@@ -485,13 +482,13 @@ public sealed class ExamRoomResponse
     public bool IsFollowUpRound => Questions.Any(question => question.IsFollowUp);
 
     /// <summary>The questions the student is working on right now.</summary>
-    public IReadOnlyList<DataAccess.Contracts.ExamRoomQuestion> OpenRound =>
+    public IReadOnlyList<ExamRoomQuestion> OpenRound =>
         Questions.Where(question => question.IsFollowUp == IsFollowUpRound).ToList();
 
     /// <summary>The main round, already handed in, while the follow-ups are being answered.</summary>
-    public IReadOnlyList<DataAccess.Contracts.ExamRoomQuestion> SubmittedRound => IsFollowUpRound
+    public IReadOnlyList<ExamRoomQuestion> SubmittedRound => IsFollowUpRound
         ? Questions.Where(question => !question.IsFollowUp).ToList()
-        : Array.Empty<DataAccess.Contracts.ExamRoomQuestion>();
+        : [];
 
     public int AnsweredCount => Questions.Count(question => question.SelectedOptionId.HasValue);
 }
@@ -509,8 +506,7 @@ public sealed class ExamResultResponse
 
     public string LecturerName { get; init; } = string.Empty;
 
-    public IReadOnlyList<DataAccess.Contracts.ExamResultQuestion> Questions { get; init; } =
-        Array.Empty<DataAccess.Contracts.ExamResultQuestion>();
+    public IReadOnlyList<ExamResultQuestion> Questions { get; init; } = [];
 
     public int TotalQuestions => Questions.Count;
 
@@ -520,10 +516,10 @@ public sealed class ExamResultResponse
 
     public int IncorrectCount => TotalQuestions - CorrectCount - UnansweredCount;
 
-    public IReadOnlyList<DataAccess.Contracts.ExamResultQuestion> MainQuestions =>
+    public IReadOnlyList<ExamResultQuestion> MainQuestions =>
         Questions.Where(question => !question.IsFollowUp).ToList();
 
-    public IReadOnlyList<DataAccess.Contracts.ExamResultQuestion> FollowUpQuestions =>
+    public IReadOnlyList<ExamResultQuestion> FollowUpQuestions =>
         Questions.Where(question => question.IsFollowUp).ToList();
 
     public int FollowUpCorrectCount => Questions.Count(question => question.IsFollowUp && question.IsCorrect);
@@ -557,12 +553,11 @@ public sealed class QuestionImportRow
 
     public int? MaterialId { get; init; }
 
-    public DataAccess.Enums.BloomLevel BloomLevel { get; init; }
+    public BloomLevel BloomLevel { get; init; }
 
-    public DataAccess.Enums.QuestionDifficulty Difficulty { get; init; }
+    public QuestionDifficulty Difficulty { get; init; }
 
-    public IReadOnlyList<DataAccess.Contracts.QuestionOptionInput> Options { get; init; } =
-        Array.Empty<DataAccess.Contracts.QuestionOptionInput>();
+    public IReadOnlyList<QuestionOptionInput> Options { get; init; } = [];
 }
 
 public sealed class QuestionImportResult
@@ -595,7 +590,7 @@ public sealed class SessionResultResponse
 
     public int MaxFollowUpCount { get; init; }
 
-    public DataAccess.Enums.ExamSessionStatus Status { get; init; }
+    public ExamSessionStatus Status { get; init; }
 
     public IReadOnlyList<CandidateResultItemResponse> Candidates { get; init; } =
         Array.Empty<CandidateResultItemResponse>();
@@ -603,9 +598,9 @@ public sealed class SessionResultResponse
     /// <summary>Slots whose time is over but are still Waiting or In progress.</summary>
     public int OverdueCount { get; init; }
 
-    public int CompletedCount => Candidates.Count(item => item.Status == DataAccess.Enums.CandidateStatus.Completed);
+    public int CompletedCount => Candidates.Count(item => item.Status == CandidateStatus.Completed);
 
-    public int AbsentCount => Candidates.Count(item => item.Status == DataAccess.Enums.CandidateStatus.Absent);
+    public int AbsentCount => Candidates.Count(item => item.Status == CandidateStatus.Absent);
 
     /// <summary>Mean score of the completed papers; null while none is completed.</summary>
     public decimal? AverageScore => CompletedCount == 0
@@ -627,7 +622,7 @@ public sealed class CandidateResultItemResponse
 
     public DateTime? ScheduledTime { get; init; }
 
-    public DataAccess.Enums.CandidateStatus Status { get; init; }
+    public CandidateStatus Status { get; init; }
 
     public int MainCorrect { get; init; }
 
@@ -650,7 +645,7 @@ public sealed class CandidateResultResponse
 
     public string StudentEmail { get; init; } = string.Empty;
 
-    public DataAccess.Enums.CandidateStatus Status { get; init; }
+    public CandidateStatus Status { get; init; }
 
     public DateTime? ScheduledTime { get; init; }
 

@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 namespace AssignmentPRN.Presentation.Controllers;
 
 [SessionAuthorize(RoleNames.Admin, RoleNames.Lecturer)]
-public class CoursesController(CourseService service, ICatalogService catalog) : Controller
+public class CoursesController(ICourseService service, ICatalogService catalog) : Controller
 {
     private int? LecturerId => HttpContext.Session.GetString(SessionKeys.Role) == RoleNames.Lecturer
         ? HttpContext.Session.GetInt32(SessionKeys.UserId) ?? 0 : null;

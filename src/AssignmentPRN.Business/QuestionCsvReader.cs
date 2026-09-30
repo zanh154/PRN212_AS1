@@ -1,4 +1,3 @@
-using AssignmentPRN.DataAccess.Enums;
 
 namespace AssignmentPRN.Business;
 
@@ -142,7 +141,7 @@ public static class QuestionCsvReader
         }
 
         var options = optionColumns
-            .Select(column => new DataAccess.Contracts.QuestionOptionInput
+            .Select(column => new QuestionOptionInput
             {
                 Text = Value(header, cells, column) ?? string.Empty
             })
@@ -155,10 +154,10 @@ public static class QuestionCsvReader
         }
 
         var correctIndex = ResolveCorrectIndex(Value(header, cells, CorrectColumn), options.Count);
-        var marked = new List<DataAccess.Contracts.QuestionOptionInput>(options.Count);
+        var marked = new List<QuestionOptionInput>(options.Count);
         for (var index = 0; index < options.Count; index++)
         {
-            marked.Add(new DataAccess.Contracts.QuestionOptionInput
+            marked.Add(new QuestionOptionInput
             {
                 Text = options[index].Text,
                 IsCorrect = index == correctIndex

@@ -1,6 +1,7 @@
 using AssignmentPRN.DataAccess.Entities;
 using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.DataAccess.Repositories;
+using AssignmentPRN.DataAccess.Services;
 
 namespace AssignmentPRN.Business;
 
@@ -10,7 +11,8 @@ namespace AssignmentPRN.Business;
 /// </summary>
 public class CourseMaterialService(
     ICourseMaterialRepository materialRepository,
-    ICatalogRepository catalogRepository) : ICourseMaterialService
+    ICatalogRepository catalogRepository,
+    IMaterialFileStore fileStore) : ICourseMaterialService
 {
     /// <summary>Longest stored file name, matching course_materials.file_name.</summary>
     public const int MaxFileNameLength = 255;
@@ -78,7 +80,7 @@ public class CourseMaterialService(
                         CourseId = courseId,
                         FileName = fileName,
                         FilePath = filePath,
-                        FileType = request.FileType,
+                        FileType = request.FileType.ToDataAccess(),
                         FileSize = request.FileSize,
                         UploadedBy = uploaderId,
                         ProcessingStatus = MaterialProcessingStatus.Completed,
@@ -95,6 +97,55 @@ public class CourseMaterialService(
             },
             "Không thể lưu tài liệu.");
     }
+
+    public async Task<ServiceResponse<CourseMaterialResponse>> UploadAsync(
+        int courseId,
+        string fileName,
+        Stream content,
+        long? fileSize,
+        MaterialFileType fileType,
+        int uploaderId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        var storedPath = await fileStore.SaveAsync(content, fileName, cancellationToken);
+        var result = await CreateAsync(
+            new CourseMaterialCreateRequest
+            {
+                CourseId = courseId,
+                FileName = Path.GetFileName(fileName),
+                FilePath = storedPath,
+                FileType = fileType,
+                FileSize = fileSize
+            },
+            uploaderId,
+            cancellationToken);
+
+        if (!result.Success)
+        {
+            await fileStore.DeleteAsync(storedPath, cancellationToken);
+        }
+
+        return result;
+    }
+
+    public Task<ServiceResponse<MaterialDownload>> DownloadAsync(
+        int materialId,
+        CancellationToken cancellationToken = default) =>
+        ServiceExecutor.RunAsync(async () =>
+        {
+            var material = await materialRepository.GetAsync(materialId, cancellationToken)
+                ?? throw new BusinessValidationException("Không tìm thấy tài liệu.");
+            var stream = await fileStore.OpenReadAsync(material.FilePath, cancellationToken)
+                ?? throw new BusinessValidationException("Tệp không còn trên máy chủ.");
+
+            return new MaterialDownload
+            {
+                Content = stream,
+                FileName = material.FileName,
+                FileType = material.FileType.ToBusiness()
+            };
+        }, "Không thể tải tài liệu.");
 
     public async Task<CourseMaterialResponse?> GetAsync(
         int materialId,
@@ -200,6 +251,7 @@ public class CourseMaterialService(
                 }
 
                 await materialRepository.DeleteAsync(materialId, cancellationToken);
+                await fileStore.DeleteAsync(material.FilePath, cancellationToken);
             },
             "Không thể xoá tài liệu.");
     }
@@ -232,7 +284,7 @@ public class CourseMaterialService(
         }
     }
 
-    private static CourseMaterialResponse MapMaterial(DataAccess.Contracts.CourseMaterialItem item) => new()
+    private static CourseMaterialResponse MapMaterial(AssignmentPRN.DataAccess.Contracts.CourseMaterialItem item) => new()
     {
         MaterialId = item.MaterialId,
         CourseId = item.CourseId,
@@ -240,7 +292,7 @@ public class CourseMaterialService(
         CourseName = item.CourseName,
         FileName = item.FileName,
         FilePath = item.FilePath,
-        FileType = item.FileType,
+        FileType = item.FileType.ToBusiness(),
         FileSize = item.FileSize,
         UploaderName = item.UploaderName,
         UploadedAt = item.UploadedAt,
