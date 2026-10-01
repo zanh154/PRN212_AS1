@@ -80,6 +80,57 @@ public class ExamDraftTests
         Assert.True((await Service(db).SaveDraftAsync(1, 1, new Dictionary<int, int?> { [followup.ExamQuestionId] = 1 })).Success);
     }
 
+    [Fact]
+    public async Task Invalid_batch_does_not_leave_partial_drafts_in_change_tracker()
+    {
+        await using var db = await SeedAsync();
+        var id = (await db.ExamQuestions.SingleAsync()).ExamQuestionId;
+        var result = await Service(db).SaveDraftAsync(1, 1,
+            new Dictionary<int, int?> { [id] = 1, [999] = 1 });
+        Assert.False(result.Success);
+        // A later save in the same scope must not accidentally persist the valid prefix.
+        await db.SaveChangesAsync();
+        Assert.Empty(await db.Answers.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Validator_reads_current_snapshot_inside_transaction_before_any_write()
+    {
+        await using var db = await SeedAsync();
+        var id = (await db.ExamQuestions.SingleAsync()).ExamQuestionId;
+        await new QuestionRepository(db).SaveDraftAsync(1, state => {
+            Assert.NotNull(db.Database.CurrentTransaction);
+            Assert.NotNull(state);
+            Assert.Equal(1, state.StudentId);
+            Assert.Contains(1, Assert.Single(state.Questions).OptionIds);
+            Assert.Empty(db.ChangeTracker.Entries<Answer>());
+            return new Dictionary<int, int?> { [id] = 1 };
+        });
+        Assert.Null(db.Database.CurrentTransaction);
+        Assert.Single(await db.Answers.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Missing_candidate_returns_business_error()
+    {
+        await using var db = await SeedAsync();
+        var result = await Service(db).SaveDraftAsync(999, 1, new Dictionary<int, int?>());
+        Assert.False(result.Success);
+        Assert.Contains("Không tìm thấy lượt thi", result.Error);
+    }
+
+    [Fact]
+    public async Task Already_submitted_answer_is_rejected_even_if_candidate_is_still_in_progress()
+    {
+        await using var db = await SeedAsync();
+        var id = (await db.ExamQuestions.SingleAsync()).ExamQuestionId;
+        db.Answers.Add(new Answer { CandidateId = 1, ExamQuestionId = id, SelectedOptionId = 1, FinishedAt = DateTime.Now });
+        await db.SaveChangesAsync();
+        var result = await Service(db).SaveDraftAsync(1, 1, new Dictionary<int, int?> { [id] = 2 });
+        Assert.False(result.Success);
+        Assert.Equal(1, (await db.Answers.SingleAsync()).SelectedOptionId);
+    }
+
     private static async Task<AivesDbContext> SeedAsync()
     {
         var db = await IssuedPaperEditTests.OpenAsync();

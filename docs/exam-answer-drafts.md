@@ -1,5 +1,12 @@
 # Lưu tạm đáp án
 
+## Phân tầng sau chỉnh sửa
+
+- `QuestionService` nhận yêu cầu và chuyển dữ liệu sang `ExamDraftValidation` của Business. Bộ kiểm tra quyết định quyền sở hữu, trạng thái, thời gian, vòng hiện tại, câu hỏi/đáp án hợp lệ và khóa đáp án đã nộp.
+- `QuestionRepository.SaveDraftAsync` mở transaction Serializable, đọc `ExamDraftState` hiện tại, gọi hàm kiểm tra do Business truyền vào, rồi mới ghi đáp án. Callback chỉ nhận dữ liệu; không nhận DbContext. DataAccess không tham chiếu Business.
+- Mọi đáp án phải hợp lệ trước khi repository bắt đầu thay đổi entity. Lỗi kiểm tra không để lại đáp án dở dang trong change tracker.
+- 125/125 test đạt sau chỉnh sửa, bao gồm các test mới kiểm tra transaction, yêu cầu có cả đáp án hợp lệ và không hợp lệ, lượt thi không tồn tại và đáp án đã nộp. Dữ liệu kiểm thử SQLite riêng, chưa kiểm thử cạnh tranh trên MySQL.
+
 - Sau khi chọn đáp án, trang chờ 400 ms rồi gửi lưu tạm vào database. Các lần lưu trên cùng trang được gửi tuần tự; lỗi mạng sẽ được thử lại sau 3 giây khi trang còn mở.
 - Trạng thái hiển thị phân biệt đang chờ lưu, đang lưu, đã lưu và chưa lưu được. Chỉ lựa chọn đã báo lưu thành công mới được bảo đảm khôi phục khi tải lại trang. Không có lưu offline sau khi đóng tab.
 - Dùng bảng `answers` hiện có; bản tạm có `FinishedAt = null`. Không cần thay đổi schema. Lưu tạm không kết thúc lượt thi hay sinh câu đào sâu.

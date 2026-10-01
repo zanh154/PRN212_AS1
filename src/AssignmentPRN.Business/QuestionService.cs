@@ -17,7 +17,10 @@ public class QuestionService(
         ServiceExecutor.RunAsync(async () => {
             ArgumentNullException.ThrowIfNull(answers);
             if (answers.Count > 50) throw new BusinessValidationException("Số đáp án không hợp lệ.");
-            await questionRepository.SaveDraftAsync(candidateId, studentId, answers, cancellationToken);
+            // Freeze the request; validate against data read inside the save transaction.
+            var snapshot = answers.ToDictionary(x => x.Key, x => x.Value);
+            await questionRepository.SaveDraftAsync(candidateId,
+                state => ExamDraftValidation.Validate(state, studentId, snapshot, DateTime.Now), cancellationToken);
         }, "Không thể lưu tạm đáp án. Hãy thử lại.");
     public Task<ServiceResponse<QuestionPickRequest>> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default) =>
         ServiceExecutor.RunAsync(async () => {

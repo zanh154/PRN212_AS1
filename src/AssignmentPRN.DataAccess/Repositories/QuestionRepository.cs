@@ -7,7 +7,9 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public interface IQuestionRepository
 {
-    Task SaveDraftAsync(int candidateId, int studentId, IReadOnlyDictionary<int, int?> answers, CancellationToken cancellationToken = default);
+    /// <summary>Reads a current snapshot, invokes the business validator and saves its result in one transaction.</summary>
+    Task SaveDraftAsync(int candidateId, Func<ExamDraftState?, IReadOnlyDictionary<int, int?>> validate,
+        CancellationToken cancellationToken = default);
     Task<QuestionPickRequest> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<QuestionListItem>> ListAsync(
         QuestionQuery query,
@@ -119,28 +121,35 @@ public interface IQuestionRepository
 
 public class QuestionRepository(AivesDbContext context) : IQuestionRepository
 {
-    public async Task SaveDraftAsync(int candidateId, int studentId, IReadOnlyDictionary<int, int?> answers, CancellationToken cancellationToken = default)
+    public async Task SaveDraftAsync(int candidateId, Func<ExamDraftState?, IReadOnlyDictionary<int, int?>> validate,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(validate);
         await using var transaction = await context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
-        var candidate = await context.ExamCandidates.Include(x => x.Session).SingleOrDefaultAsync(x => x.CandidateId == candidateId, cancellationToken)
-            ?? throw new ArgumentException("Không tìm thấy lượt thi.");
-        if (candidate.StudentId != studentId || candidate.Status != CandidateStatus.InProgress
-            || !ExamSessionRules.CanSit(candidate.Session.Status))
-            throw new ArgumentException("Bạn không được lưu đáp án cho lượt thi này.");
-        var now = DateTime.Now;
-        if (candidate.ScheduledTime is not DateTime start || !ExamSessionRules.IsSlotOpen(now, start, candidate.Session.TimePerStudent))
-            throw new ArgumentException("Đã hết giờ làm bài, không thể lưu tạm.");
-        var slots = await context.ExamQuestions.Include(x => x.Question).ThenInclude(x => x.Options)
+        var candidate = await context.ExamCandidates.AsNoTracking().Include(x => x.Session)
+            .SingleOrDefaultAsync(x => x.CandidateId == candidateId, cancellationToken);
+        var slots = await context.ExamQuestions.AsNoTracking().Include(x => x.Question).ThenInclude(x => x.Options)
             .Where(x => x.CandidateId == candidateId).ToListAsync(cancellationToken);
-        var followUp = slots.Any(x => x.ParentExamQuestionId.HasValue);
-        var open = slots.Where(x => x.ParentExamQuestionId.HasValue == followUp).ToDictionary(x => x.ExamQuestionId);
         var existing = await context.Answers.Where(x => x.CandidateId == candidateId).ToListAsync(cancellationToken);
+        var submittedIds = await context.Answers.AsNoTracking().Where(x => x.CandidateId == candidateId && x.FinishedAt != null)
+            .Select(x => x.ExamQuestionId).ToListAsync(cancellationToken);
+        var state = candidate is null ? null : new ExamDraftState {
+            StudentId = candidate.StudentId, CandidateStatus = candidate.Status, SessionStatus = candidate.Session.Status,
+            ScheduledTime = candidate.ScheduledTime, TimePerStudent = candidate.Session.TimePerStudent,
+            Questions = slots.Select(x => new ExamDraftQuestion {
+                ExamQuestionId = x.ExamQuestionId, IsFollowUp = x.ParentExamQuestionId.HasValue,
+                IsSubmitted = submittedIds.Contains(x.ExamQuestionId),
+                OptionIds = x.Question.Options.Select(option => option.OptionId).ToHashSet()
+            }).ToList()
+        };
+        // No mutation before Business has validated the whole request.
+        var answers = validate(state);
+        var now = DateTime.Now;
+        var slotsById = slots.ToDictionary(x => x.ExamQuestionId);
         foreach (var (id, option) in answers)
         {
-            if (!open.TryGetValue(id, out var slot) || (option.HasValue && slot.Question.Options.All(x => x.OptionId != option.Value)))
-                throw new ArgumentException("Câu hỏi hoặc đáp án không thuộc vòng thi hiện tại.");
+            var slot = slotsById[id];
             var answer = existing.SingleOrDefault(x => x.ExamQuestionId == id);
-            if (answer?.FinishedAt is not null) throw new ArgumentException("Vòng đã nộp không được sửa.");
             if (answer is null)
             {
                 answer = new Answer { CandidateId = candidateId, ExamQuestionId = id, CreatedAt = now, StartedAt = slot.AskedAt };

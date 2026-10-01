@@ -79,17 +79,11 @@ public class ExamResultRepository(AivesDbContext context) : IExamResultRepositor
         foreach (var candidate in candidates)
         {
             // The student may have submitted since the service calculated overdue slots.
-            if (!ExamSessionRules.CanSit(candidate.Session.Status) || candidate.ScheduledTime is not DateTime start) continue;
-            var end = start.AddMinutes(candidate.Session.TimePerStudent);
-            if (candidate.Status == CandidateStatus.Waiting && finishedAt > end)
-                candidate.Status = CandidateStatus.Absent;
-            else if (candidate.Status == CandidateStatus.InProgress && finishedAt > end + ExamSessionRules.SubmitGrace)
-                candidate.Status = CandidateStatus.Completed;
-            else continue;
-            if (candidate.Status is CandidateStatus.Completed or CandidateStatus.Absent)
-            {
-                candidate.FinishedAt ??= finishedAt;
-            }
+            var next = Domain.ExamLifecycleRules.CloseOverdue((Domain.ExamSessionStatus)candidate.Session.Status,
+                (Domain.CandidateStatus)candidate.Status, candidate.ScheduledTime, candidate.Session.TimePerStudent, finishedAt);
+            if (next is null) continue;
+            candidate.Status = (CandidateStatus)next.Value;
+            candidate.FinishedAt ??= finishedAt;
         }
 
         await context.SaveChangesAsync(cancellationToken);

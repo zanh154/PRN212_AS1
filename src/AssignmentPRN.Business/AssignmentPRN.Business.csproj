@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AssignmentPRN.Domain\AssignmentPRN.Domain.csproj" />
     <ProjectReference Include="..\AssignmentPRN.DataAccess\AssignmentPRN.DataAccess.csproj" />
   </ItemGroup>
   <ItemGroup>

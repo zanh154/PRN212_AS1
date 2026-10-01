@@ -1,5 +1,9 @@
 # Trạng thái phiên thi
 
+## Phân tầng
+
+Quy tắc quyết định trạng thái nằm trong `AssignmentPRN.Domain/ExamLifecycleRules.cs`, không có truy cập database. `Business/OverdueSlotRules` dùng quy tắc chung để tính ca quá hạn. Các repository đọc dữ liệu mới nhất trong transaction, gọi quy tắc Domain và lưu kết quả; không tự định nghĩa lại điều kiện hoàn thành/vắng thi. Transaction bao quanh cập nhật lượt thi và đồng bộ trạng thái phiên được giữ nguyên.
+
 ## Quy tắc
 
 - Tạo phiên: Scheduled (Đã xếp lịch).
