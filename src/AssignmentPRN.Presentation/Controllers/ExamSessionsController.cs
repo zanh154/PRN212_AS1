@@ -316,7 +316,8 @@ public class ExamSessionsController(
     /// which topics/difficulties they are drawn from, plus the papers already dealt.
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> Questions(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Questions(int id, CancellationToken cancellationToken,
+        List<int>? materialIds = null, List<QuestionDifficulty>? difficulties = null, bool preview = false)
     {
         var session = await examSessionService.GetAsync(id, cancellationToken);
         if (session.Data is null) return NotFound();
@@ -327,6 +328,19 @@ public class ExamSessionsController(
             ExamId = id,
             CountPerCandidate = session.Data.MainQuestionCount
         };
+
+        var config = await questionService.GetExamConfigurationAsync(id, cancellationToken);
+        if (!config.Success || config.Data is null) {
+            TempData["Error"] = config.Error;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        model.MaterialIds = config.Data.MaterialIds.ToList();
+        model.Difficulties = config.Data.Difficulties.ToList();
+        if (preview)
+        {
+            model.MaterialIds = materialIds ?? [];
+            model.Difficulties = difficulties ?? [];
+        }
 
         await LoadQuestionConfigAsync(model, session.Data, cancellationToken);
         return View(model);

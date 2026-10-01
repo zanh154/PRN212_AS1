@@ -7,6 +7,7 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public interface IQuestionRepository
 {
+    Task<QuestionPickRequest> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<QuestionListItem>> ListAsync(
         QuestionQuery query,
         CancellationToken cancellationToken = default);
@@ -52,7 +53,8 @@ public interface IQuestionRepository
     Task DealAsync(
         int examId,
         Func<ExamDealState, Task<IReadOnlyList<ExamQuestionInput>>> planner,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        QuestionPickRequest? configuration = null);
 
     /// <summary>Every candidate of the exam with the paper the bank dealt them.</summary>
     Task<IReadOnlyList<ExamPaperItem>> ListExamPaperAsync(
@@ -116,6 +118,19 @@ public interface IQuestionRepository
 
 public class QuestionRepository(AivesDbContext context) : IQuestionRepository
 {
+    public async Task<QuestionPickRequest> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default)
+    {
+        var session = await context.ExamSessions.AsNoTracking().SingleAsync(x => x.ExamId == examId, cancellationToken);
+        return ReadConfiguration(session);
+    }
+
+    private static QuestionPickRequest ReadConfiguration(ExamSession session)
+    {
+        var scope = session.QuestionScopeJson is null ? new QuestionPickRequest()
+            : System.Text.Json.JsonSerializer.Deserialize<QuestionPickRequest>(session.QuestionScopeJson)!;
+        return new QuestionPickRequest { CourseId = session.CourseId, Count = session.MainQuestionCount,
+            MaterialIds = scope.MaterialIds, Difficulties = scope.Difficulties };
+    }
     public async Task<IReadOnlyList<QuestionListItem>> ListAsync(
         QuestionQuery query,
         CancellationToken cancellationToken = default)
@@ -348,7 +363,8 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
     public async Task DealAsync(
         int examId,
         Func<ExamDealState, Task<IReadOnlyList<ExamQuestionInput>>> planner,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        QuestionPickRequest? configuration = null)
     {
         ArgumentNullException.ThrowIfNull(planner);
 
@@ -356,9 +372,13 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
 
         // Row lock on the exam: a second deal of the same exam waits here until this one
         // commits, then reads the rows this one wrote.
-        await context.Database.ExecuteSqlInterpolatedAsync(
+        if (context.Database.ProviderName != "Microsoft.EntityFrameworkCore.Sqlite") await context.Database.ExecuteSqlInterpolatedAsync(
             $"SELECT exam_id FROM exam_sessions WHERE exam_id = {examId} FOR UPDATE",
             cancellationToken);
+
+        var session = await context.ExamSessions.SingleAsync(x => x.ExamId == examId, cancellationToken);
+        await context.Entry(session).ReloadAsync(cancellationToken);
+        var savedConfiguration = ReadConfiguration(session);
 
         var dealt = await context.ExamQuestions
             .AsNoTracking()
@@ -366,11 +386,33 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
             .Select(item => new { item.CandidateId, item.QuestionId })
             .ToListAsync(cancellationToken);
 
+        if (configuration is not null)
+        {
+            if (configuration.CourseId != session.CourseId || configuration.Count != session.MainQuestionCount)
+                throw new ArgumentException("Số câu và môn học phải khớp cấu hình phiên thi. Hãy tải lại trang.");
+            if (dealt.Count > 0 && (!configuration.MaterialIds.ToHashSet().SetEquals(savedConfiguration.MaterialIds)
+                || !configuration.Difficulties.ToHashSet().SetEquals(savedConfiguration.Difficulties)))
+                throw new ArgumentException("Phiên đã có đề. Hãy huỷ đề trước khi đổi chủ đề hoặc độ khó.");
+            if (configuration.Difficulties.Any(x => !Enum.IsDefined(x)))
+                throw new ArgumentException("Độ khó không hợp lệ.");
+            var materialIds = configuration.MaterialIds.Distinct().ToList();
+            if (await context.CourseMaterials.CountAsync(x => materialIds.Contains(x.MaterialId)
+                    && x.CourseId == session.CourseId, cancellationToken) != materialIds.Count)
+                throw new ArgumentException("Chủ đề không thuộc môn học của phiên thi.");
+            savedConfiguration = configuration;
+        }
+
         var rows = await planner(new ExamDealState
         {
+            Configuration = savedConfiguration,
             TakenQuestionIds = dealt.Select(item => item.QuestionId).ToHashSet(),
             CandidatesWithPaper = dealt.Select(item => item.CandidateId).ToHashSet()
         });
+
+        if (configuration is not null)
+            session.QuestionScopeJson = System.Text.Json.JsonSerializer.Serialize(new QuestionPickRequest {
+                MaterialIds = configuration.MaterialIds.Distinct().Order().ToList(),
+                Difficulties = configuration.Difficulties.Distinct().Order().ToList() });
 
         // One SaveChanges inside the transaction: either every slot lands or none does,
         // which keeps a candidate from ending up with half a paper.

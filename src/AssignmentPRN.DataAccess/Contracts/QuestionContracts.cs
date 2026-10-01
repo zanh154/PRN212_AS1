@@ -401,6 +401,8 @@ public sealed class ExamPaperItem
 /// <summary>What an exam has dealt so far, read while the exam is locked for dealing.</summary>
 public sealed class ExamDealState
 {
+    public QuestionPickRequest Configuration { get; init; } = new();
+
     public IReadOnlySet<int> TakenQuestionIds { get; init; } = new HashSet<int>();
 
     public IReadOnlySet<int> CandidatesWithPaper { get; init; } = new HashSet<int>();

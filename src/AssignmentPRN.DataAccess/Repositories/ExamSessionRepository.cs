@@ -42,6 +42,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
             session.EndTime = end;
             session.TimePerStudent = input.TimePerStudent;
         }
+        if (session.CourseId != input.CourseId) session.QuestionScopeJson = null;
         session.CourseId = input.CourseId;
         session.ExamName = input.ExamName;
         session.Description = input.Description;

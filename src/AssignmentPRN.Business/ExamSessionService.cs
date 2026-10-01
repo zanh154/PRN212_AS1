@@ -113,8 +113,16 @@ public class ExamSessionService(
                 throw new BusinessValidationException(
                     $"{student.FullName} không thuộc lớp nào của môn {session.Course.CourseCode}.");
 
-            await EnsureBankCoversAsync(
-                session.Course.CourseId, SeatsToDeal(session) + 1, session.MainQuestionCount, cancellationToken);
+            var config = await questionRepository.GetExamConfigurationAsync(examId, cancellationToken);
+            var papers = await questionRepository.ListExamPaperAsync(examId, cancellationToken);
+            var taken = await questionRepository.ListAssignedQuestionIdsAsync(examId, cancellationToken);
+            var available = await questionRepository.ListPoolIdsAsync(new AssignmentPRN.DataAccess.Contracts.QuestionPickRequest {
+                CourseId = config.CourseId, Count = config.Count, MaterialIds = config.MaterialIds,
+                Difficulties = config.Difficulties, TakenQuestionIds = taken }, cancellationToken);
+            var waitingForPaper = session.Candidates.Count(candidate =>
+                candidate.Status.ToBusiness() is not (CandidateStatus.Cancelled or CandidateStatus.Absent)
+                && !papers.Any(paper => paper.CandidateId == candidate.CandidateId && paper.Questions.Count > 0));
+            QuestionSupplyRules.EnsureEnough(waitingForPaper + 1, config.Count, available.Count);
 
             return MapDetail(await examSessionRepository.AddStudentAsync(
                 examId, student.UserId, scheduledTime, cancellationToken));

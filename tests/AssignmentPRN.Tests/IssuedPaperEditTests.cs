@@ -72,7 +72,7 @@ public class IssuedPaperEditTests
         ExamId = 1, CourseId = course ? 2 : 1, MainQuestionCount = count ? 2 : 1,
         ExamName = "Changed", StartTime = Start, TimePerStudent = 10 };
 
-    private static async Task<AivesDbContext> OpenAsync()
+    internal static async Task<AivesDbContext> OpenAsync()
     {
         var db = new AivesDbContext(new DbContextOptionsBuilder<AivesDbContext>()
             .UseSqlite("Data Source=:memory:").Options);

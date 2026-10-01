@@ -76,7 +76,7 @@ else if (!Model.IsEnough)
             <h2>Cấu hình bộ câu hỏi</h2>
             <p class="text-muted">
                 Bỏ trống chủ đề hoặc độ khó nghĩa là lấy toàn bộ môn @Model.CourseName. Phạm vi này
-                chỉ áp dụng cho lần phát trước ở đây; sinh viên tự vào thi sẽ rút từ toàn bộ môn.
+                được lưu khi phát đề thành công và áp dụng cả khi sinh viên tự vào thi, kể cả sinh viên thêm sau.
             </p>
         </div>
     </div>
@@ -84,7 +84,8 @@ else if (!Model.IsEnough)
     <div class="row g-3">
         <div class="col-md-3">
             <label asp-for="CountPerCandidate" class="form-label"></label>
-            <input asp-for="CountPerCandidate" type="number" class="form-control" min="1" max="50" />
+            <input asp-for="CountPerCandidate" type="number" class="form-control" min="1" max="50" readonly />
+            <small class="text-muted">Dùng số câu trong phiên thi. Muốn thay đổi, vào Sửa phiên thi.</small>
             <span asp-validation-for="CountPerCandidate" class="field-validation-error"></span>
         </div>
 
@@ -130,7 +131,7 @@ else if (!Model.IsEnough)
     </div>
 
     <div class="d-flex gap-2 mt-3">
-        <button class="btn btn-outline-secondary" type="submit" formmethod="get" formaction="@Url.Action("Questions", new { id = Model.ExamId })">
+        <button class="btn btn-outline-secondary" type="submit" name="preview" value="true" formmethod="get" formaction="@Url.Action("Questions", new { id = Model.ExamId })">
             Xem lại số câu khả dụng
         </button>
         @if (Model.CanAssign && !Model.IsFullyAssigned)
