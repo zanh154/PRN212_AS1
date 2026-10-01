@@ -11,6 +11,7 @@
 <div class="page-header"><div><a class="back-link" asp-action="Details" asp-route-id="@Model.ExamId">← Chi tiết phiên thi</a><h1>Sửa phiên thi</h1>
 <p>Cập nhật thông tin, ngày giờ và thời lượng của phiên thi.</p></div></div>
 <form method="post" asp-action="Edit" asp-route-id="@Model.ExamId" class="content-card">
+    <p class="text-muted">Nếu phiên đã phát đề, cần huỷ đề trước khi đổi môn học hoặc số câu hỏi chính. Không thể huỷ đề sau khi có sinh viên vào thi.</p>
     <input asp-for="ExamId" type="hidden" />
     <div asp-validation-summary="All" class="text-danger" role="alert"></div>
     <div class="alert alert-info">Danh sách sinh viên và giảng viên được giữ nguyên. Nếu đổi ngày giờ bắt đầu hoặc thời lượng, các lượt thi sẽ được xếp liên tiếp theo thứ tự hiện tại và kiểm tra trùng lịch trước khi lưu.</div>

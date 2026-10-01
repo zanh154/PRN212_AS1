@@ -28,6 +28,10 @@ public class ExamSessionService(
             if (request.StartTime == default) throw new BusinessValidationException("Vui lòng chọn ngày giờ thi.");
             EnsureUpdatedTimingIsValid(current, request);
             var courseChanged = request.CourseId != current.Course.CourseId;
+            if ((courseChanged || request.MainQuestionCount != current.MainQuestionCount)
+                && (await questionRepository.ListAssignedQuestionIdsAsync(request.ExamId, cancellationToken)).Count > 0)
+                throw new BusinessValidationException(
+                    "Phiên thi đã phát đề. Hãy huỷ đề đã phát trước khi đổi môn học hoặc số câu hỏi chính. Đã có sinh viên vào thi thì không thể huỷ đề.");
             if (courseChanged)
             {
                 if (!await catalogRepository.CourseExistsAsync(request.CourseId, cancellationToken))
