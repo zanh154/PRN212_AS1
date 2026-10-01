@@ -7,6 +7,7 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public interface IQuestionRepository
 {
+    Task SaveDraftAsync(int candidateId, int studentId, IReadOnlyDictionary<int, int?> answers, CancellationToken cancellationToken = default);
     Task<QuestionPickRequest> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<QuestionListItem>> ListAsync(
         QuestionQuery query,
@@ -118,6 +119,38 @@ public interface IQuestionRepository
 
 public class QuestionRepository(AivesDbContext context) : IQuestionRepository
 {
+    public async Task SaveDraftAsync(int candidateId, int studentId, IReadOnlyDictionary<int, int?> answers, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+        var candidate = await context.ExamCandidates.Include(x => x.Session).SingleOrDefaultAsync(x => x.CandidateId == candidateId, cancellationToken)
+            ?? throw new ArgumentException("Không tìm thấy lượt thi.");
+        if (candidate.StudentId != studentId || candidate.Status != CandidateStatus.InProgress
+            || !ExamSessionRules.CanSit(candidate.Session.Status))
+            throw new ArgumentException("Bạn không được lưu đáp án cho lượt thi này.");
+        var now = DateTime.Now;
+        if (candidate.ScheduledTime is not DateTime start || !ExamSessionRules.IsSlotOpen(now, start, candidate.Session.TimePerStudent))
+            throw new ArgumentException("Đã hết giờ làm bài, không thể lưu tạm.");
+        var slots = await context.ExamQuestions.Include(x => x.Question).ThenInclude(x => x.Options)
+            .Where(x => x.CandidateId == candidateId).ToListAsync(cancellationToken);
+        var followUp = slots.Any(x => x.ParentExamQuestionId.HasValue);
+        var open = slots.Where(x => x.ParentExamQuestionId.HasValue == followUp).ToDictionary(x => x.ExamQuestionId);
+        var existing = await context.Answers.Where(x => x.CandidateId == candidateId).ToListAsync(cancellationToken);
+        foreach (var (id, option) in answers)
+        {
+            if (!open.TryGetValue(id, out var slot) || (option.HasValue && slot.Question.Options.All(x => x.OptionId != option.Value)))
+                throw new ArgumentException("Câu hỏi hoặc đáp án không thuộc vòng thi hiện tại.");
+            var answer = existing.SingleOrDefault(x => x.ExamQuestionId == id);
+            if (answer?.FinishedAt is not null) throw new ArgumentException("Vòng đã nộp không được sửa.");
+            if (answer is null)
+            {
+                answer = new Answer { CandidateId = candidateId, ExamQuestionId = id, CreatedAt = now, StartedAt = slot.AskedAt };
+                context.Answers.Add(answer);
+            }
+            answer.SelectedOptionId = option;
+        }
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
     public async Task<QuestionPickRequest> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default)
     {
         var session = await context.ExamSessions.AsNoTracking().SingleAsync(x => x.ExamId == examId, cancellationToken);
@@ -627,6 +660,11 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
     {
         ArgumentNullException.ThrowIfNull(followUps);
 
+        await using var transaction = await context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+        var currentCandidate = await context.ExamCandidates.SingleAsync(x => x.CandidateId == candidateId, cancellationToken);
+        if (currentCandidate.Status != CandidateStatus.InProgress)
+            throw new ArgumentException("Lượt thi không còn nhận bài nộp.");
+
         var slots = await context.ExamQuestions
             .Where(item => item.CandidateId == candidateId)
             .ToListAsync(cancellationToken);
@@ -634,6 +672,12 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         var existing = await context.Answers
             .Where(answer => answer.CandidateId == candidateId)
             .ToListAsync(cancellationToken);
+
+        var isFollowUpRound = slots.Any(x => x.ParentExamQuestionId.HasValue);
+        if (selectedOptionByExamQuestion.Keys.Any(id => !slots.Any(x => x.ExamQuestionId == id
+                && x.ParentExamQuestionId.HasValue == isFollowUpRound))
+            || existing.Any(x => selectedOptionByExamQuestion.ContainsKey(x.ExamQuestionId) && x.FinishedAt.HasValue))
+            throw new ArgumentException("Vòng thi đã thay đổi hoặc đã nộp. Hãy tải lại trang.");
 
         foreach (var slot in slots)
         {
@@ -689,6 +733,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         // One SaveChanges: the answers and either the closed slot or the next round land
         // together or not at all.
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<FollowUpPoolItem>> ListFollowUpPoolAsync(

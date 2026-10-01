@@ -75,9 +75,14 @@ else
 }
 
 <form method="post" asp-action="Submit" asp-route-id="@room.CandidateId"
+      data-draft-url="@Url.Action("SaveDraft", new { id = room.CandidateId })"
       data-exam-form
       data-exam-guard="@(room.CanAnswer ? "true" : null)"
       data-confirm="@(room.CanAnswer ? "Nộp bài ngay? Vòng đã nộp sẽ không sửa lại được." : null)">
+    @if (room.CanAnswer)
+    {
+        <p data-draft-status role="status" aria-live="polite">Đáp án sẽ được lưu tự động khi bạn chọn. Lưu tạm chưa phải nộp bài.</p>
+    }
     <div class="content-card">
         <div class="section-heading">
             <div>

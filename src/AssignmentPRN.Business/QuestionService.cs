@@ -13,6 +13,12 @@ public class QuestionService(
     ICatalogRepository catalogRepository,
     ICourseMaterialRepository courseMaterialRepository) : IQuestionService
 {
+    public Task<ServiceResponse> SaveDraftAsync(int candidateId, int studentId, IReadOnlyDictionary<int, int?> answers, CancellationToken cancellationToken = default) =>
+        ServiceExecutor.RunAsync(async () => {
+            ArgumentNullException.ThrowIfNull(answers);
+            if (answers.Count > 50) throw new BusinessValidationException("Số đáp án không hợp lệ.");
+            await questionRepository.SaveDraftAsync(candidateId, studentId, answers, cancellationToken);
+        }, "Không thể lưu tạm đáp án. Hãy thử lại.");
     public Task<ServiceResponse<QuestionPickRequest>> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default) =>
         ServiceExecutor.RunAsync(async () => {
             var config = await questionRepository.GetExamConfigurationAsync(examId, cancellationToken);
