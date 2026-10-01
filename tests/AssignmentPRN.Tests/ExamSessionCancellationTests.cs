@@ -1,4 +1,4 @@
-using AssignmentPRN.DataAccess.Enums;
+using AssignmentPRN.Business;
 
 namespace AssignmentPRN.Tests;
 

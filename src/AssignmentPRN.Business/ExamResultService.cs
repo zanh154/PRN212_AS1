@@ -1,5 +1,4 @@
 using AssignmentPRN.DataAccess.Contracts;
-using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.DataAccess.Repositories;
 
 namespace AssignmentPRN.Business;
@@ -36,9 +35,9 @@ public class ExamResultService(
                     TimePerStudent = session.TimePerStudent,
                     MainQuestionCount = session.MainQuestionCount,
                     MaxFollowUpCount = session.MaxFollowUpCount,
-                    Status = session.Status,
+                    Status = session.Status.ToBusiness(),
                     Candidates = candidates.Select(MapRow).ToList(),
-                    OverdueCount = CanClose(session.Status) ? overdue.Count : 0
+                    OverdueCount = CanClose(session.Status.ToBusiness()) ? overdue.Count : 0
                 };
             },
             "Không thể tải kết quả phiên thi.");
@@ -65,7 +64,7 @@ public class ExamResultService(
                     ExamId = session.ExamId,
                     StudentName = candidate.StudentName,
                     StudentEmail = candidate.StudentEmail,
-                    Status = candidate.Status,
+                    Status = candidate.Status.ToBusiness(),
                     ScheduledTime = candidate.ScheduledTime,
                     StartedAt = candidate.StartedAt,
                     FinishedAt = candidate.FinishedAt,
@@ -76,7 +75,7 @@ public class ExamResultService(
                         CourseCode = session.CourseCode,
                         CourseName = session.CourseName,
                         LecturerName = session.LecturerName,
-                        Questions = questions
+                        Questions = questions.Select(item => item.ToBusiness()).ToList()
                     }
                 };
             },
@@ -92,7 +91,7 @@ public class ExamResultService(
             async () =>
             {
                 var session = await LoadOwnedSessionAsync(examId, lecturerId, cancellationToken);
-                if (!CanClose(session.Status))
+                if (!CanClose(session.Status.ToBusiness()))
                 {
                     throw new BusinessValidationException(
                         "Chỉ chốt được ca thi của phiên đã xếp lịch hoặc đang diễn ra.");
@@ -106,7 +105,10 @@ public class ExamResultService(
                     throw new BusinessValidationException("Không có ca thi nào đã hết giờ cần chốt.");
                 }
 
-                await resultRepository.UpdateCandidateStatusesAsync(changes, now, cancellationToken);
+                await resultRepository.UpdateCandidateStatusesAsync(
+                    changes.ToDictionary(item => item.Key, item => item.Value.ToDataAccess()),
+                    now,
+                    cancellationToken);
 
                 return new OverdueSlotsResult
                 {
@@ -138,7 +140,10 @@ public class ExamResultService(
     }
 
     private static IEnumerable<SlotState> ToSlotStates(IEnumerable<CandidateResultRow> candidates) =>
-        candidates.Select(candidate => new SlotState(candidate.CandidateId, candidate.Status, candidate.ScheduledTime));
+        candidates.Select(candidate => new SlotState(
+            candidate.CandidateId,
+            candidate.Status.ToBusiness(),
+            candidate.ScheduledTime));
 
     private static CandidateResultItemResponse MapRow(CandidateResultRow candidate) => new()
     {
@@ -146,12 +151,12 @@ public class ExamResultService(
         StudentName = candidate.StudentName,
         StudentEmail = candidate.StudentEmail,
         ScheduledTime = candidate.ScheduledTime,
-        Status = candidate.Status,
+        Status = candidate.Status.ToBusiness(),
         MainCorrect = candidate.Slots.Count(slot => !slot.IsFollowUp && slot.IsCorrect),
         MainTotal = candidate.Slots.Count(slot => !slot.IsFollowUp),
         FollowUpCorrect = candidate.Slots.Count(slot => slot.IsFollowUp && slot.IsCorrect),
         FollowUpTotal = candidate.Slots.Count(slot => slot.IsFollowUp),
-        Score = candidate.Status == CandidateStatus.Completed
+        Score = candidate.Status.ToBusiness() == CandidateStatus.Completed
             ? ExamScoring.Score(candidate.Slots.Select(slot => (slot.IsFollowUp, slot.IsCorrect)))
             : null
     };

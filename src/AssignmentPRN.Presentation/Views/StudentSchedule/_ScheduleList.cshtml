@@ -1,5 +1,4 @@
 @model StudentScheduleViewModel
-@using AssignmentPRN.DataAccess.Enums
 @{
     // Only staff may follow a slot through to the full session detail page.
     var canOpenSession = Context.Session.GetString(SessionKeys.Role) is RoleNames.Admin or RoleNames.Lecturer;

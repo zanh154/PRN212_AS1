@@ -7,15 +7,16 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddBusiness(
         this IServiceCollection services,
-        string connectionString)
+        string connectionString,
+        string webRootPath)
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddDataAccess(connectionString);
+        services.AddDataAccess(connectionString, webRootPath);
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IExamSessionService, ExamSessionService>();
-        services.AddScoped<CourseService>();
-        services.AddScoped<AcademicClassService>();
+        services.AddScoped<ICourseService, CourseService>();
+        services.AddScoped<IAcademicClassService, AcademicClassService>();
         services.AddScoped<IQuestionService, QuestionService>();
         services.AddScoped<ICourseMaterialService, CourseMaterialService>();
         services.AddScoped<ICatalogService, CatalogService>();

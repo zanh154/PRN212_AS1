@@ -9,7 +9,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDataAccess(
         this IServiceCollection services,
-        string connectionString)
+        string connectionString,
+        string webRootPath)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -29,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IQuestionRepository, QuestionRepository>();
         services.AddScoped<ICourseMaterialRepository, CourseMaterialRepository>();
         services.AddScoped<IExamResultRepository, ExamResultRepository>();
+        services.AddSingleton<IMaterialFileStore>(new LocalMaterialFileStore(webRootPath));
 
         services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
         services.AddHostedService<DatabaseInitializerHostedService>();

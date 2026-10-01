@@ -1,5 +1,4 @@
 using AssignmentPRN.Business;
-using AssignmentPRN.DataAccess.Enums;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
 

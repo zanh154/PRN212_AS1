@@ -1,3 +1,5 @@
+using AssignmentPRN.DataAccess.Enums;
+
 namespace AssignmentPRN.DataAccess.Entities;
 
 /// <summary>
@@ -15,7 +17,7 @@ public class CourseMaterial
     /// <summary>Web-relative path of the stored file, e.g. /materials/prn212_week2.pdf.</summary>
     public string FilePath { get; set; } = string.Empty;
 
-    public DataAccess.Enums.MaterialFileType FileType { get; set; }
+    public MaterialFileType FileType { get; set; }
 
     public long? FileSize { get; set; }
 
@@ -25,7 +27,7 @@ public class CourseMaterial
     /// Always <see cref="MaterialProcessingStatus.Completed"/> for an upload made through
     /// the UI: the file is usable as a topic immediately, with no processing step.
     /// </summary>
-    public DataAccess.Enums.MaterialProcessingStatus ProcessingStatus { get; set; }
+    public MaterialProcessingStatus ProcessingStatus { get; set; }
 
     public DateTime UploadedAt { get; set; }
 

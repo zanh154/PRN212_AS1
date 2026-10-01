@@ -1,6 +1,4 @@
 using AssignmentPRN.Business;
-using AssignmentPRN.DataAccess.Contracts;
-using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.Presentation.Constants;
 using AssignmentPRN.Presentation.Filters;
 using AssignmentPRN.Presentation.Models;

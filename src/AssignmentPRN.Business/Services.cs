@@ -12,13 +12,74 @@ public interface IAuthService
         string password);
 }
 
+public interface ICourseService
+{
+    Task<ServiceResponse<IReadOnlyList<CourseResponse>>> ListAsync(
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<CourseResponse>> GetAsync(
+        int id,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<CourseResponse>> SaveAsync(
+        CourseSaveRequest request,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse> DeleteAsync(
+        int id,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IAcademicClassService
+{
+    Task<ServiceResponse<IReadOnlyList<AcademicClassResponse>>> ListAsync(
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<AcademicClassResponse>> GetAsync(
+        int id,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<AcademicClassResponse>> SaveAsync(
+        AcademicClassSaveRequest request,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse> DeleteAsync(
+        int id,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<AcademicClassRosterResponse>> GetRosterAsync(
+        int id,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse> AddStudentAsync(
+        int classId,
+        int studentId,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse> RemoveStudentAsync(
+        int classId,
+        int studentId,
+        int? lecturerId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IExamSessionService
 {
-    Task<ServiceResponse<ExamSessionDetailResponse>> UpdateAsync(AssignmentPRN.DataAccess.Contracts.ExamSessionUpdateInput request, int? lecturerId, CancellationToken cancellationToken = default);
-    Task<ServiceResponse> ChangeStatusAsync(int examId, AssignmentPRN.DataAccess.Enums.ExamSessionStatus status, int? lecturerId, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<ExamSessionDetailResponse>> UpdateAsync(ExamSessionUpdateInput request, int? lecturerId, CancellationToken cancellationToken = default);
+    Task<ServiceResponse> ChangeStatusAsync(int examId, ExamSessionStatus status, int? lecturerId, CancellationToken cancellationToken = default);
 
-    Task<ServiceResponse<AssignmentPRN.DataAccess.Contracts.ExamStudentSearchResult>> SearchExamStudentsAsync(
-        AssignmentPRN.DataAccess.Contracts.ExamStudentSearch filter, int? lecturerId,
+    Task<ServiceResponse<ExamStudentSearchResult>> SearchExamStudentsAsync(
+        ExamStudentSearch filter, int? lecturerId,
         CancellationToken cancellationToken = default);
     Task<ServiceResponse> RemoveStudentAsync(int examId, int candidateId,
         CancellationToken cancellationToken = default);
@@ -68,8 +129,8 @@ public interface IQuestionService
         int? lecturerId,
         int? courseId = null,
         int? materialId = null,
-        AssignmentPRN.DataAccess.Enums.QuestionDifficulty? difficulty = null,
-        AssignmentPRN.DataAccess.Enums.BloomLevel? bloomLevel = null,
+        QuestionDifficulty? difficulty = null,
+        BloomLevel? bloomLevel = null,
         string? term = null,
         bool includeArchived = false,
         CancellationToken cancellationToken = default);
@@ -104,8 +165,8 @@ public interface IQuestionService
     /// question is never repeated between two students of the same session. This is what
     /// the exam scheduler calls once the session and its roster exist.
     /// </summary>
-    Task<ServiceResponse<AssignmentPRN.DataAccess.Contracts.ExamQuestionAssignmentResult>> AssignToExamAsync(
-        AssignmentPRN.DataAccess.Contracts.ExamQuestionAssignmentRequest request,
+    Task<ServiceResponse<ExamQuestionAssignmentResult>> AssignToExamAsync(
+        ExamQuestionAssignmentRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -113,23 +174,23 @@ public interface IQuestionService
     /// student, so an exam is warned about a thin bank before it is created.
     /// </summary>
     Task<ServiceResponse<QuestionAvailabilityResponse>> CheckAvailabilityAsync(
-        AssignmentPRN.DataAccess.Contracts.QuestionPickRequest request,
+        QuestionPickRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Picks one student's paper. Questions already passed in
-    /// <see cref="AssignmentPRN.DataAccess.Contracts.QuestionPickRequest.TakenQuestionIds"/>
+    /// <see cref="QuestionPickRequest.TakenQuestionIds"/>
     /// are never handed out again, so two students of the same exam never share a question.
     /// </summary>
     Task<ServiceResponse<IReadOnlyList<int>>> PickAsync(
-        AssignmentPRN.DataAccess.Contracts.QuestionPickRequest request,
+        QuestionPickRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads back the papers of an exam, one per candidate, so the lecturer can review
     /// what the randomiser handed out before the session starts.
     /// </summary>
-    Task<ServiceResponse<IReadOnlyList<AssignmentPRN.DataAccess.Contracts.ExamPaperItem>>> GetExamPaperAsync(
+    Task<ServiceResponse<IReadOnlyList<ExamPaperItem>>> GetExamPaperAsync(
         int examId,
         CancellationToken cancellationToken = default);
 
@@ -212,6 +273,19 @@ public interface ICourseMaterialService
         int? courseId = null,
         CancellationToken cancellationToken = default);
 
+    Task<ServiceResponse<CourseMaterialResponse>> UploadAsync(
+        int courseId,
+        string fileName,
+        Stream content,
+        long? fileSize,
+        MaterialFileType fileType,
+        int uploaderId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResponse<MaterialDownload>> DownloadAsync(
+        int materialId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Creates a material row for a file that has already been written to disk.</summary>
     Task<ServiceResponse<CourseMaterialResponse>> CreateAsync(
         CourseMaterialCreateRequest request,
@@ -266,7 +340,7 @@ public sealed class CourseMaterialCreateRequest
 
     public string FilePath { get; init; } = string.Empty;
 
-    public AssignmentPRN.DataAccess.Enums.MaterialFileType FileType { get; init; }
+    public MaterialFileType FileType { get; init; }
 
     public long? FileSize { get; init; }
 }

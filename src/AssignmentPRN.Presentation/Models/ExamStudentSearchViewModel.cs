@@ -1,4 +1,4 @@
-using AssignmentPRN.DataAccess.Contracts;
+using AssignmentPRN.Business;
 
 namespace AssignmentPRN.Presentation.Models;
 

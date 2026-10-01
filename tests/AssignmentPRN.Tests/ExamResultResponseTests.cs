@@ -1,5 +1,4 @@
 using AssignmentPRN.Business;
-using AssignmentPRN.DataAccess.Contracts;
 
 namespace AssignmentPRN.Tests;
 

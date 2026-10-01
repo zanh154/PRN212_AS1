@@ -1,4 +1,4 @@
-using AssignmentPRN.DataAccess.Enums;
+using AssignmentPRN.Business;
 
 namespace AssignmentPRN.Presentation.Models;
 
@@ -8,8 +8,6 @@ namespace AssignmentPRN.Presentation.Models;
 /// </summary>
 public static class MaterialFileRules
 {
-    public const string Folder = "materials";
-
     /// <summary>Keeps a single upload from filling the disk; PDF/DOCX/PPTX are the allowed types.</summary>
     public const long MaxBytes = 20L * 1024 * 1024;
 

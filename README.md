@@ -1,6 +1,8 @@
 # assignment_prn
 
-ASP.NET Core MVC (.NET 10), MySQL, kiến trúc Presentation / Business / DataAccess.
+ASP.NET Core MVC (.NET 10), MySQL, kiến trúc ba tầng Presentation → Business → DataAccess.
+
+Sơ đồ kiến trúc, luồng request và cách kết nối MySQL: [docs/architecture.md](docs/architecture.md).
 
 ![Sơ đồ kiến trúc hệ thống](docs/images/kien-truc-he-thong.png)
 

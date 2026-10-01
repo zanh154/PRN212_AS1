@@ -1,6 +1,4 @@
 using AssignmentPRN.Business;
-using AssignmentPRN.DataAccess.Contracts;
-using AssignmentPRN.DataAccess.Enums;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
 
@@ -77,7 +75,7 @@ public class ExamRoomViewModel
 /// <summary>One question of the exam room, answerable or shown as handed in.</summary>
 public class ExamRoomQuestionViewModel
 {
-    public AssignmentPRN.DataAccess.Contracts.ExamRoomQuestion Question { get; init; } = new();
+    public ExamRoomQuestion Question { get; init; } = new();
 
     /// <summary>True renders the radio group; false shows the pick read-only.</summary>
     public bool Editable { get; init; }
@@ -98,7 +96,7 @@ public class ExamResultViewModel
 /// <summary>One graded question, as the student or the examiner reviews it.</summary>
 public class ExamResultQuestionViewModel
 {
-    public AssignmentPRN.DataAccess.Contracts.ExamResultQuestion Question { get; init; } = new();
+    public ExamResultQuestion Question { get; init; } = new();
 
     /// <summary>For a follow-up, the number of the main question it digs into.</summary>
     public int? ParentOrderNo { get; init; }

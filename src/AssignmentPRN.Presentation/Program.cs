@@ -6,7 +6,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
 builder.Services.AddControllersWithViews();
-builder.Services.AddBusiness(connectionString);
+builder.Services.AddBusiness(connectionString, builder.Environment.WebRootPath);
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>

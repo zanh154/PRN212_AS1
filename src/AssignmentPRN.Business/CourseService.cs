@@ -6,7 +6,7 @@ namespace AssignmentPRN.Business;
 public record CourseSaveRequest(int CourseId, string CourseCode, string CourseName,
     string? Description, int LecturerId, bool IsActive);
 
-public class CourseService(ICourseRepository repository, ICatalogRepository catalog)
+public class CourseService(ICourseRepository repository, ICatalogRepository catalog) : ICourseService
 {
     public Task<ServiceResponse<IReadOnlyList<CourseResponse>>> ListAsync(int? lecturerId, CancellationToken ct = default) =>
         ServiceExecutor.RunAsync<IReadOnlyList<CourseResponse>>(async () => (await repository.ListAsync(ct))
