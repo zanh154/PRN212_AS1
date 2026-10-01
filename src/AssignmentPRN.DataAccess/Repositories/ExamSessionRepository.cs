@@ -56,6 +56,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
 
     public async Task ChangeStatusAsync(int examId, ExamSessionStatus status, CancellationToken cancellationToken = default)
     {
+        await using var transaction = await context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
         var session = await context.ExamSessions.Include(x => x.Candidates)
             .FirstOrDefaultAsync(x => x.ExamId == examId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy phiên thi.");
@@ -77,6 +78,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
         session.Status = status;
         session.UpdatedAt = DateTime.Now;
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private static void EnsureEditable(ExamSession session)

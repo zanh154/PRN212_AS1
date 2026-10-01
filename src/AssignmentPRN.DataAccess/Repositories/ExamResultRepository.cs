@@ -71,13 +71,21 @@ public class ExamResultRepository(AivesDbContext context) : IExamResultRepositor
         }
 
         var ids = statusByCandidate.Keys.ToList();
-        var candidates = await context.ExamCandidates
+        await using var transaction = await context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+        var candidates = await context.ExamCandidates.Include(x => x.Session)
             .Where(candidate => ids.Contains(candidate.CandidateId))
             .ToListAsync(cancellationToken);
 
         foreach (var candidate in candidates)
         {
-            candidate.Status = statusByCandidate[candidate.CandidateId];
+            // The student may have submitted since the service calculated overdue slots.
+            if (!ExamSessionRules.CanSit(candidate.Session.Status) || candidate.ScheduledTime is not DateTime start) continue;
+            var end = start.AddMinutes(candidate.Session.TimePerStudent);
+            if (candidate.Status == CandidateStatus.Waiting && finishedAt > end)
+                candidate.Status = CandidateStatus.Absent;
+            else if (candidate.Status == CandidateStatus.InProgress && finishedAt > end + ExamSessionRules.SubmitGrace)
+                candidate.Status = CandidateStatus.Completed;
+            else continue;
             if (candidate.Status is CandidateStatus.Completed or CandidateStatus.Absent)
             {
                 candidate.FinishedAt ??= finishedAt;
@@ -85,6 +93,9 @@ public class ExamResultRepository(AivesDbContext context) : IExamResultRepositor
         }
 
         await context.SaveChangesAsync(cancellationToken);
+        foreach (var examId in candidates.Select(x => x.ExamId).Distinct())
+            await ExamSessionLifecycle.SynchronizeAsync(context, examId, finishedAt, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     /// <summary>
