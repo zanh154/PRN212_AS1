@@ -2,6 +2,14 @@
 
 Sơ đồ phản ánh kiến trúc ba tầng hiện tại: `Presentation → Business → DataAccess`.
 
+## Sơ đồ tổng quan ba tầng
+
+![Kiến trúc ba tầng](kien-truc-tong-quan.svg)
+
+Nét liền là request đi xuống, nét đứt là response đi lên. Business và DataAccess được build thành class library (`.dll`) và được Presentation tham chiếu.
+
+## Sơ đồ chi tiết
+
 ![AssignmentPRN system architecture](architecture.svg)
 
 Source Mermaid có thể chỉnh sửa tại [architecture.mmd](architecture.mmd). GitHub hiển thị trực tiếp SVG ở trên và vẫn cho phép xem source của sơ đồ.

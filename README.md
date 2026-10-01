@@ -4,7 +4,7 @@ ASP.NET Core MVC (.NET 10), MySQL, kiến trúc ba tầng Presentation → Busin
 
 Sơ đồ kiến trúc, luồng request và cách kết nối MySQL: [docs/architecture.md](docs/architecture.md).
 
-![Sơ đồ kiến trúc hệ thống](docs/images/kien-truc-he-thong.png)
+![Sơ đồ kiến trúc hệ thống](docs/kien-truc-tong-quan.svg)
 
 Hướng dẫn chạy, quy tắc nghiệp vụ và checklist kiểm tra chức năng **Môn học & Phiên thi**: [docs/module-2.md](docs/module-2.md).
 
