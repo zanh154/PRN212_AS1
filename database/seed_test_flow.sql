@@ -36,7 +36,7 @@
 -- thì sửa @tz_offset bên dưới.
 --
 -- Tệp PDF: cột file_path trỏ tới /materials/tflow-chu-de-1.pdf và tflow-chu-de-2.pdf.
--- Chép docs/samples/bai-giang-01.pdf vào src/AssignmentPRN.Presentation/wwwroot/materials/
+-- Chép docs/samples/bai-giang-01.pdf vào src/AssignmentPRN.DataAccess/Storage/materials/
 -- với 2 tên đó nếu muốn nút "Mở tài liệu" chạy. Phát đề không cần tệp thật.
 -- =====================================================================================
 

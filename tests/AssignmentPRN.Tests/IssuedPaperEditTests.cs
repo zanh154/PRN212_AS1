@@ -1,11 +1,12 @@
-using AssignmentPRN.DataAccess;
+using AssignmentPRN.DataAccess.Data;
 using AssignmentPRN.DataAccess.Entities;
 using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.DataAccess.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
-using B = AssignmentPRN.Business;
+using B = AssignmentPRN.Business.Interfaces;
+using BSvc = AssignmentPRN.Business.Services;
 using Input = AssignmentPRN.DataAccess.Contracts.ExamSessionUpdateInput;
 
 namespace AssignmentPRN.Tests;
@@ -19,7 +20,7 @@ public class IssuedPaperEditTests
     public async Task Issued_paper_blocks_changes_in_service_and_repository(bool course, bool count)
     {
         await using var db = await OpenAsync();
-        var service = new B.ExamSessionService(new ExamSessionRepository(db), new CatalogRepository(db), new QuestionRepository(db));
+        var service = new BSvc.ExamSessionService(new ExamSessionRepository(db), new CatalogRepository(db), new QuestionRepository(db));
         var result = await service.UpdateAsync(new B.ExamSessionUpdateInput {
             ExamId = 1, CourseId = course ? 2 : 1, MainQuestionCount = count ? 2 : 1,
             ExamName = "Changed", StartTime = Start, TimePerStudent = 10 }, 1);
@@ -47,7 +48,7 @@ public class IssuedPaperEditTests
     public async Task Clearing_unstarted_paper_allows_configuration_change()
     {
         await using var db = await OpenAsync();
-        var questions = new B.QuestionService(new QuestionRepository(db), new CatalogRepository(db), null!);
+        var questions = new BSvc.QuestionService(new QuestionRepository(db), new CatalogRepository(db), null!);
         Assert.True((await questions.ClearExamAssignmentAsync(1)).Success);
         var saved = await new ExamSessionRepository(db).UpdateAsync(Request(true, true));
         Assert.Equal(2, saved.Course.CourseId);
@@ -62,7 +63,7 @@ public class IssuedPaperEditTests
         candidate.Status = CandidateStatus.InProgress;
         candidate.StartedAt = DateTime.Now;
         await db.SaveChangesAsync();
-        var questions = new B.QuestionService(new QuestionRepository(db), new CatalogRepository(db), null!);
+        var questions = new BSvc.QuestionService(new QuestionRepository(db), new CatalogRepository(db), null!);
         Assert.False((await questions.ClearExamAssignmentAsync(1)).Success);
         Assert.Single(await db.ExamQuestions.ToListAsync());
     }

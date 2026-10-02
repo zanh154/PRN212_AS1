@@ -1,6 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using AssignmentPRN.Business;
-using AssignmentPRN.Presentation.Models;
+using AssignmentPRN.Business.Services;
+using AssignmentPRN.Business.Interfaces;
+using AssignmentPRN.Business.BusinessRules;
+using AssignmentPRN.Presentation.ViewModels;
 
 namespace AssignmentPRN.Tests;
 

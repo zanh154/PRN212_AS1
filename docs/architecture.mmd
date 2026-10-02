@@ -43,6 +43,7 @@ flowchart TB
         DbContext["AivesDbContext<br/>12 entity models"]
         DbCheck["Startup DB check<br/>CanConnect + data counts"]
         FileStore["LocalMaterialFileStore"]
+        MaterialFiles[("Material files<br/>Storage/materials")]
         Repositories --> DataModels --> EF --> DbContext
         DbCheck -.-> DbContext
     end
@@ -55,10 +56,9 @@ flowchart TB
         Settings --> Program --> Registration
     end
 
-    subgraph Resources["External resources"]
+    subgraph Resources["External resource"]
         direction LR
         MySQL[("MySQL 8.4<br/>Aiven · TLS")]
-        MaterialFiles[("Material files<br/>wwwroot/materials")]
     end
 
     Browser -->|"HTTP request<br/>HTML response"| Pipeline

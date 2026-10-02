@@ -1,13 +1,18 @@
 namespace AssignmentPRN.DataAccess.Services;
 
-/// <summary>Stores course-material bytes under the configured web root.</summary>
-public sealed class LocalMaterialFileStore(string webRootPath) : IMaterialFileStore
+/// <summary>
+/// Stores course-material bytes under <paramref name="storageRootPath"/>. That root must
+/// stay outside the web root: everything under wwwroot is served by the static-file
+/// middleware without passing through the controller, which would hand the files to
+/// anyone holding the URL, signed in or not.
+/// </summary>
+public sealed class LocalMaterialFileStore(string storageRootPath) : IMaterialFileStore
 {
     private const string MaterialFolder = "materials";
     private readonly string root = Path.GetFullPath(
-        string.IsNullOrWhiteSpace(webRootPath)
-            ? throw new ArgumentException("A web-root path is required.", nameof(webRootPath))
-            : webRootPath);
+        string.IsNullOrWhiteSpace(storageRootPath)
+            ? throw new ArgumentException("A storage-root path is required.", nameof(storageRootPath))
+            : storageRootPath);
 
     public async Task<string> SaveAsync(
         Stream content,
