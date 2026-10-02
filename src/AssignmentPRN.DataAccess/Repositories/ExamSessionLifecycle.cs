@@ -10,8 +10,7 @@ internal static class ExamSessionLifecycle
     {
         var session = await context.ExamSessions.SingleAsync(x => x.ExamId == examId, ct);
         var statuses = await context.ExamCandidates.Where(x => x.ExamId == examId).Select(x => x.Status).ToListAsync(ct);
-        var next = (ExamSessionStatus)Domain.ExamLifecycleRules.SessionAfterProgress(
-            (Domain.ExamSessionStatus)session.Status, statuses.Select(x => (Domain.CandidateStatus)x));
+        var next = ExamLifecycleRules.SessionAfterProgress(session.Status, statuses);
         if (next == session.Status) return;
         session.Status = next;
         session.UpdatedAt = now;

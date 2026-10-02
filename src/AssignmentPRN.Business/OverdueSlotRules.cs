@@ -1,3 +1,4 @@
+using Data = AssignmentPRN.DataAccess.Enums;
 
 namespace AssignmentPRN.Business;
 
@@ -27,7 +28,7 @@ public static class OverdueSlotRules
         var result = new Dictionary<int, CandidateStatus>();
         foreach (var slot in slots)
         {
-            var next = Domain.ExamLifecycleRules.CloseOverdue((Domain.CandidateStatus)slot.Status,
+            var next = Data.ExamLifecycleRules.CloseOverdue((Data.CandidateStatus)slot.Status,
                 slot.ScheduledTime, minutesPerStudent, now);
             if (next.HasValue) result[slot.CandidateId] = (CandidateStatus)next.Value;
         }

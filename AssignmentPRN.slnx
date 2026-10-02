@@ -1,6 +1,5 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/AssignmentPRN.Domain/AssignmentPRN.Domain.csproj" />
     <Project Path="src/AssignmentPRN.Business/AssignmentPRN.Business.csproj" />
     <Project Path="src/AssignmentPRN.DataAccess/AssignmentPRN.DataAccess.csproj" />
     <Project Path="src/AssignmentPRN.Presentation/AssignmentPRN.Presentation.csproj" />
