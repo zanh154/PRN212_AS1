@@ -1,23 +1,61 @@
 namespace AssignmentPRN.DataAccess.Enums;
 
-/// <summary>Compatibility facade; all policies live in AssignmentPRN.Domain.</summary>
+/// <summary>
+/// Exam-session policy, shared by every layer. It sits in the data access layer because
+/// repositories enforce it inside their transactions and cannot depend on the business
+/// layer; <see cref="AssignmentPRN.Business.ExamSessionRules"/> is the facade services use.
+/// </summary>
 public static class ExamSessionRules
 {
-    public static bool CanEdit(ExamSessionStatus status) =>
-        AssignmentPRN.Domain.ExamSessionRules.CanEdit((AssignmentPRN.Domain.ExamSessionStatus)status);
-    public static bool CanTransition(ExamSessionStatus from, ExamSessionStatus to) =>
-        AssignmentPRN.Domain.ExamSessionRules.CanTransition((AssignmentPRN.Domain.ExamSessionStatus)from, (AssignmentPRN.Domain.ExamSessionStatus)to);
-    public static bool BlocksCancellation(CandidateStatus status) =>
-        AssignmentPRN.Domain.ExamSessionRules.BlocksCancellation((AssignmentPRN.Domain.CandidateStatus)status);
+    public static bool CanEdit(ExamSessionStatus status) => status is ExamSessionStatus.Draft or ExamSessionStatus.Scheduled;
+
+    public static bool CanTransition(ExamSessionStatus from, ExamSessionStatus to) => (from, to) switch
+    {
+        (ExamSessionStatus.Draft, ExamSessionStatus.Scheduled or ExamSessionStatus.Cancelled) => true,
+        (ExamSessionStatus.Scheduled, ExamSessionStatus.InProgress or ExamSessionStatus.Cancelled) => true,
+        (ExamSessionStatus.InProgress, ExamSessionStatus.Completed or ExamSessionStatus.Cancelled) => true,
+        _ => false
+    };
+
+    /// <summary>
+    /// A session cannot be cancelled under a student who is still answering: their paper
+    /// would be cut off halfway. They have to hand in, or be closed once their slot is over.
+    /// </summary>
+    public static bool BlocksCancellation(CandidateStatus status) => status == CandidateStatus.InProgress;
+
+    /// <summary>
+    /// What a slot becomes when its session is cancelled: a slot not sat yet is cancelled
+    /// with it, while a handed-in paper or a recorded absence keeps its record.
+    /// </summary>
     public static CandidateStatus StatusAfterCancellation(CandidateStatus status) =>
-        (CandidateStatus)AssignmentPRN.Domain.ExamSessionRules.StatusAfterCancellation((AssignmentPRN.Domain.CandidateStatus)status);
+        status == CandidateStatus.Waiting ? CandidateStatus.Cancelled : status;
+
+    /// <summary>A session whose slots a student may sit; a draft has not been published yet.</summary>
     public static bool CanSit(ExamSessionStatus status) =>
-        AssignmentPRN.Domain.ExamSessionRules.CanSit((AssignmentPRN.Domain.ExamSessionStatus)status);
+        status is ExamSessionStatus.Scheduled or ExamSessionStatus.InProgress;
+
+    /// <summary>
+    /// Whether <paramref name="now"/> falls inside the slot that starts at
+    /// <paramref name="scheduledTime"/> and lasts <paramref name="minutes"/>.
+    /// </summary>
     public static bool IsSlotOpen(DateTime now, DateTime scheduledTime, int minutes) =>
-        AssignmentPRN.Domain.ExamSessionRules.IsSlotOpen(now, scheduledTime, minutes);
+        IsSlotOpen(now, scheduledTime, scheduledTime.AddMinutes(minutes));
+
+    /// <summary>Same window, for callers that already hold the end of the slot.</summary>
     public static bool IsSlotOpen(DateTime now, DateTime scheduledTime, DateTime endTime) =>
-        AssignmentPRN.Domain.ExamSessionRules.IsSlotOpen(now, scheduledTime, endTime);
-    public static TimeSpan SubmitGrace => AssignmentPRN.Domain.ExamSessionRules.SubmitGrace;
+        now >= scheduledTime && now <= endTime;
+
+    /// <summary>
+    /// How long a paper is still accepted after the clock runs out. The countdown in the
+    /// browser submits on its own at 00:00; this covers the seconds that request spends in
+    /// flight, so work already done is not thrown away over a rounding difference.
+    /// </summary>
+    public static readonly TimeSpan SubmitGrace = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// Whether a paper may still be handed in. Wider than <see cref="IsSlotOpen"/>: a
+    /// student cannot start late, but a submit that arrives moments late is still taken.
+    /// </summary>
     public static bool CanSubmit(DateTime now, DateTime scheduledTime, DateTime endTime) =>
-        AssignmentPRN.Domain.ExamSessionRules.CanSubmit(now, scheduledTime, endTime);
+        now >= scheduledTime && now <= endTime + SubmitGrace;
 }

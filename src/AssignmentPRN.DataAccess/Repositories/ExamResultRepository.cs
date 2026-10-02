@@ -79,10 +79,10 @@ public class ExamResultRepository(AivesDbContext context) : IExamResultRepositor
         foreach (var candidate in candidates)
         {
             // The student may have submitted since the service calculated overdue slots.
-            var next = Domain.ExamLifecycleRules.CloseOverdue((Domain.ExamSessionStatus)candidate.Session.Status,
-                (Domain.CandidateStatus)candidate.Status, candidate.ScheduledTime, candidate.Session.TimePerStudent, finishedAt);
+            var next = ExamLifecycleRules.CloseOverdue(candidate.Session.Status,
+                candidate.Status, candidate.ScheduledTime, candidate.Session.TimePerStudent, finishedAt);
             if (next is null) continue;
-            candidate.Status = (CandidateStatus)next.Value;
+            candidate.Status = next.Value;
             candidate.FinishedAt ??= finishedAt;
         }
 

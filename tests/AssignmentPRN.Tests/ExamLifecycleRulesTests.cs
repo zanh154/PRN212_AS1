@@ -1,4 +1,4 @@
-using AssignmentPRN.Domain;
+using AssignmentPRN.DataAccess.Enums;
 using Xunit;
 
 namespace AssignmentPRN.Tests;
