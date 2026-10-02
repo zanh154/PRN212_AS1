@@ -2,7 +2,7 @@ using AssignmentPRN.DataAccess.Entities;
 using AssignmentPRN.DataAccess.Enums;
 using Microsoft.EntityFrameworkCore;
 
-namespace AssignmentPRN.DataAccess;
+namespace AssignmentPRN.DataAccess.Data;
 
 public class AivesDbContext(DbContextOptions<AivesDbContext> options) : DbContext(options)
 {

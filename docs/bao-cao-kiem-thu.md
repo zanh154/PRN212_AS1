@@ -180,4 +180,4 @@ Nhóm phụ trách **Chức năng 2 — Quản lý kỳ thi & lịch thi**. Đ�
 
 4. Giờ trong script tính theo giờ Việt Nam (UTC+7) cho khớp với app.
 
-> Lưu ý: script không xoá được các tệp PDF đã upload trong lúc test; chúng nằm trong `src/AssignmentPRN.Presentation/wwwroot/materials/` (thư mục này bị Git bỏ qua).
+> Lưu ý: script không xoá được các tệp PDF đã upload trong lúc test; chúng nằm trong `src/AssignmentPRN.DataAccess/Storage/materials/` (thư mục này bị Git bỏ qua).

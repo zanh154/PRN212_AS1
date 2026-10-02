@@ -52,7 +52,14 @@ sequenceDiagram
 
 ## Luồng file tài liệu
 
-`CourseMaterialsController → ICourseMaterialService → CourseMaterialService → LocalMaterialFileStore → wwwroot/materials`
+`CourseMaterialsController → ICourseMaterialService → CourseMaterialService → LocalMaterialFileStore → src/AssignmentPRN.DataAccess/Storage/materials`
+
+Thư mục lưu trữ nằm **ngoài `wwwroot`** là có chủ đích: mọi thứ dưới `wwwroot` đều được
+`UseStaticFiles()` phục vụ thẳng, không qua controller, nên ai biết URL cũng tải được dù
+chưa đăng nhập. Đặt ra ngoài thì mọi lượt tải đều phải đi qua `CourseMaterialsController.Download`,
+nơi `[SessionAuthorize(Admin, Lecturer)]` kiểm tra phiên trước. Đường dẫn lấy từ cấu hình
+`MaterialStorage:RootPath`; giá trị tương đối được tính theo content root, còn khi publish thì
+đặt đường dẫn tuyệt đối vì thư mục project chỉ tồn tại trong bản checkout.
 
 Controller chỉ gọi service của Business. Business điều phối metadata và file; việc tạo đường dẫn, ghi, đọc và xóa file nằm trong DataAccess implementation.
 
@@ -62,3 +69,21 @@ Controller chỉ gọi service của Business. Business điều phối metadata 
 - Business chứa service interface, request/response DTO, enum công khai và các quy tắc nghiệp vụ; Business gọi DataAccess.
 - DataAccess chứa EF Core, entity, read model nội bộ, repository, MySQL provider và local file-store implementation.
 - Chiều tham chiếu project là `Presentation → Business → DataAccess`; không có project `Domain` riêng.
+
+## Cấu trúc thư mục theo sơ đồ
+
+Mỗi hộp trong sơ đồ tương ứng một thư mục thật; thêm file mới phải đặt đúng thư mục của hộp đó.
+
+| Tầng | Hộp trong sơ đồ | Thư mục | Namespace |
+|---|---|---|---|
+| Presentation | Controllers | `Controllers/` | `AssignmentPRN.Presentation.Controllers` |
+| Presentation | Razor Views | `Views/` | — |
+| Presentation | ViewModels | `ViewModels/` | `AssignmentPRN.Presentation.ViewModels` |
+| Business | Services | `Services/` | `AssignmentPRN.Business.Services` |
+| Business | Business rules | `BusinessRules/` | `AssignmentPRN.Business.BusinessRules` |
+| Business | Interfaces | `Interfaces/` | `AssignmentPRN.Business.Interfaces` |
+| DataAccess | Repositories | `Repositories/` | `AssignmentPRN.DataAccess.Repositories` |
+| DataAccess | AivesDbContext | `Data/` | `AssignmentPRN.DataAccess` |
+| DataAccess | Entity Models | `Entities/` | `AssignmentPRN.DataAccess.Entities` |
+
+Ngoài ba hộp chính, mỗi tầng còn một ô nét đứt "Hạ tầng" liệt kê phần không thuộc nghiệp vụ: `Constants/`, `Filters/`, `Properties/`, `Styles/`, `wwwroot/` (Presentation); `Contracts/`, `Enums/`, `Extensions/`, `Services/`, `Common/` (DataAccess). Business không có thư mục hạ tầng nhưng có hai file nối tầng ở gốc project: `ServiceCollectionExtensions.cs` (đăng ký DI) và `DataAccessMappings.cs` (chuyển DTO giữa hai tầng). Sơ đồ tổng quan vẽ đủ các mục này, nên đọc sơ đồ là thấy hết thư mục thật.

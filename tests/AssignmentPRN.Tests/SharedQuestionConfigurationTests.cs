@@ -1,16 +1,17 @@
-using AssignmentPRN.DataAccess;
+using AssignmentPRN.DataAccess.Data;
 using AssignmentPRN.DataAccess.Entities;
 using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
-using B = AssignmentPRN.Business;
+using B = AssignmentPRN.Business.Interfaces;
+using BSvc = AssignmentPRN.Business.Services;
 
 namespace AssignmentPRN.Tests;
 
 public class SharedQuestionConfigurationTests
 {
-    private static B.QuestionService Service(AivesDbContext db) =>
+    private static BSvc.QuestionService Service(AivesDbContext db) =>
         new(new QuestionRepository(db), new CatalogRepository(db), null!);
     private static B.ExamQuestionAssignmentRequest Request(int count = 1, bool filtered = true) => new() {
         ExamId = 1, CourseId = 1, CountPerCandidate = count,
@@ -88,7 +89,7 @@ public class SharedQuestionConfigurationTests
             CourseId = 1, LecturerId = 1, IsActive = true,
             Students = [new ClassStudent { StudentId = 2 }, new ClassStudent { StudentId = 3 }] });
         await db.SaveChangesAsync();
-        var sessions = new B.ExamSessionService(new ExamSessionRepository(db), new CatalogRepository(db), new QuestionRepository(db));
+        var sessions = new BSvc.ExamSessionService(new ExamSessionRepository(db), new CatalogRepository(db), new QuestionRepository(db));
         var start = (await db.ExamSessions.SingleAsync()).StartTime;
         Assert.True((await sessions.AddStudentAsync(1, "s2@example.test", start.AddMinutes(10))).Success);
         // Only one unassigned Easy/topic-1 question remains: reserved for student 2.

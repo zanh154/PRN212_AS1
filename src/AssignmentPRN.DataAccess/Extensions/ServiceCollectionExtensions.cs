@@ -1,3 +1,4 @@
+using AssignmentPRN.DataAccess.Data;
 using AssignmentPRN.DataAccess.Repositories;
 using AssignmentPRN.DataAccess.Services;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddDataAccess(
         this IServiceCollection services,
         string connectionString,
-        string webRootPath)
+        string storageRootPath)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -30,7 +31,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IQuestionRepository, QuestionRepository>();
         services.AddScoped<ICourseMaterialRepository, CourseMaterialRepository>();
         services.AddScoped<IExamResultRepository, ExamResultRepository>();
-        services.AddSingleton<IMaterialFileStore>(new LocalMaterialFileStore(webRootPath));
+        services.AddSingleton<IMaterialFileStore>(new LocalMaterialFileStore(storageRootPath));
 
         services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
         services.AddHostedService<DatabaseInitializerHostedService>();

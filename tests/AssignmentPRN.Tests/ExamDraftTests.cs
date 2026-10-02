@@ -1,16 +1,17 @@
-using AssignmentPRN.DataAccess;
+using AssignmentPRN.DataAccess.Data;
 using AssignmentPRN.DataAccess.Entities;
 using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
-using B = AssignmentPRN.Business;
+using B = AssignmentPRN.Business.Interfaces;
+using BSvc = AssignmentPRN.Business.Services;
 
 namespace AssignmentPRN.Tests;
 
 public class ExamDraftTests
 {
-    private static B.QuestionService Service(AivesDbContext db) => new(new QuestionRepository(db), new CatalogRepository(db), null!);
+    private static BSvc.QuestionService Service(AivesDbContext db) => new(new QuestionRepository(db), new CatalogRepository(db), null!);
 
     [Fact]
     public async Task Draft_survives_reload_without_finishing_exam_and_can_be_changed()

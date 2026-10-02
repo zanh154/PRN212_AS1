@@ -1,4 +1,4 @@
-using AssignmentPRN.DataAccess;
+using AssignmentPRN.DataAccess.Data;
 using AssignmentPRN.DataAccess.Entities;
 using AssignmentPRN.DataAccess.Enums;
 using AssignmentPRN.DataAccess.Repositories;

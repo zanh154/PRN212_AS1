@@ -1,5 +1,6 @@
 using Xunit;
-using Business = AssignmentPRN.Business;
+using Biz = AssignmentPRN.Business.Interfaces;
+using BRules = AssignmentPRN.Business.BusinessRules;
 using Data = AssignmentPRN.DataAccess.Enums;
 
 namespace AssignmentPRN.Tests;
@@ -13,12 +14,12 @@ public class SharedExamSessionRulesTests
     [Fact]
     public void Enum_names_and_values_match_across_facades()
     {
-        Assert.Equal(Enum.GetNames<Data.ExamSessionStatus>(), Enum.GetNames<Business.ExamSessionStatus>());
-        Assert.Equal(Enum.GetNames<Data.CandidateStatus>(), Enum.GetNames<Business.CandidateStatus>());
+        Assert.Equal(Enum.GetNames<Data.ExamSessionStatus>(), Enum.GetNames<Biz.ExamSessionStatus>());
+        Assert.Equal(Enum.GetNames<Data.CandidateStatus>(), Enum.GetNames<Biz.CandidateStatus>());
         foreach (var name in Enum.GetNames<Data.ExamSessionStatus>())
-            Assert.Equal((int)Enum.Parse<Data.ExamSessionStatus>(name), (int)Enum.Parse<Business.ExamSessionStatus>(name));
+            Assert.Equal((int)Enum.Parse<Data.ExamSessionStatus>(name), (int)Enum.Parse<Biz.ExamSessionStatus>(name));
         foreach (var name in Enum.GetNames<Data.CandidateStatus>())
-            Assert.Equal((int)Enum.Parse<Data.CandidateStatus>(name), (int)Enum.Parse<Business.CandidateStatus>(name));
+            Assert.Equal((int)Enum.Parse<Data.CandidateStatus>(name), (int)Enum.Parse<Biz.CandidateStatus>(name));
     }
 
     [Fact]
@@ -26,15 +27,15 @@ public class SharedExamSessionRulesTests
     {
         foreach (var from in Enum.GetValues<Data.ExamSessionStatus>())
         {
-            Assert.Equal(Data.ExamSessionRules.CanEdit(from), Business.ExamSessionRules.CanEdit((Business.ExamSessionStatus)from));
-            Assert.Equal(Data.ExamSessionRules.CanSit(from), Business.ExamSessionRules.CanSit((Business.ExamSessionStatus)from));
+            Assert.Equal(Data.ExamSessionRules.CanEdit(from), BRules.ExamSessionRules.CanEdit((Biz.ExamSessionStatus)from));
+            Assert.Equal(Data.ExamSessionRules.CanSit(from), BRules.ExamSessionRules.CanSit((Biz.ExamSessionStatus)from));
             foreach (var to in Enum.GetValues<Data.ExamSessionStatus>())
-                Assert.Equal(Data.ExamSessionRules.CanTransition(from, to), Business.ExamSessionRules.CanTransition((Business.ExamSessionStatus)from, (Business.ExamSessionStatus)to));
+                Assert.Equal(Data.ExamSessionRules.CanTransition(from, to), BRules.ExamSessionRules.CanTransition((Biz.ExamSessionStatus)from, (Biz.ExamSessionStatus)to));
         }
         foreach (var status in Enum.GetValues<Data.CandidateStatus>())
         {
-            Assert.Equal(Data.ExamSessionRules.BlocksCancellation(status), Business.ExamSessionRules.BlocksCancellation((Business.CandidateStatus)status));
-            Assert.Equal((int)Data.ExamSessionRules.StatusAfterCancellation(status), (int)Business.ExamSessionRules.StatusAfterCancellation((Business.CandidateStatus)status));
+            Assert.Equal(Data.ExamSessionRules.BlocksCancellation(status), BRules.ExamSessionRules.BlocksCancellation((Biz.CandidateStatus)status));
+            Assert.Equal((int)Data.ExamSessionRules.StatusAfterCancellation(status), (int)BRules.ExamSessionRules.StatusAfterCancellation((Biz.CandidateStatus)status));
         }
     }
 
@@ -51,10 +52,10 @@ public class SharedExamSessionRulesTests
         var now = start.AddSeconds(seconds);
         var end = start.AddMinutes(10);
         Assert.Equal(canSit, Data.ExamSessionRules.IsSlotOpen(now, start, 10));
-        Assert.Equal(canSit, Business.ExamSessionRules.IsSlotOpen(now, start, 10));
-        Assert.Equal(canSit, Business.ExamSessionRules.IsSlotOpen(now, start, end));
+        Assert.Equal(canSit, BRules.ExamSessionRules.IsSlotOpen(now, start, 10));
+        Assert.Equal(canSit, BRules.ExamSessionRules.IsSlotOpen(now, start, end));
         Assert.Equal(canSubmit, Data.ExamSessionRules.CanSubmit(now, start, end));
-        Assert.Equal(canSubmit, Business.ExamSessionRules.CanSubmit(now, start, end));
-        Assert.Equal(Data.ExamSessionRules.SubmitGrace, Business.ExamSessionRules.SubmitGrace);
+        Assert.Equal(canSubmit, BRules.ExamSessionRules.CanSubmit(now, start, end));
+        Assert.Equal(Data.ExamSessionRules.SubmitGrace, BRules.ExamSessionRules.SubmitGrace);
     }
 }
