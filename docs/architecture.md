@@ -77,7 +77,7 @@ Mỗi hộp trong sơ đồ tương ứng một thư mục thật; thêm file m�
 | Tầng | Hộp trong sơ đồ | Thư mục | Namespace |
 |---|---|---|---|
 | Presentation | Controllers | `Controllers/` | `AssignmentPRN.Presentation.Controllers` |
-| Presentation | Razor Views | `Views/` | — |
+| Presentation | Razor Views | `Views/` | *(không tự khai báo — xem ghi chú dưới bảng)* |
 | Presentation | ViewModels | `ViewModels/` | `AssignmentPRN.Presentation.ViewModels` |
 | Business | Services | `Services/` | `AssignmentPRN.Business.Services` |
 | Business | Business rules | `BusinessRules/` | `AssignmentPRN.Business.BusinessRules` |
@@ -85,6 +85,12 @@ Mỗi hộp trong sơ đồ tương ứng một thư mục thật; thêm file m�
 | DataAccess | Repositories | `Repositories/` | `AssignmentPRN.DataAccess.Repositories` |
 | DataAccess | AivesDbContext | `Data/` | `AssignmentPRN.DataAccess.Data` |
 | DataAccess | Entity Models | `Entities/` | `AssignmentPRN.DataAccess.Entities` |
+
+File `.cshtml` không khai báo namespace như file `.cs`. Lúc build, Razor sinh ra một lớp
+cho mỗi view và đặt tất cả vào namespace `AspNetCoreGeneratedDocument`, tên lớp ghép từ
+đường dẫn — `Views/Account/Login.cshtml` thành `AspNetCoreGeneratedDocument.Views_Account_Login`.
+Có thể đổi bằng chỉ thị `@namespace`, nhưng dự án không dùng. Các `@using` dùng chung cho
+mọi view khai báo một lần ở `Views/_ViewImports.cshtml`.
 
 Ngoài ba hộp chính, mỗi tầng còn một ô nét đứt liệt kê phần không thuộc nghiệp vụ:
 
