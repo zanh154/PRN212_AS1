@@ -13,7 +13,7 @@ public class ExamSessionLifecycleTests
     public async Task First_entry_starts_session_and_repeat_entry_keeps_timestamp()
     {
         await using var db = await SeedAsync();
-        var repo = new QuestionRepository(db);
+        var repo = new QuestionRepository(db, new AssignmentPRN.Business.BusinessRules.ExamStatePolicy());
         var now = DateTime.Now;
         await repo.StartCandidateAsync(1, now);
         await repo.StartCandidateAsync(1, now.AddSeconds(1));
@@ -28,7 +28,7 @@ public class ExamSessionLifecycleTests
     {
         await using var db = await SeedAsync();
         if (anotherWaiting) await AddWaitingAsync(db);
-        var repo = new QuestionRepository(db);
+        var repo = new QuestionRepository(db, new AssignmentPRN.Business.BusinessRules.ExamStatePolicy());
         await repo.StartCandidateAsync(1, DateTime.Now);
         var id = (await db.ExamQuestions.SingleAsync()).ExamQuestionId;
         await repo.SubmitAnswersAsync(1, new Dictionary<int, int?> { [id] = null }, DateTime.Now, []);
@@ -40,7 +40,7 @@ public class ExamSessionLifecycleTests
     public async Task Followup_round_keeps_session_in_progress()
     {
         await using var db = await SeedAsync();
-        var repo = new QuestionRepository(db);
+        var repo = new QuestionRepository(db, new AssignmentPRN.Business.BusinessRules.ExamStatePolicy());
         await repo.StartCandidateAsync(1, DateTime.Now);
         var id = (await db.ExamQuestions.SingleAsync()).ExamQuestionId;
         await repo.SubmitAnswersAsync(1, new Dictionary<int, int?> { [id] = null }, DateTime.Now,
@@ -55,7 +55,7 @@ public class ExamSessionLifecycleTests
         await using var db = await SeedAsync();
         (await db.ExamCandidates.SingleAsync()).ScheduledTime = DateTime.Now.AddHours(-1);
         await db.SaveChangesAsync();
-        await new ExamResultRepository(db).UpdateCandidateStatusesAsync(new Dictionary<int, CandidateStatus> { [1] = CandidateStatus.Absent }, DateTime.Now);
+        await new ExamResultRepository(db, new AssignmentPRN.Business.BusinessRules.ExamStatePolicy()).UpdateCandidateStatusesAsync(new Dictionary<int, CandidateStatus> { [1] = CandidateStatus.Absent }, DateTime.Now);
         Assert.Equal(CandidateStatus.Absent, (await db.ExamCandidates.SingleAsync()).Status);
         Assert.Equal(ExamSessionStatus.Completed, (await db.ExamSessions.SingleAsync()).Status);
     }
@@ -66,7 +66,7 @@ public class ExamSessionLifecycleTests
         await using var db = await SeedAsync();
         (await db.ExamCandidates.SingleAsync()).Status = CandidateStatus.Completed;
         await AddWaitingAsync(db);
-        await new ExamResultRepository(db).UpdateCandidateStatusesAsync(new Dictionary<int, CandidateStatus> {
+        await new ExamResultRepository(db, new AssignmentPRN.Business.BusinessRules.ExamStatePolicy()).UpdateCandidateStatusesAsync(new Dictionary<int, CandidateStatus> {
             [1] = CandidateStatus.Absent, [2] = CandidateStatus.Absent }, DateTime.Now);
         Assert.Equal(CandidateStatus.Completed, (await db.ExamCandidates.SingleAsync(x => x.CandidateId == 1)).Status);
         Assert.Equal(CandidateStatus.Waiting, (await db.ExamCandidates.SingleAsync(x => x.CandidateId == 2)).Status);
@@ -82,8 +82,42 @@ public class ExamSessionLifecycleTests
         await using var db = await SeedAsync();
         (await db.ExamSessions.SingleAsync()).Status = status;
         await db.SaveChangesAsync();
-        await Assert.ThrowsAsync<ArgumentException>(() => new QuestionRepository(db).StartCandidateAsync(1, DateTime.Now));
+        await Assert.ThrowsAsync<ArgumentException>(() => new QuestionRepository(db, new AssignmentPRN.Business.BusinessRules.ExamStatePolicy()).StartCandidateAsync(1, DateTime.Now));
         Assert.Equal(status, (await db.ExamSessions.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Business_policy_runs_inside_transaction_and_failure_rolls_back_candidate()
+    {
+        await using var db = await SeedAsync();
+        var policy = new FailingProgressPolicy(db);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new QuestionRepository(db, policy).StartCandidateAsync(1, DateTime.Now));
+        Assert.True(policy.Called);
+        db.ChangeTracker.Clear();
+        Assert.Equal(CandidateStatus.Waiting, (await db.ExamCandidates.SingleAsync()).Status);
+        Assert.Null((await db.ExamCandidates.SingleAsync()).StartedAt);
+        Assert.Equal(ExamSessionStatus.Scheduled, (await db.ExamSessions.SingleAsync()).Status);
+    }
+
+    private sealed class FailingProgressPolicy(AivesDbContext db) : AssignmentPRN.DataAccess.Contracts.IExamStatePolicy
+    {
+        private readonly AssignmentPRN.Business.BusinessRules.ExamStatePolicy inner = new();
+        public bool Called { get; private set; }
+        public bool CanEdit(ExamSessionStatus status) => inner.CanEdit(status);
+        public bool CanTransition(ExamSessionStatus from, ExamSessionStatus to) => inner.CanTransition(from, to);
+        public bool BlocksCancellation(CandidateStatus status) => inner.BlocksCancellation(status);
+        public CandidateStatus StatusAfterCancellation(CandidateStatus status) => inner.StatusAfterCancellation(status);
+        public bool CanSit(ExamSessionStatus status) => inner.CanSit(status);
+        public bool IsSlotOpen(DateTime now, DateTime scheduledTime, int minutes) => inner.IsSlotOpen(now, scheduledTime, minutes);
+        public ExamSessionStatus SessionAfterProgress(ExamSessionStatus current, IEnumerable<CandidateStatus> candidates)
+        {
+            Assert.NotNull(db.Database.CurrentTransaction);
+            Assert.Contains(CandidateStatus.InProgress, candidates);
+            Called = true;
+            throw new InvalidOperationException("Simulated business policy failure");
+        }
+        public CandidateStatus? CloseOverdue(ExamSessionStatus session, CandidateStatus current, DateTime? scheduled, int minutes, DateTime now) => inner.CloseOverdue(session, current, scheduled, minutes, now);
     }
 
     private static async Task AddWaitingAsync(AivesDbContext db)

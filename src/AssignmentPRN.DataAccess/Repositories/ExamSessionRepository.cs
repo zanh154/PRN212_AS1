@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AssignmentPRN.DataAccess.Repositories;
 
-public class ExamSessionRepository(AivesDbContext context) : IExamSessionRepository
+public class ExamSessionRepository(AivesDbContext context, IExamStatePolicy policy) : IExamSessionRepository
 {
     public async Task<ExamSessionDetail> UpdateAsync(ExamSessionUpdateInput input, CancellationToken cancellationToken = default)
     {
@@ -61,7 +61,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
         var session = await context.ExamSessions.Include(x => x.Candidates)
             .FirstOrDefaultAsync(x => x.ExamId == examId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy phiên thi.");
-        if (!ExamSessionRules.CanTransition(session.Status, status))
+        if (!policy.CanTransition(session.Status, status))
             throw new ArgumentException("Không thể chuyển sang trạng thái đã chọn.");
         if (status == ExamSessionStatus.Completed && session.Candidates.Any(x => x.Status is CandidateStatus.Waiting or CandidateStatus.InProgress))
             throw new ArgumentException("Chưa thể hoàn thành: còn sinh viên chờ thi hoặc đang thi.");
@@ -69,12 +69,12 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
             throw new ArgumentException("Chưa đến giờ bắt đầu phiên thi.");
         if (status == ExamSessionStatus.Cancelled)
         {
-            var sitting = session.Candidates.Count(x => ExamSessionRules.BlocksCancellation(x.Status));
+            var sitting = session.Candidates.Count(x => policy.BlocksCancellation(x.Status));
             if (sitting > 0)
                 throw new ArgumentException(
                     $"Còn {sitting} sinh viên đang thi, chưa thể huỷ phiên. Hãy đợi họ nộp bài hoặc chốt ca khi hết giờ.");
             foreach (var candidate in session.Candidates)
-                candidate.Status = ExamSessionRules.StatusAfterCancellation(candidate.Status);
+                candidate.Status = policy.StatusAfterCancellation(candidate.Status);
         }
         session.Status = status;
         session.UpdatedAt = DateTime.Now;
@@ -82,9 +82,9 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
         await transaction.CommitAsync(cancellationToken);
     }
 
-    private static void EnsureEditable(ExamSession session)
+    private void EnsureEditable(ExamSession session)
     {
-        if (!ExamSessionRules.CanEdit(session.Status) || session.Candidates.Any(x => x.Status != CandidateStatus.Waiting))
+        if (!policy.CanEdit(session.Status) || session.Candidates.Any(x => x.Status != CandidateStatus.Waiting))
             throw new ArgumentException("Chỉ được sửa hoặc xoá phiên nháp/đã xếp lịch khi tất cả sinh viên còn chờ thi.");
     }
 
@@ -351,7 +351,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
             ?? throw new KeyNotFoundException($"Không tìm thấy lượt thi #{candidateId}.");
 
         var session = candidate.Session;
-        if (!ExamSessionRules.CanEdit(session.Status) || candidate.Status != CandidateStatus.Waiting)
+        if (!policy.CanEdit(session.Status) || candidate.Status != CandidateStatus.Waiting)
             throw new ArgumentException("Phiên thi hoặc lượt thi không còn được phép đổi giờ.");
         var endTime = scheduledTime.AddMinutes(session.TimePerStudent);
         if (endTime.Date != scheduledTime.Date)

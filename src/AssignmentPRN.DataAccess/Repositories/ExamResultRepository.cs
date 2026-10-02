@@ -27,7 +27,7 @@ public interface IExamResultRepository
         CancellationToken cancellationToken = default);
 }
 
-public class ExamResultRepository(AivesDbContext context) : IExamResultRepository
+public class ExamResultRepository(AivesDbContext context, IExamStatePolicy policy) : IExamResultRepository
 {
     public Task<ExamResultSession?> GetSessionAsync(int examId, CancellationToken cancellationToken = default) =>
         context.ExamSessions
@@ -80,7 +80,7 @@ public class ExamResultRepository(AivesDbContext context) : IExamResultRepositor
         foreach (var candidate in candidates)
         {
             // The student may have submitted since the service calculated overdue slots.
-            var next = ExamLifecycleRules.CloseOverdue(candidate.Session.Status,
+            var next = policy.CloseOverdue(candidate.Session.Status,
                 candidate.Status, candidate.ScheduledTime, candidate.Session.TimePerStudent, finishedAt);
             if (next is null) continue;
             candidate.Status = next.Value;
@@ -89,7 +89,7 @@ public class ExamResultRepository(AivesDbContext context) : IExamResultRepositor
 
         await context.SaveChangesAsync(cancellationToken);
         foreach (var examId in candidates.Select(x => x.ExamId).Distinct())
-            await ExamSessionLifecycle.SynchronizeAsync(context, examId, finishedAt, cancellationToken);
+            await ExamSessionLifecycle.SynchronizeAsync(context, policy, examId, finishedAt, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 

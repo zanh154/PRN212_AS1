@@ -1,4 +1,5 @@
-namespace AssignmentPRN.DataAccess.Enums;
+using AssignmentPRN.Business.Interfaces;
+namespace AssignmentPRN.Business.BusinessRules;
 
 /// <summary>Pure decisions about session progress and overdue candidates; no persistence.</summary>
 public static class ExamLifecycleRules

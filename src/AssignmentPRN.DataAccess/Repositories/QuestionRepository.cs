@@ -120,7 +120,7 @@ public interface IQuestionRepository
         CancellationToken cancellationToken = default);
 }
 
-public class QuestionRepository(AivesDbContext context) : IQuestionRepository
+public class QuestionRepository(AivesDbContext context, IExamStatePolicy policy) : IQuestionRepository
 {
     public async Task SaveDraftAsync(int candidateId, Func<ExamDraftState?, IReadOnlyDictionary<int, int?>> validate,
         CancellationToken cancellationToken = default)
@@ -743,7 +743,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         // One SaveChanges: the answers and either the closed slot or the next round land
         // together or not at all.
         await context.SaveChangesAsync(cancellationToken);
-        await ExamSessionLifecycle.SynchronizeAsync(context, candidate.ExamId, finishedAt, cancellationToken);
+        await ExamSessionLifecycle.SynchronizeAsync(context, policy, candidate.ExamId, finishedAt, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -784,10 +784,10 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
             .FirstOrDefaultAsync(item => item.CandidateId == candidateId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy lượt thi.");
 
-        if (!ExamSessionRules.CanSit(candidate.Session.Status)
+        if (!policy.CanSit(candidate.Session.Status)
             || candidate.Status is not (CandidateStatus.Waiting or CandidateStatus.InProgress)
             || candidate.ScheduledTime is not DateTime scheduled
-            || !ExamSessionRules.IsSlotOpen(DateTime.Now, scheduled, candidate.Session.TimePerStudent))
+            || !policy.IsSlotOpen(DateTime.Now, scheduled, candidate.Session.TimePerStudent))
             throw new ArgumentException("Phiên thi hoặc lượt thi không còn cho phép vào thi.");
 
         if (candidate.Status == CandidateStatus.Waiting)
@@ -798,7 +798,7 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         // Keep the first timestamp: a refresh must not look like a fresh start.
         candidate.StartedAt ??= startedAt;
         await context.SaveChangesAsync(cancellationToken);
-        await ExamSessionLifecycle.SynchronizeAsync(context, candidate.ExamId, startedAt, cancellationToken);
+        await ExamSessionLifecycle.SynchronizeAsync(context, policy, candidate.ExamId, startedAt, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
