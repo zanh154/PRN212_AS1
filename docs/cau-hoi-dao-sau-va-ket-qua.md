@@ -1,4 +1,4 @@
-# Module 6 - Câu hỏi đào sâu & Kết quả
+# Câu hỏi đào sâu và kết quả thi
 
 Trạng thái: **đã code xong, đã chạy script trên DB chung, đã có unit test và kiểm thử trên trình duyệt.**
 Nhánh: `TriMinhDev`. Ngày cập nhật: 2026-09-29.
@@ -13,13 +13,9 @@ dotnet build AssignmentPRN.slnx
 dotnet test AssignmentPRN.slnx
 ```
 
-Chạy thêm **1 script SQL** (sau các script của Module 5):
-
-```bash
-mysql -u root -p <ten_db> < database/20261001_add_follow_up_questions.sql
-```
-
-Script chạy lại nhiều lần được, chỉ thêm cột, không sửa dữ liệu. DB chung Aiven **đã chạy rồi**.
+Phần này cần cột `exam_questions.parent_exam_question_id`. Cột này đã nằm sẵn trong dump
+ở [`database/dump/`](../database/dump/) — import dump là đủ, xem
+[database/README.md](../database/README.md).
 
 > Chưa chạy script thì phòng thi và trang kết quả báo lỗi, vì EF đọc cột
 > `exam_questions.parent_exam_question_id` không tồn tại.
@@ -29,7 +25,7 @@ Script chạy lại nhiều lần được, chỉ thêm cột, không sửa dữ
 ## 2. Ý tưởng và luồng nghiệp vụ
 
 Đề bài yêu cầu "hỏi xoáy" dựa trên câu trả lời. Hệ thống thi hiện là trắc nghiệm nộp một
-lần, nên Module 6 chọn cách **thi 2 vòng**, không phải viết lại phòng thi:
+lần, nên Câu hỏi đào sâu và kết quả chọn cách **thi 2 vòng**, không phải viết lại phòng thi:
 
 ```
 Vào thi ──► Vòng 1: câu chính ──nộp──► chấm ngay phía server
@@ -59,7 +55,7 @@ Vào thi ──► Vòng 1: câu chính ──nộp──► chấm ngay phía s
 - Ví dụ: đúng 1/3 câu chính và 1/2 câu đào sâu thì (1 + 0,5) / (3 + 1) × 10 = 3,75, làm tròn **3,8**.
 
 > So với bản kế hoạch: điểm làm tròn 1 chữ số thay vì 2, để khớp với trang kết quả
-> và test có sẵn của Module 5.
+> và test có sẵn của Bộ câu hỏi.
 
 ### Kết quả cho giảng viên / admin
 
@@ -68,7 +64,7 @@ Vào thi ──► Vòng 1: câu chính ──nộp──► chấm ngay phía s
 - **Chốt ca đã hết giờ** (`OverdueSlotRules`):
   - Ca đã hết giờ mà sinh viên vẫn ở trạng thái Chờ thi: chuyển sang **Vắng**.
   - Ca đã hết giờ cộng 2 phút ân hạn mà sinh viên vẫn ở trạng thái Đang thi (rời trang không nộp): chuyển sang **Đã thi**, chấm trên phần đã lưu.
-  - Nếu không có bước này, phiên thi không bao giờ chuyển sang Hoàn thành được, vì quy tắc Module 2 cấm hoàn thành khi còn sinh viên Chờ thi hoặc Đang thi.
+  - Nếu không có bước này, phiên thi không bao giờ chuyển sang Hoàn thành được, vì quy tắc Môn học và phiên thi cấm hoàn thành khi còn sinh viên Chờ thi hoặc Đang thi.
 - Phân quyền: giảng viên chỉ xem được phiên mình phụ trách, kiểm tra ở tầng Business.
 
 ---
@@ -88,16 +84,16 @@ Không cần bảng mới: câu đào sâu vẫn là một dòng `exam_questions
 
 | Tầng | File | Nội dung |
 |---|---|---|
-| DB | `database/20261001_add_follow_up_questions.sql` | Script thêm cột và khoá ngoại |
+| DB | Cột `exam_questions.parent_exam_question_id` + khoá ngoại | Đã có trong dump; script gốc xem ở lịch sử Git |
 | DataAccess | `Entities/ExamQuestion.cs`, `Data/AivesDbContext.cs` | Property và mapping `ParentExamQuestionId` |
 | | `Repositories/QuestionRepository.cs` | Lưu loại câu; `ListFollowUpPoolAsync`; `SubmitAnswersAsync` nhận thêm vòng 2 (1 transaction); đọc `ParentExamQuestionId`, `MaterialId`, `ExpectedAnswer` (chỉ khi giám khảo xem) |
 | | `Repositories/ExamResultRepository.cs` (mới) | Đọc bảng điểm, chấm ngay trong SQL, cập nhật trạng thái khi chốt ca |
 | | `Contracts/ExamResultContracts.cs` (mới) | Read model cho kết quả |
-| Business | `FollowUpPlanner.cs` (mới) | Luật chọn câu đào sâu, logic thuần |
-| | `ExamScoring.cs` (mới) | Tính điểm có trọng số |
-| | `OverdueSlotRules.cs` (mới) | Luật chốt ca hết giờ |
-| | `ExamResultService.cs` (mới) + `IExamResultService` | Bảng điểm, bài làm, chốt ca, phân quyền |
-| | `QuestionService.cs` | `SubmitExamAsync` chia vòng: `CleanAnswers`, `PlanFollowUpsAsync`; kiểm tra loại câu khi lưu |
+| Business | `BusinessRules/FollowUpPlanner.cs` (mới) | Luật chọn câu đào sâu, logic thuần |
+| | `BusinessRules/ExamScoring.cs` (mới) | Tính điểm có trọng số |
+| | `BusinessRules/OverdueSlotRules.cs` (mới) | Luật chốt ca hết giờ |
+| | `Services/ExamResultService.cs` (mới) + `Interfaces/IExamResultService` | Bảng điểm, bài làm, chốt ca, phân quyền |
+| | `Services/QuestionService.cs` | `SubmitExamAsync` chia vòng: `CleanAnswers`, `PlanFollowUpsAsync`; kiểm tra loại câu khi lưu |
 | Presentation | `Controllers/ExamResultsController.cs` (mới) | `Index/{examId}`, `Candidate/{candidateId}`, `CloseOverdue` (POST, có anti-forgery) |
 | | `Views/ExamResults/Index`, `Candidate` (mới) | Dùng `_DataTable`, `metric-card`, `content-card`, breadcrumb có sẵn |
 | | `Views/ExamRoom/_ExamRoomQuestion`, `Views/Shared/_ExamResultQuestion` (mới) | Partial dùng chung cho 2 vòng, cho cả sinh viên và giảng viên |
@@ -106,7 +102,7 @@ Không cần bảng mới: câu đào sâu vẫn là một dòng `exam_questions
 | | `Views/ExamSessions/Details` | Thêm khối "Kết quả thi" có nút "Xem kết quả" |
 | | `Styles/_exam-result.scss` (mới) | Chỉ dùng token trong `_tokens.scss`, không có mã màu nào viết cứng |
 
-Module 5 chỉ bị sửa nhẹ:
+Bộ câu hỏi chỉ bị sửa nhẹ:
 - Form câu hỏi có thêm ô **Loại câu** (Chính / Đào sâu).
 - Câu đào sâu bắt buộc có chủ đề.
 - Không đổi được loại của câu đã phát cho lượt thi.
@@ -127,7 +123,7 @@ Module 5 chỉ bị sửa nhẹ:
 
 ## 6. Kiểm thử
 
-### Unit test: 67/67 pass (trước Module 6 là 33)
+### Unit test: 67/67 pass (trước Câu hỏi đào sâu và kết quả là 33)
 
 | File | Nội dung |
 |---|---|
@@ -158,7 +154,7 @@ Module 5 chỉ bị sửa nhẹ:
 ## 7. Đánh giá kết quả
 
 **Đã đạt**
-- Đủ 6 đầu việc của Module 6 trong bảng phân công: logic đào sâu/thích ứng, giới hạn số câu, lưu câu đã hỏi và câu trả lời, kết quả phiên thi, giao diện, test.
+- Đủ 6 đầu việc của Câu hỏi đào sâu và kết quả trong bảng phân công: logic đào sâu/thích ứng, giới hạn số câu, lưu câu đã hỏi và câu trả lời, kết quả phiên thi, giao diện, test.
 - Giữ đúng kiến trúc 3 tầng:
   - Luật nghiệp vụ nằm trong 3 lớp static thuần (`FollowUpPlanner`, `ExamScoring`, `OverdueSlotRules`) nên test được mà không cần DB.
   - Controller chỉ điều hướng.

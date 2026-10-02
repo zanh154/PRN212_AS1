@@ -1,7 +1,7 @@
 -- =====================================================================================
--- Dữ liệu thử cho toàn bộ luồng AIVES (Module 2, 5, 6)
+-- Dữ liệu thử cho toàn bộ luồng AIVES: môn học & phiên thi, bộ câu hỏi, câu hỏi đào sâu & kết quả
 -- =====================================================================================
--- Chạy SAU 4 script migration trong thư mục này. Chạy lại bao nhiêu lần cũng được:
+-- Chạy SAU khi đã import dump ở database/dump/. Chạy lại bao nhiêu lần cũng được:
 -- phần đầu script xoá sạch dữ liệu thử cũ (chỉ dữ liệu gắn mã TFLOW / email
 -- tflow.*@test.local), rồi tạo lại với mốc giờ mới.
 --

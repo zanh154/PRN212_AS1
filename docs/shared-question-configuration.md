@@ -9,7 +9,7 @@
 
 ## Cập nhật database
 
-Chạy `database/20261001_add_exam_question_scope.sql` một lần trước khi chạy bản mới. Database Aiven dùng trong workspace đã được thêm cột này ngày 01/10/2026.
+Cần cột `exam_sessions.question_scope_json`, thêm vào ngày 01/10/2026. Cột này đã có trong dump ở [`database/dump/`](../database/dump/) và trong database Aiven của nhóm.
 
 Cấu hình bộ lọc của đề đã phát ở bản cũ không được lưu nên không thể khôi phục chính xác. Phiên cũ chưa bắt đầu nên hủy đề và phát lại để có cấu hình thống nhất. Không tự sửa đề hoặc câu trả lời của phiên đã bắt đầu. Cấu hình chưa lưu mặc định lấy toàn bộ chủ đề/độ khó của môn.
 
