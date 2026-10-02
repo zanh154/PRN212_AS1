@@ -124,6 +124,8 @@ public interface IExamSessionService
 
 public interface IQuestionService
 {
+    Task<ServiceResponse> SaveDraftAsync(int candidateId, int studentId, IReadOnlyDictionary<int, int?> answers, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<QuestionPickRequest>> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default);
     /// <summary>Lists questions the lecturer is allowed to see; pass a null lecturer id for an admin.</summary>
     Task<ServiceResponse<IReadOnlyList<QuestionListItemResponse>>> ListAsync(
         int? lecturerId,

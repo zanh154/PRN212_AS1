@@ -215,6 +215,8 @@ public class AivesDbContext(DbContextOptions<AivesDbContext> options) : DbContex
                 .HasColumnName("time_per_student");
             entity.Property(session => session.MainQuestionCount)
                 .HasColumnName("main_question_count");
+            entity.Property(session => session.QuestionScopeJson)
+                .HasColumnName("question_scope_json").HasColumnType("text");
             entity.Property(session => session.MaxFollowUpCount)
                 .HasColumnName("max_follow_up_count");
             // The column is a MySQL ENUM, so the value is stored as its name.

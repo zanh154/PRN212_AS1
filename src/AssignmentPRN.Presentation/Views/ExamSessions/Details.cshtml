@@ -41,6 +41,7 @@
     if (lastStart < examDay) { lastStart = examDay; }
 }
 @{ var nextStatuses = Enum.GetValues<ExamSessionStatus>().Where(x => ExamSessionRules.CanTransition(session.Status, x)).ToList(); }
+<p class="text-muted">Phiên tự chuyển sang Đang diễn ra khi có sinh viên vào thi và Hoàn thành khi mọi lượt thi đã kết thúc. Nếu còn lượt quá hạn, giảng viên cần chốt ca tại trang kết quả. Bạn vẫn có thể bắt đầu phiên thủ công khi đến giờ.</p>
 @if (nextStatuses.Count > 0)
 {
     <form asp-action="ChangeStatus" asp-route-id="@session.ExamId" method="post" class="content-card" data-confirm="Xác nhận chuyển trạng thái phiên thi? Không thể quay lại trạng thái trước.">

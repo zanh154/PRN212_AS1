@@ -13,6 +13,21 @@ public class QuestionService(
     ICatalogRepository catalogRepository,
     ICourseMaterialRepository courseMaterialRepository) : IQuestionService
 {
+    public Task<ServiceResponse> SaveDraftAsync(int candidateId, int studentId, IReadOnlyDictionary<int, int?> answers, CancellationToken cancellationToken = default) =>
+        ServiceExecutor.RunAsync(async () => {
+            ArgumentNullException.ThrowIfNull(answers);
+            if (answers.Count > 50) throw new BusinessValidationException("Số đáp án không hợp lệ.");
+            // Freeze the request; validate against data read inside the save transaction.
+            var snapshot = answers.ToDictionary(x => x.Key, x => x.Value);
+            await questionRepository.SaveDraftAsync(candidateId,
+                state => ExamDraftValidation.Validate(state, studentId, snapshot, DateTime.Now), cancellationToken);
+        }, "Không thể lưu tạm đáp án. Hãy thử lại.");
+    public Task<ServiceResponse<QuestionPickRequest>> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default) =>
+        ServiceExecutor.RunAsync(async () => {
+            var config = await questionRepository.GetExamConfigurationAsync(examId, cancellationToken);
+            return new QuestionPickRequest { CourseId = config.CourseId, Count = config.Count,
+                MaterialIds = config.MaterialIds, Difficulties = config.Difficulties.Select(x => x.ToBusiness()).ToList() };
+        }, "Không tải được cấu hình đề thi.");
     /// <summary>Longest question body, comfortably above the 65 000-byte TEXT limit is checked separately.</summary>
     public const int MaxQuestionTextLength = 4000;
 
@@ -419,7 +434,7 @@ public class QuestionService(
                         candidateCount = candidateIds.Count;
                         return rows;
                     },
-                    cancellationToken);
+                    cancellationToken, filter);
 
                 return new ExamQuestionAssignmentResult
                 {
@@ -753,14 +768,12 @@ public class QuestionService(
         ExamRoomCandidate candidate,
         CancellationToken cancellationToken)
     {
-        var count = BusinessValidation.InRange(
-            candidate.MainQuestionCount, 1, 50, "Số câu hỏi mỗi sinh viên");
-        var filter = new QuestionPickRequest { CourseId = candidate.CourseId, Count = count }.ToDataAccess();
-
         await questionRepository.DealAsync(
             candidate.ExamId,
             async dealt =>
             {
+                var filter = dealt.Configuration;
+                var count = BusinessValidation.InRange(filter.Count, 1, 50, "Số câu hỏi mỗi sinh viên");
                 if (dealt.CandidatesWithPaper.Contains(candidate.CandidateId))
                 {
                     return Array.Empty<ExamQuestionInput>();

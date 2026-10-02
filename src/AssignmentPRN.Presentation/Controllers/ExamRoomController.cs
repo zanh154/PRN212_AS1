@@ -15,6 +15,15 @@ public class ExamRoomController(IQuestionService questionService) : Controller
 {
     private int CurrentUserId => HttpContext.Session.GetInt32(SessionKeys.UserId) ?? 0;
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveDraft(int id, [FromForm] Dictionary<int, int?> answers, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return BadRequest(new { success = false, error = "Đáp án không hợp lệ." });
+        var result = await questionService.SaveDraftAsync(id, CurrentUserId, answers ?? [], ct);
+        return result.Success ? Json(new { success = true })
+            : BadRequest(new { success = false, error = result.Error });
+    }
+
     /// <summary>
     /// Opens the slot. This deals the paper and starts the clock, so it is a POST: a
     /// crawler or a refresh must not be able to trigger it.

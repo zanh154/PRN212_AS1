@@ -27,20 +27,9 @@ public static class OverdueSlotRules
         var result = new Dictionary<int, CandidateStatus>();
         foreach (var slot in slots)
         {
-            if (slot.ScheduledTime is not DateTime scheduled)
-            {
-                continue;
-            }
-
-            var end = scheduled.AddMinutes(minutesPerStudent);
-            if (slot.Status == CandidateStatus.Waiting && now > end)
-            {
-                result[slot.CandidateId] = CandidateStatus.Absent;
-            }
-            else if (slot.Status == CandidateStatus.InProgress && now > end + ExamSessionRules.SubmitGrace)
-            {
-                result[slot.CandidateId] = CandidateStatus.Completed;
-            }
+            var next = Domain.ExamLifecycleRules.CloseOverdue((Domain.CandidateStatus)slot.Status,
+                slot.ScheduledTime, minutesPerStudent, now);
+            if (next.HasValue) result[slot.CandidateId] = (CandidateStatus)next.Value;
         }
 
         return result;

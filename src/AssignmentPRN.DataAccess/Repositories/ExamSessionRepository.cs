@@ -10,11 +10,17 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
 {
     public async Task<ExamSessionDetail> UpdateAsync(ExamSessionUpdateInput input, CancellationToken cancellationToken = default)
     {
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
         var session = await context.ExamSessions.Include(x => x.Candidates)
             .FirstOrDefaultAsync(x => x.ExamId == input.ExamId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy phiên thi.");
         EnsureEditable(session);
+        // Recheck inside the transaction in case a paper was dealt after service validation.
+        if ((session.CourseId != input.CourseId || session.MainQuestionCount != input.MainQuestionCount)
+            && await context.ExamQuestions.AnyAsync(x => x.ExamId == input.ExamId, cancellationToken))
+            throw new ArgumentException(
+                "Phiên thi đã phát đề. Hãy huỷ đề đã phát trước khi đổi môn học hoặc số câu hỏi chính. Đã có sinh viên vào thi thì không thể huỷ đề.");
         var timingChanged = session.StartTime != input.StartTime || session.TimePerStudent != input.TimePerStudent;
         if (timingChanged)
         {
@@ -36,6 +42,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
             session.EndTime = end;
             session.TimePerStudent = input.TimePerStudent;
         }
+        if (session.CourseId != input.CourseId) session.QuestionScopeJson = null;
         session.CourseId = input.CourseId;
         session.ExamName = input.ExamName;
         session.Description = input.Description;
@@ -49,6 +56,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
 
     public async Task ChangeStatusAsync(int examId, ExamSessionStatus status, CancellationToken cancellationToken = default)
     {
+        await using var transaction = await context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
         var session = await context.ExamSessions.Include(x => x.Candidates)
             .FirstOrDefaultAsync(x => x.ExamId == examId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy phiên thi.");
@@ -70,6 +78,7 @@ public class ExamSessionRepository(AivesDbContext context) : IExamSessionReposit
         session.Status = status;
         session.UpdatedAt = DateTime.Now;
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private static void EnsureEditable(ExamSession session)

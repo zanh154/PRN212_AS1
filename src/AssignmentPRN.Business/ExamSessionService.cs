@@ -28,6 +28,10 @@ public class ExamSessionService(
             if (request.StartTime == default) throw new BusinessValidationException("Vui lòng chọn ngày giờ thi.");
             EnsureUpdatedTimingIsValid(current, request);
             var courseChanged = request.CourseId != current.Course.CourseId;
+            if ((courseChanged || request.MainQuestionCount != current.MainQuestionCount)
+                && (await questionRepository.ListAssignedQuestionIdsAsync(request.ExamId, cancellationToken)).Count > 0)
+                throw new BusinessValidationException(
+                    "Phiên thi đã phát đề. Hãy huỷ đề đã phát trước khi đổi môn học hoặc số câu hỏi chính. Đã có sinh viên vào thi thì không thể huỷ đề.");
             if (courseChanged)
             {
                 if (!await catalogRepository.CourseExistsAsync(request.CourseId, cancellationToken))
@@ -109,8 +113,16 @@ public class ExamSessionService(
                 throw new BusinessValidationException(
                     $"{student.FullName} không thuộc lớp nào của môn {session.Course.CourseCode}.");
 
-            await EnsureBankCoversAsync(
-                session.Course.CourseId, SeatsToDeal(session) + 1, session.MainQuestionCount, cancellationToken);
+            var config = await questionRepository.GetExamConfigurationAsync(examId, cancellationToken);
+            var papers = await questionRepository.ListExamPaperAsync(examId, cancellationToken);
+            var taken = await questionRepository.ListAssignedQuestionIdsAsync(examId, cancellationToken);
+            var available = await questionRepository.ListPoolIdsAsync(new AssignmentPRN.DataAccess.Contracts.QuestionPickRequest {
+                CourseId = config.CourseId, Count = config.Count, MaterialIds = config.MaterialIds,
+                Difficulties = config.Difficulties, TakenQuestionIds = taken }, cancellationToken);
+            var waitingForPaper = session.Candidates.Count(candidate =>
+                candidate.Status.ToBusiness() is not (CandidateStatus.Cancelled or CandidateStatus.Absent)
+                && !papers.Any(paper => paper.CandidateId == candidate.CandidateId && paper.Questions.Count > 0));
+            QuestionSupplyRules.EnsureEnough(waitingForPaper + 1, config.Count, available.Count);
 
             return MapDetail(await examSessionRepository.AddStudentAsync(
                 examId, student.UserId, scheduledTime, cancellationToken));

@@ -55,37 +55,26 @@ public enum MaterialFileType
     PPTX
 }
 
+/// <summary>Compatibility facade; all policies live in AssignmentPRN.Domain.</summary>
 public static class ExamSessionRules
 {
     public static bool CanEdit(ExamSessionStatus status) =>
-        status is ExamSessionStatus.Draft or ExamSessionStatus.Scheduled;
-
-    public static bool CanTransition(ExamSessionStatus from, ExamSessionStatus to) => (from, to) switch
-    {
-        (ExamSessionStatus.Draft, ExamSessionStatus.Scheduled or ExamSessionStatus.Cancelled) => true,
-        (ExamSessionStatus.Scheduled, ExamSessionStatus.InProgress or ExamSessionStatus.Cancelled) => true,
-        (ExamSessionStatus.InProgress, ExamSessionStatus.Completed or ExamSessionStatus.Cancelled) => true,
-        _ => false
-    };
-
-    public static bool BlocksCancellation(CandidateStatus status) => status == CandidateStatus.InProgress;
-
+        AssignmentPRN.Domain.ExamSessionRules.CanEdit((AssignmentPRN.Domain.ExamSessionStatus)status);
+    public static bool CanTransition(ExamSessionStatus from, ExamSessionStatus to) =>
+        AssignmentPRN.Domain.ExamSessionRules.CanTransition((AssignmentPRN.Domain.ExamSessionStatus)from, (AssignmentPRN.Domain.ExamSessionStatus)to);
+    public static bool BlocksCancellation(CandidateStatus status) =>
+        AssignmentPRN.Domain.ExamSessionRules.BlocksCancellation((AssignmentPRN.Domain.CandidateStatus)status);
     public static CandidateStatus StatusAfterCancellation(CandidateStatus status) =>
-        status == CandidateStatus.Waiting ? CandidateStatus.Cancelled : status;
-
+        (CandidateStatus)AssignmentPRN.Domain.ExamSessionRules.StatusAfterCancellation((AssignmentPRN.Domain.CandidateStatus)status);
     public static bool CanSit(ExamSessionStatus status) =>
-        status is ExamSessionStatus.Scheduled or ExamSessionStatus.InProgress;
-
+        AssignmentPRN.Domain.ExamSessionRules.CanSit((AssignmentPRN.Domain.ExamSessionStatus)status);
     public static bool IsSlotOpen(DateTime now, DateTime scheduledTime, int minutes) =>
-        IsSlotOpen(now, scheduledTime, scheduledTime.AddMinutes(minutes));
-
+        AssignmentPRN.Domain.ExamSessionRules.IsSlotOpen(now, scheduledTime, minutes);
     public static bool IsSlotOpen(DateTime now, DateTime scheduledTime, DateTime endTime) =>
-        now >= scheduledTime && now <= endTime;
-
-    public static readonly TimeSpan SubmitGrace = TimeSpan.FromMinutes(2);
-
+        AssignmentPRN.Domain.ExamSessionRules.IsSlotOpen(now, scheduledTime, endTime);
+    public static TimeSpan SubmitGrace => AssignmentPRN.Domain.ExamSessionRules.SubmitGrace;
     public static bool CanSubmit(DateTime now, DateTime scheduledTime, DateTime endTime) =>
-        now >= scheduledTime && now <= endTime + SubmitGrace;
+        AssignmentPRN.Domain.ExamSessionRules.CanSubmit(now, scheduledTime, endTime);
 }
 
 public static class QuestionRules

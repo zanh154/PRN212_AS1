@@ -17,9 +17,48 @@
     const clock = document.getElementById("exam-clock");
     const value = document.getElementById("exam-clock-value");
 
-    // Leaving with a paper open loses the answers, so the browser asks first. This is the
-    // most a page can do: it cannot actually hold someone on it.
     let submitting = false;
+    let dirty = false;
+    let saving = false;
+    let version = 0;
+    let saveTimer;
+    const draftStatus = form?.querySelector("[data-draft-status]");
+    const saveDraft = async () => {
+      if (!dirty || saving || submitting || !draftStatus) return;
+      saving = true;
+      const snapshotVersion = version;
+      draftStatus.textContent = "Đang lưu đáp án…";
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch(form.dataset.draftUrl, {
+          method: "POST", body: new FormData(form), credentials: "same-origin", signal: controller.signal
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || "Không thể lưu đáp án.");
+        if (snapshotVersion === version) {
+          dirty = false;
+          draftStatus.textContent = "Đã lưu đáp án · " + new Date().toLocaleTimeString("vi-VN") + ". Bạn vẫn cần nộp bài.";
+        }
+      } catch {
+        draftStatus.textContent = "Chưa lưu được đáp án. Giữ trang mở; hệ thống sẽ thử lại khi có kết nối.";
+      } finally {
+        window.clearTimeout(timeout);
+        saving = false;
+        if (dirty && !submitting) saveTimer = window.setTimeout(saveDraft, 3000);
+      }
+    };
+    if (draftStatus) {
+      form.addEventListener("change", (event) => {
+        if (!event.target.matches('input[type="radio"][name^="answers["]')) return;
+        dirty = true;
+        version++;
+        draftStatus.textContent = "Có đáp án mới, đang chờ lưu…";
+        window.clearTimeout(saveTimer);
+        saveTimer = window.setTimeout(saveDraft, 400);
+      });
+      window.addEventListener("online", saveDraft);
+    }
 
     if (form && form.hasAttribute("data-exam-guard")) {
       // The confirm dialog in site.js hands the form off with the native submit(), which
@@ -34,7 +73,7 @@
       });
 
       window.addEventListener("beforeunload", (event) => {
-        if (submitting) {
+        if (submitting || !dirty) {
           return;
         }
         event.preventDefault();

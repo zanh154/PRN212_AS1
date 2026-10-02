@@ -7,6 +7,10 @@ namespace AssignmentPRN.DataAccess.Repositories;
 
 public interface IQuestionRepository
 {
+    /// <summary>Reads a current snapshot, invokes the business validator and saves its result in one transaction.</summary>
+    Task SaveDraftAsync(int candidateId, Func<ExamDraftState?, IReadOnlyDictionary<int, int?>> validate,
+        CancellationToken cancellationToken = default);
+    Task<QuestionPickRequest> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<QuestionListItem>> ListAsync(
         QuestionQuery query,
         CancellationToken cancellationToken = default);
@@ -52,7 +56,8 @@ public interface IQuestionRepository
     Task DealAsync(
         int examId,
         Func<ExamDealState, Task<IReadOnlyList<ExamQuestionInput>>> planner,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        QuestionPickRequest? configuration = null);
 
     /// <summary>Every candidate of the exam with the paper the bank dealt them.</summary>
     Task<IReadOnlyList<ExamPaperItem>> ListExamPaperAsync(
@@ -116,6 +121,58 @@ public interface IQuestionRepository
 
 public class QuestionRepository(AivesDbContext context) : IQuestionRepository
 {
+    public async Task SaveDraftAsync(int candidateId, Func<ExamDraftState?, IReadOnlyDictionary<int, int?>> validate,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(validate);
+        await using var transaction = await context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+        var candidate = await context.ExamCandidates.AsNoTracking().Include(x => x.Session)
+            .SingleOrDefaultAsync(x => x.CandidateId == candidateId, cancellationToken);
+        var slots = await context.ExamQuestions.AsNoTracking().Include(x => x.Question).ThenInclude(x => x.Options)
+            .Where(x => x.CandidateId == candidateId).ToListAsync(cancellationToken);
+        var existing = await context.Answers.Where(x => x.CandidateId == candidateId).ToListAsync(cancellationToken);
+        var submittedIds = await context.Answers.AsNoTracking().Where(x => x.CandidateId == candidateId && x.FinishedAt != null)
+            .Select(x => x.ExamQuestionId).ToListAsync(cancellationToken);
+        var state = candidate is null ? null : new ExamDraftState {
+            StudentId = candidate.StudentId, CandidateStatus = candidate.Status, SessionStatus = candidate.Session.Status,
+            ScheduledTime = candidate.ScheduledTime, TimePerStudent = candidate.Session.TimePerStudent,
+            Questions = slots.Select(x => new ExamDraftQuestion {
+                ExamQuestionId = x.ExamQuestionId, IsFollowUp = x.ParentExamQuestionId.HasValue,
+                IsSubmitted = submittedIds.Contains(x.ExamQuestionId),
+                OptionIds = x.Question.Options.Select(option => option.OptionId).ToHashSet()
+            }).ToList()
+        };
+        // No mutation before Business has validated the whole request.
+        var answers = validate(state);
+        var now = DateTime.Now;
+        var slotsById = slots.ToDictionary(x => x.ExamQuestionId);
+        foreach (var (id, option) in answers)
+        {
+            var slot = slotsById[id];
+            var answer = existing.SingleOrDefault(x => x.ExamQuestionId == id);
+            if (answer is null)
+            {
+                answer = new Answer { CandidateId = candidateId, ExamQuestionId = id, CreatedAt = now, StartedAt = slot.AskedAt };
+                context.Answers.Add(answer);
+            }
+            answer.SelectedOptionId = option;
+        }
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+    public async Task<QuestionPickRequest> GetExamConfigurationAsync(int examId, CancellationToken cancellationToken = default)
+    {
+        var session = await context.ExamSessions.AsNoTracking().SingleAsync(x => x.ExamId == examId, cancellationToken);
+        return ReadConfiguration(session);
+    }
+
+    private static QuestionPickRequest ReadConfiguration(ExamSession session)
+    {
+        var scope = session.QuestionScopeJson is null ? new QuestionPickRequest()
+            : System.Text.Json.JsonSerializer.Deserialize<QuestionPickRequest>(session.QuestionScopeJson)!;
+        return new QuestionPickRequest { CourseId = session.CourseId, Count = session.MainQuestionCount,
+            MaterialIds = scope.MaterialIds, Difficulties = scope.Difficulties };
+    }
     public async Task<IReadOnlyList<QuestionListItem>> ListAsync(
         QuestionQuery query,
         CancellationToken cancellationToken = default)
@@ -348,7 +405,8 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
     public async Task DealAsync(
         int examId,
         Func<ExamDealState, Task<IReadOnlyList<ExamQuestionInput>>> planner,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        QuestionPickRequest? configuration = null)
     {
         ArgumentNullException.ThrowIfNull(planner);
 
@@ -356,9 +414,13 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
 
         // Row lock on the exam: a second deal of the same exam waits here until this one
         // commits, then reads the rows this one wrote.
-        await context.Database.ExecuteSqlInterpolatedAsync(
+        if (context.Database.ProviderName != "Microsoft.EntityFrameworkCore.Sqlite") await context.Database.ExecuteSqlInterpolatedAsync(
             $"SELECT exam_id FROM exam_sessions WHERE exam_id = {examId} FOR UPDATE",
             cancellationToken);
+
+        var session = await context.ExamSessions.SingleAsync(x => x.ExamId == examId, cancellationToken);
+        await context.Entry(session).ReloadAsync(cancellationToken);
+        var savedConfiguration = ReadConfiguration(session);
 
         var dealt = await context.ExamQuestions
             .AsNoTracking()
@@ -366,11 +428,33 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
             .Select(item => new { item.CandidateId, item.QuestionId })
             .ToListAsync(cancellationToken);
 
+        if (configuration is not null)
+        {
+            if (configuration.CourseId != session.CourseId || configuration.Count != session.MainQuestionCount)
+                throw new ArgumentException("Số câu và môn học phải khớp cấu hình phiên thi. Hãy tải lại trang.");
+            if (dealt.Count > 0 && (!configuration.MaterialIds.ToHashSet().SetEquals(savedConfiguration.MaterialIds)
+                || !configuration.Difficulties.ToHashSet().SetEquals(savedConfiguration.Difficulties)))
+                throw new ArgumentException("Phiên đã có đề. Hãy huỷ đề trước khi đổi chủ đề hoặc độ khó.");
+            if (configuration.Difficulties.Any(x => !Enum.IsDefined(x)))
+                throw new ArgumentException("Độ khó không hợp lệ.");
+            var materialIds = configuration.MaterialIds.Distinct().ToList();
+            if (await context.CourseMaterials.CountAsync(x => materialIds.Contains(x.MaterialId)
+                    && x.CourseId == session.CourseId, cancellationToken) != materialIds.Count)
+                throw new ArgumentException("Chủ đề không thuộc môn học của phiên thi.");
+            savedConfiguration = configuration;
+        }
+
         var rows = await planner(new ExamDealState
         {
+            Configuration = savedConfiguration,
             TakenQuestionIds = dealt.Select(item => item.QuestionId).ToHashSet(),
             CandidatesWithPaper = dealt.Select(item => item.CandidateId).ToHashSet()
         });
+
+        if (configuration is not null)
+            session.QuestionScopeJson = System.Text.Json.JsonSerializer.Serialize(new QuestionPickRequest {
+                MaterialIds = configuration.MaterialIds.Distinct().Order().ToList(),
+                Difficulties = configuration.Difficulties.Distinct().Order().ToList() });
 
         // One SaveChanges inside the transaction: either every slot lands or none does,
         // which keeps a candidate from ending up with half a paper.
@@ -585,6 +669,11 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
     {
         ArgumentNullException.ThrowIfNull(followUps);
 
+        await using var transaction = await context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+        var currentCandidate = await context.ExamCandidates.SingleAsync(x => x.CandidateId == candidateId, cancellationToken);
+        if (currentCandidate.Status != CandidateStatus.InProgress)
+            throw new ArgumentException("Lượt thi không còn nhận bài nộp.");
+
         var slots = await context.ExamQuestions
             .Where(item => item.CandidateId == candidateId)
             .ToListAsync(cancellationToken);
@@ -592,6 +681,12 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         var existing = await context.Answers
             .Where(answer => answer.CandidateId == candidateId)
             .ToListAsync(cancellationToken);
+
+        var isFollowUpRound = slots.Any(x => x.ParentExamQuestionId.HasValue);
+        if (selectedOptionByExamQuestion.Keys.Any(id => !slots.Any(x => x.ExamQuestionId == id
+                && x.ParentExamQuestionId.HasValue == isFollowUpRound))
+            || existing.Any(x => selectedOptionByExamQuestion.ContainsKey(x.ExamQuestionId) && x.FinishedAt.HasValue))
+            throw new ArgumentException("Vòng thi đã thay đổi hoặc đã nộp. Hãy tải lại trang.");
 
         foreach (var slot in slots)
         {
@@ -647,6 +742,8 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         // One SaveChanges: the answers and either the closed slot or the next round land
         // together or not at all.
         await context.SaveChangesAsync(cancellationToken);
+        await ExamSessionLifecycle.SynchronizeAsync(context, candidate.ExamId, finishedAt, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<FollowUpPoolItem>> ListFollowUpPoolAsync(
@@ -681,9 +778,16 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         DateTime startedAt,
         CancellationToken cancellationToken = default)
     {
-        var candidate = await context.ExamCandidates
+        await using var transaction = await context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+        var candidate = await context.ExamCandidates.Include(x => x.Session)
             .FirstOrDefaultAsync(item => item.CandidateId == candidateId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy lượt thi.");
+
+        if (!ExamSessionRules.CanSit(candidate.Session.Status)
+            || candidate.Status is not (CandidateStatus.Waiting or CandidateStatus.InProgress)
+            || candidate.ScheduledTime is not DateTime scheduled
+            || !ExamSessionRules.IsSlotOpen(DateTime.Now, scheduled, candidate.Session.TimePerStudent))
+            throw new ArgumentException("Phiên thi hoặc lượt thi không còn cho phép vào thi.");
 
         if (candidate.Status == CandidateStatus.Waiting)
         {
@@ -693,6 +797,8 @@ public class QuestionRepository(AivesDbContext context) : IQuestionRepository
         // Keep the first timestamp: a refresh must not look like a fresh start.
         candidate.StartedAt ??= startedAt;
         await context.SaveChangesAsync(cancellationToken);
+        await ExamSessionLifecycle.SynchronizeAsync(context, candidate.ExamId, startedAt, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private static QuestionDetail MapDetail(Question question) => new()    {
