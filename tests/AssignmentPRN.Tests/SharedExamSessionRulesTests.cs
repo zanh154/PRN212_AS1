@@ -6,8 +6,8 @@ using Data = AssignmentPRN.DataAccess.Enums;
 namespace AssignmentPRN.Tests;
 
 /// <summary>
-/// The data access layer owns the policy; the business layer only re-exposes it over its
-/// own enums. These tests pin the two to each other so the facade cannot drift.
+/// Business owns the policy; the persistence adapter exposes it over data access
+/// enums. These tests verify the mappings preserve decisions.
 /// </summary>
 public class SharedExamSessionRulesTests
 {
@@ -27,15 +27,15 @@ public class SharedExamSessionRulesTests
     {
         foreach (var from in Enum.GetValues<Data.ExamSessionStatus>())
         {
-            Assert.Equal(Data.ExamSessionRules.CanEdit(from), BRules.ExamSessionRules.CanEdit((Biz.ExamSessionStatus)from));
-            Assert.Equal(Data.ExamSessionRules.CanSit(from), BRules.ExamSessionRules.CanSit((Biz.ExamSessionStatus)from));
+            Assert.Equal(new BRules.ExamStatePolicy().CanEdit(from), BRules.ExamSessionRules.CanEdit((Biz.ExamSessionStatus)from));
+            Assert.Equal(new BRules.ExamStatePolicy().CanSit(from), BRules.ExamSessionRules.CanSit((Biz.ExamSessionStatus)from));
             foreach (var to in Enum.GetValues<Data.ExamSessionStatus>())
-                Assert.Equal(Data.ExamSessionRules.CanTransition(from, to), BRules.ExamSessionRules.CanTransition((Biz.ExamSessionStatus)from, (Biz.ExamSessionStatus)to));
+                Assert.Equal(new BRules.ExamStatePolicy().CanTransition(from, to), BRules.ExamSessionRules.CanTransition((Biz.ExamSessionStatus)from, (Biz.ExamSessionStatus)to));
         }
         foreach (var status in Enum.GetValues<Data.CandidateStatus>())
         {
-            Assert.Equal(Data.ExamSessionRules.BlocksCancellation(status), BRules.ExamSessionRules.BlocksCancellation((Biz.CandidateStatus)status));
-            Assert.Equal((int)Data.ExamSessionRules.StatusAfterCancellation(status), (int)BRules.ExamSessionRules.StatusAfterCancellation((Biz.CandidateStatus)status));
+            Assert.Equal(new BRules.ExamStatePolicy().BlocksCancellation(status), BRules.ExamSessionRules.BlocksCancellation((Biz.CandidateStatus)status));
+            Assert.Equal((int)new BRules.ExamStatePolicy().StatusAfterCancellation(status), (int)BRules.ExamSessionRules.StatusAfterCancellation((Biz.CandidateStatus)status));
         }
     }
 
@@ -51,11 +51,9 @@ public class SharedExamSessionRulesTests
         var start = new DateTime(2030, 1, 1, 8, 0, 0);
         var now = start.AddSeconds(seconds);
         var end = start.AddMinutes(10);
-        Assert.Equal(canSit, Data.ExamSessionRules.IsSlotOpen(now, start, 10));
+        Assert.Equal(canSit, new BRules.ExamStatePolicy().IsSlotOpen(now, start, 10));
         Assert.Equal(canSit, BRules.ExamSessionRules.IsSlotOpen(now, start, 10));
         Assert.Equal(canSit, BRules.ExamSessionRules.IsSlotOpen(now, start, end));
-        Assert.Equal(canSubmit, Data.ExamSessionRules.CanSubmit(now, start, end));
         Assert.Equal(canSubmit, BRules.ExamSessionRules.CanSubmit(now, start, end));
-        Assert.Equal(Data.ExamSessionRules.SubmitGrace, BRules.ExamSessionRules.SubmitGrace);
     }
 }

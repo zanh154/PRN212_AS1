@@ -1,14 +1,15 @@
 # Quy tắc phiên thi dùng chung
 
-Quy tắc trong `src/AssignmentPRN.DataAccess/Enums/ExamSessionRules.cs` là nguồn duy nhất cho điều kiện sửa phiên, chuyển trạng thái thủ công, hủy phiên, vào thi và thời gian nộp bù.
+`Business/BusinessRules/ExamSessionRules.cs` và `ExamLifecycleRules.cs` chứa quy tắc sửa, chuyển trạng thái, hủy, vào thi, thời gian nộp bù, hoàn thành phiên và chốt quá hạn.
 
-- Quy tắc đặt ở DataAccess vì repository phải áp dụng ngay trong transaction, mà DataAccess không được tham chiếu ngược lên Business. Bản thân lớp quy tắc là logic thuần, không chạm EF Core hay ASP.NET Core.
-- Giải pháp giữ đúng 3 tầng `Presentation → Business → DataAccess`, không có project `Domain` thứ tư.
-- `Business/BusinessRules/ExamSessionRules` là facade giữ nguyên API và kiểu enum của tầng Business. Nó chuyển kiểu và gọi xuống DataAccess; không còn tự định nghĩa điều kiện hay thời gian nộp bù.
-- Enum ở các tầng vẫn giữ để tránh đổi hợp đồng dữ liệu hiện có. Test kiểm tra tên/giá trị enum tương ứng, toàn bộ ma trận chuyển trạng thái, quy tắc hủy và biên thời gian.
-- Mục 2 đã chuyển nghiệp vụ lưu tạm sang `Business/BusinessRules/ExamDraftValidation`; repository gọi bộ kiểm tra trong transaction trước khi ghi.
-- Mục 3 đặt quy tắc tự đồng bộ phiên và chốt ca quá hạn ở `DataAccess/Enums/ExamLifecycleRules`. Business và DataAccess cùng dùng quy tắc này, không định nghĩa lại điều kiện trong repository.
+- Giữ ba tầng `Presentation → Business → DataAccess`, không cần project Domain.
+- DataAccess khai báo hợp đồng `Contracts/IExamStatePolicy`; không chứa implementation quy tắc này và không tham chiếu Business.
+- Business cung cấp `ExamStatePolicy`, chuyển enum dữ liệu sang enum nghiệp vụ rồi gọi các quy tắc thuần. `AddBusiness` đăng ký implementation vào DI.
+- Repository nhận policy qua constructor, đọc trạng thái trong transaction rồi gọi policy. Các ranh giới transaction hiện có được giữ nguyên, bao gồm cập nhật lượt thi và đồng bộ trạng thái phiên.
+- Enum hai tầng vẫn giữ hợp đồng cũ; test kiểm tra tên/giá trị và mapping quyết định.
+- Các nơi tự tạo repository trong test phải truyền policy. Không có policy mặc định tại DataAccess.
+- Validation lưu tạm vẫn ở Business, được gọi trong transaction trước khi ghi.
 
-Kiểm chứng: build thành công, 121/121 test đạt (113 test hồi quy và 8 test mới), SQLite riêng. Không thay đổi schema hoặc dữ liệu thật. Các test cũ chưa commit không tương thích API vẫn được giữ nguyên và không thuộc bộ chạy này.
+Không thay đổi schema. Bộ kiểm thử dùng SQLite riêng; chưa kiểm thử khóa dòng/tải đồng thời MySQL.
 
-Sau mục 2 và 3: 139/139 test đạt; bao gồm 14 trường hợp mới cho quy tắc tự chuyển trạng thái và biên thời gian quá hạn. Chưa kiểm thử tải đồng thời trên MySQL.
+Kiểm chứng sau khi chuyển policy về Business: build thành công và 140/140 test đạt qua project test tạm (các test theo dõi bởi Git; không gồm test cũ chưa commit). Có test xác nhận policy chạy trong transaction và lỗi policy rollback cập nhật lượt thi. Chưa kiểm thử lại bằng trình duyệt.

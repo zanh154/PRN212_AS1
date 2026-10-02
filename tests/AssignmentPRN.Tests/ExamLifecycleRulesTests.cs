@@ -1,4 +1,5 @@
-using AssignmentPRN.DataAccess.Enums;
+using AssignmentPRN.Business.Interfaces;
+using AssignmentPRN.Business.BusinessRules;
 using Xunit;
 
 namespace AssignmentPRN.Tests;
