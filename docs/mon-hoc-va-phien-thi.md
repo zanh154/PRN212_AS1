@@ -1,4 +1,4 @@
-# Chức năng 2 — Môn học và phiên thi
+# Môn học và phiên thi
 
 ## Chạy dự án
 
@@ -9,7 +9,7 @@ dotnet run --project src/AssignmentPRN.Presentation
 dotnet test tests/AssignmentPRN.Tests/AssignmentPRN.Tests.csproj
 ```
 
-Cần chạy `database/20260928_add_academic_classes.sql` (bảng lớp học) trên database đang dùng. Unit test chỉ kiểm tra các luật nghiệp vụ thuần, không kết nối database. Dữ liệu để chạy thử cả luồng: `database/seed_test_flow.sql` (xem [báo cáo kiểm thử](bao-cao-kiem-thu.md)).
+Cần hai bảng `academic_classes` và `class_students`; cả hai đã có trong dump ở [`database/dump/`](../database/dump/). Unit test chỉ kiểm tra các luật nghiệp vụ thuần, không kết nối database. Dữ liệu để chạy thử cả luồng: `database/seed_test_flow.sql` (xem [báo cáo kiểm thử](kiem-thu-mon-hoc-va-phien-thi.md)).
 
 ## Môn học
 

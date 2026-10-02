@@ -2,7 +2,7 @@
 
 ## Phân tầng
 
-Quy tắc quyết định trạng thái nằm trong `DataAccess/Enums/ExamLifecycleRules.cs`, thuần logic và không có truy cập database. `Business/OverdueSlotRules` dùng quy tắc chung để tính ca quá hạn. Các repository đọc dữ liệu mới nhất trong transaction, gọi quy tắc này và lưu kết quả; không tự định nghĩa lại điều kiện hoàn thành/vắng thi. Transaction bao quanh cập nhật lượt thi và đồng bộ trạng thái phiên được giữ nguyên.
+Quy tắc quyết định trạng thái nằm trong `DataAccess/Enums/ExamLifecycleRules.cs`, thuần logic và không có truy cập database. `Business/BusinessRules/OverdueSlotRules` dùng quy tắc chung để tính ca quá hạn. Các repository đọc dữ liệu mới nhất trong transaction, gọi quy tắc này và lưu kết quả; không tự định nghĩa lại điều kiện hoàn thành/vắng thi. Transaction bao quanh cập nhật lượt thi và đồng bộ trạng thái phiên được giữ nguyên.
 
 ## Quy tắc
 
@@ -20,7 +20,7 @@ Quy tắc quyết định trạng thái nằm trong `DataAccess/Enums/ExamLifecy
 
 Đây là đồng bộ theo thao tác, không có tác vụ tự chạy theo đồng hồ. Nếu chưa ai vào thi, phiên vẫn Scheduled trừ khi giảng viên bắt đầu thủ công. Nếu mọi người bỏ thi hoặc đóng trang mà không nộp, giảng viên cần chốt ca quá hạn.
 
-Phiên cũ có thể đồng bộ bằng `database/20261002_complete_finished_sessions.sql`. Script chỉ hoàn thành phiên Scheduled/InProgress có ít nhất một lượt thi và toàn bộ lượt đã Completed/Absent/Cancelled; không thay đổi đáp án, điểm hoặc trạng thái sinh viên. Có thể chạy lại an toàn. Không cần thay đổi schema.
+Dữ liệu cũ đã được đồng bộ một lần bằng script chốt phiên: chỉ hoàn thành phiên Scheduled/InProgress có ít nhất một lượt thi và toàn bộ lượt đã Completed/Absent/Cancelled; không thay đổi đáp án, điểm hoặc trạng thái sinh viên. Dump hiện tại đã phản ánh kết quả đó, không cần chạy lại và không cần đổi schema. Script gốc nằm trong lịch sử Git.
 
 ## Kiểm thử 02/10/2026
 

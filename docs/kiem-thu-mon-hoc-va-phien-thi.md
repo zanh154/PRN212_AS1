@@ -1,11 +1,11 @@
-# AIVES — Luồng hệ thống và kiểm thử Chức năng 2
+# AIVES — Luồng hệ thống và kiểm thử Môn học và phiên thi
 
 Ngày kiểm thử: 29/09/2026 · Nhánh: `TriMinhDev` · Kiểm thử bằng cách chạy thật trên web với dữ liệu thử `TFLOW`.
 
 Tài liệu gồm 3 phần:
 
 1. [Hệ thống hoạt động thế nào](#phần-1--hệ-thống-hoạt-động-thế-nào) — ai làm gì, theo thứ tự nào.
-2. [Các thay đổi của Chức năng 2](#phần-2--các-thay-đổi-của-chức-năng-2) — vấn đề, cách sửa, kết quả kiểm tra lại.
+2. [Các thay đổi của Môn học và phiên thi](#phần-2--các-thay-đổi-của-chức-năng-2) — vấn đề, cách sửa, kết quả kiểm tra lại.
 3. [Dữ liệu thử và cách chạy lại](#phần-3--dữ-liệu-thử-và-cách-chạy-lại).
 
 ---
@@ -131,9 +131,9 @@ Phiên mới tạo ở **Đã xếp lịch**. Sinh viên thi được khi phiên
 ---
 
 
-## Phần 2 — Các thay đổi của Chức năng 2
+## Phần 2 — Các thay đổi của Môn học và phiên thi
 
-Nhóm phụ trách **Chức năng 2 — Quản lý kỳ thi & lịch thi**. Đợt này siết lại các luật của luồng lịch thi để giữ đúng hai cam kết của đề bài: *không trùng câu giữa các thí sinh* và *cấu hình được số câu cho mỗi thí sinh*.
+Nhóm phụ trách **Môn học và phiên thi — Quản lý kỳ thi & lịch thi**. Đợt này siết lại các luật của luồng lịch thi để giữ đúng hai cam kết của đề bài: *không trùng câu giữa các thí sinh* và *cấu hình được số câu cho mỗi thí sinh*.
 
 | # | Trước đây | Cách sửa | Kết quả kiểm tra lại |
 |---|---|---|---|

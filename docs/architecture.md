@@ -83,7 +83,13 @@ Mỗi hộp trong sơ đồ tương ứng một thư mục thật; thêm file m�
 | Business | Business rules | `BusinessRules/` | `AssignmentPRN.Business.BusinessRules` |
 | Business | Interfaces | `Interfaces/` | `AssignmentPRN.Business.Interfaces` |
 | DataAccess | Repositories | `Repositories/` | `AssignmentPRN.DataAccess.Repositories` |
-| DataAccess | AivesDbContext | `Data/` | `AssignmentPRN.DataAccess` |
+| DataAccess | AivesDbContext | `Data/` | `AssignmentPRN.DataAccess.Data` |
 | DataAccess | Entity Models | `Entities/` | `AssignmentPRN.DataAccess.Entities` |
 
-Ngoài ba hộp chính, mỗi tầng còn một ô nét đứt "Hạ tầng" liệt kê phần không thuộc nghiệp vụ: `Constants/`, `Filters/`, `Properties/`, `Styles/`, `wwwroot/` (Presentation); `Contracts/`, `Enums/`, `Extensions/`, `Services/`, `Common/` (DataAccess). Business không có thư mục hạ tầng nhưng có hai file nối tầng ở gốc project: `ServiceCollectionExtensions.cs` (đăng ký DI) và `DataAccessMappings.cs` (chuyển DTO giữa hai tầng). Sơ đồ tổng quan vẽ đủ các mục này, nên đọc sơ đồ là thấy hết thư mục thật.
+Ngoài ba hộp chính, mỗi tầng còn một ô nét đứt liệt kê phần không thuộc nghiệp vụ:
+
+- **Presentation — "Hạ tầng · khởi động"**: `Program.cs` (đăng ký DI, middleware) và `appsettings.json` (`ConnectionStrings:DefaultConnection`, `MaterialStorage:RootPath`) ở gốc project; các thư mục `Constants/`, `Filters/`, `Properties/`, `Styles/`, `wwwroot/`.
+- **Business — "Nối tầng"**: không có thư mục hạ tầng, nhưng có hai file ở gốc project là `ServiceCollectionExtensions.cs` (đăng ký DI) và `DataAccessMappings.cs` (chuyển DTO giữa hai tầng).
+- **DataAccess — "Hạ tầng"**: `Contracts/`, `Enums/`, `Extensions/`, `Services/`, `Common/`; riêng `Storage/materials` được vẽ thành hình trụ "File tài liệu" nằm trong tầng.
+
+Sơ đồ tổng quan vẽ đủ các mục này và ghi số lượng từng hộp, nên đọc sơ đồ là thấy hết thư mục thật. Project `tests/AssignmentPRN.Tests` cố ý không vẽ vì không chạy lúc runtime.

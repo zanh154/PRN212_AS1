@@ -1,4 +1,4 @@
-# Module 5 - Bộ câu hỏi (Question bank)
+# Bộ câu hỏi (Question bank)
 
 Trạng thái: **đã code xong, đã nối vào luồng tạo lịch thi, đã có unit test.**
 Ngày cập nhật: 2026-09-29. Đã merge `TriNguyen` vào `QuocAnh_Dev`.
@@ -13,15 +13,9 @@ dotnet build AssignmentPRN.slnx
 dotnet test AssignmentPRN.slnx
 ```
 
-Sau đó chạy đúng **1 script SQL**:
-
-```bash
-mysql -u root -p aives_db < database/20260929_add_question_options.sql
-mysql -u root -p aives_db < database/20260930_add_answer_selected_option.sql
-```
-
-Script an toàn khi chạy lại nhiều lần, không xóa dữ liệu cũ.
-Chi tiết từng thay đổi DB nằm trong comment ngay trong file script.
+Phần này cần bảng `question_options` và cột `answers.selected_option_id`. Cả hai đã nằm
+sẵn trong dump ở [`database/dump/`](../database/dump/) — import dump là đủ, xem
+[database/README.md](../database/README.md).
 
 > **Chưa chạy script thì thêm câu hỏi sẽ báo "Không thể lưu câu hỏi."**
 > Đó là thông báo dự phòng của `ServiceExecutor` khi có lỗi ngoài dự kiến; lỗi thật
@@ -183,7 +177,7 @@ Phát đề cho lượt thi nằm trong `ExamSessionsController`:
 > Giới hạn thật cần biết: **trình duyệt không cho phép khoá cứng**. Sinh viên vẫn có thể
 > đóng tab, gõ URL khác hay tắt máy — chỉ nhận được hộp thoại cảnh báo của trình duyệt.
 > Muốn chặn thật thì phải giám sát phía server (ghi nhận rời phòng thi) hoặc dùng chế độ
-> khoá của hệ điều hành, cả hai đều nằm ngoài Module 5.
+> khoá của hệ điều hành, cả hai đều nằm ngoài Bộ câu hỏi.
 
 > Nếu sinh viên đóng trình duyệt và không quay lại, lượt thi nằm mãi ở `InProgress` vì
 > không có gì chạy nền để chốt. Giảng viên xử lý tay trong màn hình phiên thi.
@@ -192,7 +186,8 @@ Hai điều được bảo đảm bằng cấu trúc chứ không nhờ nhớ ki
 
 - Kiểu `ExamRoomQuestion` / `ExamRoomOption` mà sinh viên nhận **không có trường đánh dấu
   đáp án đúng**, nên đáp án không thể lọt ra theo đường này.
-- Mỗi đáp án gửi lên phải là phương án **của đúng câu hỏi đó** (`ListAllowedOptionsAsync`),
+- Mỗi đáp án gửi lên phải là phương án **của đúng câu hỏi đó**: `ExamDraftValidation.Validate`
+  đối chiếu với `ExamDraftQuestion.OptionIds` trong ảnh chụp đọc được ngay trong transaction,
   nên sửa HTML để gán đáp án của câu khác sẽ bị từ chối và không ghi gì cả.
 
 ### Giảng viên phát trước (tuỳ chọn)
@@ -242,10 +237,10 @@ Vào màn hình này từ: `Lịch thi → chi tiết phiên thi → thẻ "Ngâ
 
 ## 7. Ghi chú cho người tiếp tục
 
-- Module 6 chưa động tới: DB có `questions.question_type = 'FollowUp'` nhưng chưa có
+- Câu hỏi đào sâu và kết quả chưa động tới: DB có `questions.question_type = 'FollowUp'` nhưng chưa có
   `parent_question_id`; bảng `follow_up_questions` đang liên kết qua `answers`. Cần thống
   nhất lại khi làm phần câu hỏi nối tiếp.
 - `course_materials.processing_status` và `questions.expected_answer` được giữ lại dù
-  Module 5 chưa dùng tới, để khớp schema đã bàn giao.
+  Bộ câu hỏi chưa dùng tới, để khớp schema đã bàn giao.
 - Cột `is_correct` không có ràng buộc "đúng 1 dòng" ở tầng database. Quy tắc này nằm ở
   service và viewmodel; nếu sau này có ai ghi thẳng bằng SQL thì phải tự giữ.

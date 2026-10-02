@@ -1,4 +1,4 @@
-# Dữ liệu mẫu cho Module 5
+# Dữ liệu mẫu cho Bộ câu hỏi
 
 Hai tệp này dùng để chạy thử ngân hàng câu hỏi mà không cần tự soạn dữ liệu.
 
@@ -9,9 +9,9 @@ Hai tệp này dùng để chạy thử ngân hàng câu hỏi mà không cần 
 
 ## Trước khi bắt đầu
 
-Phải chạy `database/20260929_add_question_options.sql` một lần trên database đang dùng.
-Chưa chạy thì cả thêm câu hỏi lẫn nhập CSV đều báo "Không thể lưu câu hỏi." vì bảng
-`question_options` chưa tồn tại.
+Cần bảng `question_options` trong database đang dùng — đã có sẵn trong dump ở
+`database/dump/`. Thiếu bảng này thì cả thêm câu hỏi lẫn nhập CSV đều báo
+"Không thể lưu câu hỏi."
 
 ## Thứ tự chạy
 

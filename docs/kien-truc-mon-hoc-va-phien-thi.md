@@ -1,4 +1,4 @@
-# Kiến trúc 3 tầng — Chức năng 2
+# Kiến trúc 3 tầng — Môn học và phiên thi
 
 Phạm vi: quản lý môn học, phiên thi và lịch thi trong AIVES.
 
@@ -93,4 +93,4 @@ sequenceDiagram
 
 MVC tổ chức phần web thành Model, View và Controller; kiến trúc ba tầng phân chia trách nhiệm toàn hệ thống. Dự án kết hợp cả hai. Business tham chiếu DataAccess, nên sơ đồ mô tả kiến trúc ba tầng hiện tại.
 
-Phát đề, phòng thi, chọn câu đào sâu và chấm điểm thuộc các module phối hợp. Chức năng 2 cấu hình số câu và kiểm tra nguồn câu chính khi quản lý phiên thi.
+Phát đề, phòng thi, chọn câu đào sâu và chấm điểm thuộc các module phối hợp. Môn học và phiên thi cấu hình số câu và kiểm tra nguồn câu chính khi quản lý phiên thi.
