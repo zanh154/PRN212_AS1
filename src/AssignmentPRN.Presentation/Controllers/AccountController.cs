@@ -1,6 +1,6 @@
 using AssignmentPRN.Business;
 using AssignmentPRN.Business.Interfaces;
-using AssignmentPRN.Business.BusinessRules;
+using AssignmentPRN.Business.Policies;
 using AssignmentPRN.Presentation.Constants;
 using AssignmentPRN.Presentation.ViewModels;
 using Microsoft.AspNetCore.Mvc;

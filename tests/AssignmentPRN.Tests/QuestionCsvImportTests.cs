@@ -1,7 +1,7 @@
 using AssignmentPRN.Business;
 using AssignmentPRN.Business.Services;
 using AssignmentPRN.Business.Interfaces;
-using AssignmentPRN.Business.BusinessRules;
+using AssignmentPRN.Business.Policies;
 
 namespace AssignmentPRN.Tests;
 
@@ -9,7 +9,7 @@ namespace AssignmentPRN.Tests;
 /// The bulk-import parser. The rule under test throughout: a bad line is reported with
 /// its line number and skipped, while every good line of the same file still comes through.
 /// </summary>
-public class QuestionCsvReaderTests
+public class QuestionCsvImportTests
 {
     private const string Header =
         "question_text;difficulty;bloom;material;expected_answer;option_a;option_b;option_c;option_d;correct";
@@ -21,7 +21,7 @@ public class QuestionCsvReaderTests
     };
 
     private static IReadOnlyList<QuestionImportRow> Parse(string body, out IReadOnlyList<string> errors) =>
-        QuestionCsvReader.Parse(Header + "\n" + body, Materials, out errors);
+        QuestionService.ParseCsv(Header + "\n" + body, Materials, out errors);
 
     [Fact]
     public void Parses_a_well_formed_row()
@@ -107,7 +107,7 @@ public class QuestionCsvReaderTests
         var content = "question_text,difficulty,bloom,material,expected_answer,option_a,option_b,correct\n"
             + "Câu hỏi,Hard,Analyze,demo.pdf,,A,B,B";
 
-        var rows = QuestionCsvReader.Parse(content, Materials, out var errors);
+        var rows = QuestionService.ParseCsv(content, Materials, out var errors);
 
         Assert.Empty(errors);
         var row = Assert.Single(rows);
@@ -127,14 +127,14 @@ public class QuestionCsvReaderTests
     [Fact]
     public void Material_names_match_regardless_of_case()
     {
-        Assert.Equal(9, QuestionCsvReader.ResolveMaterialId("CHUONG-1.DOCX", Materials));
-        Assert.Null(QuestionCsvReader.ResolveMaterialId("   ", Materials));
+        Assert.Equal(9, QuestionService.ResolveCsvMaterialId("CHUONG-1.DOCX", Materials));
+        Assert.Null(QuestionService.ResolveCsvMaterialId("   ", Materials));
     }
 
     [Fact]
     public void An_empty_file_is_reported_instead_of_throwing()
     {
-        var rows = QuestionCsvReader.Parse(string.Empty, Materials, out var errors);
+        var rows = QuestionService.ParseCsv(string.Empty, Materials, out var errors);
 
         Assert.Empty(rows);
         Assert.Single(errors);
@@ -143,7 +143,7 @@ public class QuestionCsvReaderTests
     [Fact]
     public void A_file_without_the_question_column_is_rejected()
     {
-        var rows = QuestionCsvReader.Parse("a;b;c\n1;2;3", Materials, out var errors);
+        var rows = QuestionService.ParseCsv("a;b;c\n1;2;3", Materials, out var errors);
 
         Assert.Empty(rows);
         Assert.Contains("question_text", Assert.Single(errors));
@@ -152,7 +152,7 @@ public class QuestionCsvReaderTests
     [Fact]
     public void A_file_with_fewer_than_two_option_columns_is_rejected()
     {
-        var rows = QuestionCsvReader.Parse(
+        var rows = QuestionService.ParseCsv(
             "question_text;option_a;correct\nCâu hỏi;A;A", Materials, out var errors);
 
         Assert.Empty(rows);

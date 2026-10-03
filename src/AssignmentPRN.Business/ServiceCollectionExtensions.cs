@@ -14,7 +14,7 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddSingleton<AssignmentPRN.DataAccess.Contracts.IExamStatePolicy, AssignmentPRN.Business.BusinessRules.ExamStatePolicy>();
+        services.AddSingleton<AssignmentPRN.DataAccess.Contracts.IExamStatePolicy, AssignmentPRN.Business.Policies.ExamStatePolicy>();
         services.AddDataAccess(connectionString, storageRootPath);
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IExamSessionService, ExamSessionService>();

@@ -1,5 +1,5 @@
 using AssignmentPRN.Business.Interfaces;
-namespace AssignmentPRN.Business.BusinessRules;
+namespace AssignmentPRN.Business.Policies;
 
 /// <summary>Pure decisions about session progress and overdue candidates; no persistence.</summary>
 public static class ExamLifecycleRules

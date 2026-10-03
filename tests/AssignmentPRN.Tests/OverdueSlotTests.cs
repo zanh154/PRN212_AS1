@@ -1,17 +1,17 @@
 using AssignmentPRN.Business;
 using AssignmentPRN.Business.Services;
 using AssignmentPRN.Business.Interfaces;
-using AssignmentPRN.Business.BusinessRules;
+using AssignmentPRN.Business.Policies;
 
 namespace AssignmentPRN.Tests;
 
-public class OverdueSlotRulesTests
+public class OverdueSlotTests
 {
     private static readonly DateTime Start = new(2026, 10, 1, 8, 0, 0);
     private const int Minutes = 30;
 
     private static IReadOnlyDictionary<int, CandidateStatus> Close(DateTime now, params SlotState[] slots) =>
-        OverdueSlotRules.Close(slots, Minutes, now);
+        ExamResultService.CloseOverdueSlots(slots, Minutes, now);
 
     [Fact]
     public void A_no_show_is_marked_absent_once_the_slot_is_over()

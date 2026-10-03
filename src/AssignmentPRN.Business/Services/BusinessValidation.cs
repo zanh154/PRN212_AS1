@@ -1,7 +1,7 @@
 using AssignmentPRN.Business.Interfaces;
 using AssignmentPRN.DataAccess.Common;
 
-namespace AssignmentPRN.Business.BusinessRules;
+namespace AssignmentPRN.Business.Services;
 
 /// <summary>
 /// Input checks shared by the services. Every failure is a

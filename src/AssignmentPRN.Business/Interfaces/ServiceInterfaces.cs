@@ -154,6 +154,20 @@ public interface IQuestionService
     /// </summary>
     Task<ServiceResponse> ArchiveAsync(int questionId, int? lecturerId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Reads an import file and creates its questions. Reading the file and writing the rows
+    /// are one operation here, so a caller never has to know the CSV layout; a line that
+    /// cannot be read is reported alongside the rows that were rejected on save.
+    /// </summary>
+    /// <param name="materialIdsByFileName">Course materials the file may refer to, by stored file name.</param>
+    Task<ServiceResponse<QuestionImportResult>> ImportCsvAsync(
+        int courseId,
+        string csvContent,
+        IReadOnlyDictionary<string, int> materialIdsByFileName,
+        int lecturerId,
+        int? ownerLecturerId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Bulk-creates questions from rows produced by the CSV import.</summary>
     Task<ServiceResponse<QuestionImportResult>> ImportAsync(
         int courseId,

@@ -1,7 +1,7 @@
 using AssignmentPRN.DataAccess.Contracts;
 using Data = AssignmentPRN.DataAccess.Enums;
 using Biz = AssignmentPRN.Business.Interfaces;
-namespace AssignmentPRN.Business.BusinessRules;
+namespace AssignmentPRN.Business.Policies;
 /// <summary>Maps persistence state to business rules without accessing the database.</summary>
 public sealed class ExamStatePolicy : IExamStatePolicy
 {

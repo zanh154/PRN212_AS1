@@ -1,6 +1,6 @@
 using AssignmentPRN.Business;
 using AssignmentPRN.Business.Interfaces;
-using AssignmentPRN.Business.BusinessRules;
+using AssignmentPRN.Business.Policies;
 
 var builder = WebApplication.CreateBuilder(args);
 

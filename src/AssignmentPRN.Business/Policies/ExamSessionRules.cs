@@ -1,5 +1,5 @@
 using AssignmentPRN.Business.Interfaces;
-namespace AssignmentPRN.Business.BusinessRules;
+namespace AssignmentPRN.Business.Policies;
 public static class ExamSessionRules
 {
     public static bool CanEdit(ExamSessionStatus status) => status is ExamSessionStatus.Draft or ExamSessionStatus.Scheduled;
@@ -53,9 +53,4 @@ public static class ExamSessionRules
     /// </summary>
     public static bool CanSubmit(DateTime now, DateTime scheduledTime, DateTime endTime) =>
         now >= scheduledTime && now <= endTime + SubmitGrace;
-}
-
-public static class QuestionRules
-{
-    public static bool IsSelectable(QuestionStatus status) => status == QuestionStatus.Approved;
 }

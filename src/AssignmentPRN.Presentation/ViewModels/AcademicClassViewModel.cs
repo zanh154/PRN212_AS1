@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using AssignmentPRN.Business;
 using AssignmentPRN.Business.Interfaces;
-using AssignmentPRN.Business.BusinessRules;
+using AssignmentPRN.Business.Policies;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace AssignmentPRN.Presentation.ViewModels;
